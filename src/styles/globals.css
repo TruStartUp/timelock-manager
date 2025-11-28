@@ -2,9 +2,18 @@
 
 /* Custom theme configuration */
 @theme {
-  --color-primary: #FFD700;
-  --color-background-light: #000000;
-  --color-background-dark: #000000;
+  --color-primary: #f99006;
+  --color-background-light: #f8f7f5;
+  --color-background-dark: #181511;
+  --color-surface-dark: #231a0f;
+  --color-border-dark: #3a3227;
+  --color-text-dark-primary: #ffffff;
+  --color-text-dark-secondary: #bbad9b;
+  --color-status-pending: #facc15;
+  --color-status-ready: #4ade80;
+  --color-status-executed: #94a3b8;
+  --color-status-canceled: #f87171;
+
   --color-success: #00B500;
   --color-text-primary: #E0E0E0;
   --color-text-secondary: #A0A0A0;

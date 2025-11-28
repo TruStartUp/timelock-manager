@@ -1,3 +1,4 @@
+import Head from 'next/head';
 import '../styles/globals.css';
 import '@rainbow-me/rainbowkit/styles.css';
 import type { AppProps } from 'next/app';
@@ -20,6 +21,9 @@ const client = new QueryClient();
 function MyApp({ Component, pageProps }: AppProps) {
   return (
     <div className={inter.className}>
+      <Head>
+        <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
+      </Head>
       <WagmiProvider config={config}>
         <QueryClientProvider client={client}>
           <RainbowKitProvider>

@@ -89,30 +89,30 @@ const OperationsExplorerView: React.FC = () => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Ready':
-        return 'bg-success';
+        return 'bg-status-ready';
       case 'Pending':
-        return 'bg-yellow-400';
+        return 'bg-status-pending';
       case 'Executed':
-        return 'bg-slate-400';
+        return 'bg-status-executed';
       case 'Canceled':
-        return 'bg-red-400';
+        return 'bg-status-canceled';
       default:
-        return 'bg-gray-400';
+        return 'bg-border-dark';
     }
   };
 
   const getStatusTextColor = (status: string) => {
     switch (status) {
       case 'Ready':
-        return 'text-success';
+        return 'text-status-ready';
       case 'Pending':
-        return 'text-yellow-400';
+        return 'text-status-pending';
       case 'Executed':
-        return 'text-slate-400';
+        return 'text-status-executed';
       case 'Canceled':
-        return 'text-red-400';
+        return 'text-status-canceled';
       default:
-        return 'text-gray-400';
+        return 'text-text-dark-secondary';
     }
   };
 
@@ -138,8 +138,8 @@ const OperationsExplorerView: React.FC = () => {
   return (
     <>
       {/* Top Navigation Bar */}
-      <header className="flex items-center justify-between whitespace-nowrap border-b border-solid border-border-color px-6 py-4 mb-4">
-        <div className="flex items-center gap-4 text-text-primary">
+      <header className="flex items-center justify-between whitespace-nowrap border-b border-solid border-border-dark px-6 py-4 mb-4">
+        <div className="flex items-center gap-4 text-text-dark-primary">
           <div className="size-6 text-primary">
             <svg fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
               <path
@@ -150,11 +150,11 @@ const OperationsExplorerView: React.FC = () => {
               ></path>
             </svg>
           </div>
-          <h1 className="text-text-primary text-lg font-bold leading-tight tracking-[-0.015em]">
+          <h1 className="text-text-dark-primary text-lg font-bold leading-tight tracking-[-0.015em]">
             Timelock Management
           </h1>
         </div>
-        <button className="flex min-w-[84px] cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-full h-10 px-4 bg-primary text-background text-sm font-bold leading-normal tracking-[0.015em] hover:opacity-90 transition-opacity">
+        <button className="flex min-w-[84px] cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-full h-10 px-4 bg-primary text-background-dark text-sm font-bold leading-normal tracking-[0.015em] hover:opacity-90 transition-opacity">
           <span className="material-symbols-outlined !text-xl">add</span>
           <span className="truncate">Schedule Operation</span>
         </button>
@@ -163,24 +163,23 @@ const OperationsExplorerView: React.FC = () => {
       <main className="flex flex-col gap-4 p-4 md:p-6">
         {/* Page Heading */}
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <h2 className="text-text-primary text-4xl font-black leading-tight tracking-[-0.033em]">
+          <h2 className="text-text-dark-primary text-4xl font-black leading-tight tracking-[-0.033em]">
             Timelock Operations
           </h2>
         </div>
 
         {/* Toolbar / Filters */}
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between rounded-lg bg-surface p-3">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between rounded-lg bg-surface-dark p-3">
           {/* Filter Chips */}
           <div className="flex flex-wrap gap-2">
             {(['All', 'Pending', 'Ready', 'Executed', 'Canceled'] as OperationStatus[]).map(
               (filter) => (
                 <button
                   key={filter}
-                  className={`flex h-9 shrink-0 items-center justify-center gap-x-2 rounded-full px-4 text-sm font-medium leading-normal transition-colors ${
-                    selectedFilter === filter
-                      ? 'bg-primary text-background'
-                      : 'bg-border-color text-text-primary hover:bg-white/10'
-                  }`}
+                  className={`flex h-9 shrink-0 items-center justify-center gap-x-2 rounded-full px-4 text-sm font-medium leading-normal transition-colors ${selectedFilter === filter
+                      ? 'bg-primary text-background-dark'
+                      : 'bg-border-dark text-text-dark-primary hover:bg-white/10'
+                    }`}
                   onClick={() => setSelectedFilter(filter)}
                 >
                   {filter}
@@ -194,11 +193,11 @@ const OperationsExplorerView: React.FC = () => {
             <div className="flex-grow">
               <label className="flex flex-col min-w-40 h-11 w-full">
                 <div className="flex w-full flex-1 items-stretch rounded-lg h-full">
-                  <div className="text-text-secondary flex items-center justify-center rounded-l-lg border-r-0 border-none bg-border-color pl-3">
+                  <div className="text-text-dark-secondary flex items-center justify-center rounded-l-lg border-r-0 border-none bg-border-dark pl-3">
                     <span className="material-symbols-outlined">search</span>
                   </div>
                   <input
-                    className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-r-lg border-l-0 border-none bg-border-color text-base font-normal leading-normal text-text-primary placeholder:text-text-secondary focus:outline-0 focus:ring-0 h-full px-3"
+                    className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-r-lg border-l-0 border-none bg-border-dark text-base font-normal leading-normal text-text-dark-primary placeholder:text-text-dark-secondary focus:outline-0 focus:ring-0 h-full px-3"
                     placeholder="Search by ID, proposer..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
@@ -206,16 +205,16 @@ const OperationsExplorerView: React.FC = () => {
                 </div>
               </label>
             </div>
-            <button className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-border-color text-text-secondary hover:bg-white/10 transition-colors">
+            <button className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-border-dark text-text-dark-secondary hover:bg-white/10 transition-colors">
               <span className="material-symbols-outlined">filter_list</span>
             </button>
           </div>
         </div>
 
         {/* Operations Table */}
-        <div className="w-full overflow-x-auto rounded-lg bg-surface">
+        <div className="w-full overflow-x-auto rounded-lg bg-surface-dark">
           <table className="w-full min-w-[1024px] text-left text-sm">
-            <thead className="border-b border-border-color text-xs uppercase text-text-secondary">
+            <thead className="border-b border-border-dark text-xs uppercase text-text-dark-secondary">
               <tr>
                 <th className="px-6 py-4" scope="col">
                   <div className="flex items-center gap-1 cursor-pointer">
@@ -253,14 +252,13 @@ const OperationsExplorerView: React.FC = () => {
                 <React.Fragment key={operation.id}>
                   {/* Main Row */}
                   <tr
-                    className={`border-b border-border-color transition-colors cursor-pointer ${
-                      expandedRowId === operation.id
+                    className={`border-b border-border-dark transition-colors cursor-pointer ${expandedRowId === operation.id
                         ? 'bg-primary/10 hover:bg-primary/20'
                         : 'hover:bg-white/5'
-                    }`}
+                      }`}
                     onClick={() => handleRowClick(operation.id)}
                   >
-                    <td className="px-6 py-4 font-mono text-text-primary">{operation.id}</td>
+                    <td className="px-6 py-4 font-mono text-text-dark-primary">{operation.id}</td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
                         <div className={`h-2.5 w-2.5 rounded-full ${getStatusColor(operation.status)}`}></div>
@@ -269,31 +267,31 @@ const OperationsExplorerView: React.FC = () => {
                         </span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-center font-medium text-text-primary">
+                    <td className="px-6 py-4 text-center font-medium text-text-dark-primary">
                       {operation.calls}
                     </td>
-                    <td className="px-6 py-4 font-mono text-text-secondary">
+                    <td className="px-6 py-4 font-mono text-text-dark-secondary">
                       {formatTargets(operation.targets)}
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-col">
-                        <span className="font-medium text-text-primary">{operation.eta.relative}</span>
-                        <span className="text-xs text-text-secondary">{operation.eta.absolute}</span>
+                        <span className="font-medium text-text-dark-primary">{operation.eta.relative}</span>
+                        <span className="text-xs text-text-dark-secondary">{operation.eta.absolute}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 font-mono text-text-secondary">{operation.proposer}</td>
+                    <td className="px-6 py-4 font-mono text-text-dark-secondary">{operation.proposer}</td>
                     <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
                       <div className="flex justify-end gap-2">
                         {operation.status === 'Ready' && (
                           <>
                             <button
-                              className="flex items-center justify-center rounded-md h-9 px-3 bg-success/20 text-success text-xs font-bold hover:bg-success/30 transition-colors"
+                              className="flex items-center justify-center rounded-md h-9 px-3 bg-status-ready/20 text-status-ready text-xs font-bold hover:bg-status-ready/30 transition-colors"
                               onClick={() => handleExecute(operation.id)}
                             >
                               EXECUTE
                             </button>
                             <button
-                              className="flex items-center justify-center rounded-md h-9 px-3 bg-red-400/20 text-red-400 text-xs font-bold hover:bg-red-400/30 transition-colors"
+                              className="flex items-center justify-center rounded-md h-9 px-3 bg-status-canceled/20 text-status-canceled text-xs font-bold hover:bg-status-canceled/30 transition-colors"
                               onClick={() => handleCancel(operation.id)}
                             >
                               CANCEL
@@ -302,7 +300,7 @@ const OperationsExplorerView: React.FC = () => {
                         )}
                         {operation.status === 'Pending' && (
                           <button
-                            className="flex items-center justify-center rounded-md h-9 px-3 bg-red-400/20 text-red-400 text-xs font-bold hover:bg-red-400/30 transition-colors"
+                            className="flex items-center justify-center rounded-md h-9 px-3 bg-status-canceled/20 text-status-canceled text-xs font-bold hover:bg-status-canceled/30 transition-colors"
                             onClick={() => handleCancel(operation.id)}
                           >
                             CANCEL
@@ -316,38 +314,38 @@ const OperationsExplorerView: React.FC = () => {
                   {expandedRowId === operation.id && operation.details && (
                     <tr className="bg-primary/5">
                       <td className="p-0" colSpan={7}>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-6 border-b border-border-color">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-6 border-b border-border-dark">
                           <div>
-                            <h4 className="text-xs font-bold uppercase text-text-secondary mb-2">
+                            <h4 className="text-xs font-bold uppercase text-text-dark-secondary mb-2">
                               Operation Details
                             </h4>
                             <div className="flex flex-col gap-1 text-sm font-mono">
                               <p>
-                                <span className="text-text-secondary">ID:</span>{' '}
-                                <span className="text-text-primary">{operation.details.fullId}</span>
+                                <span className="text-text-dark-secondary">ID:</span>{' '}
+                                <span className="text-text-dark-primary">{operation.details.fullId}</span>
                               </p>
                               <p>
-                                <span className="text-text-secondary">Proposer:</span>{' '}
-                                <span className="text-text-primary">{operation.details.fullProposer}</span>
+                                <span className="text-text-dark-secondary">Proposer:</span>{' '}
+                                <span className="text-text-dark-primary">{operation.details.fullProposer}</span>
                               </p>
                               <p>
-                                <span className="text-text-secondary">Scheduled:</span>{' '}
-                                <span className="text-text-primary">{operation.details.scheduled}</span>
+                                <span className="text-text-dark-secondary">Scheduled:</span>{' '}
+                                <span className="text-text-dark-primary">{operation.details.scheduled}</span>
                               </p>
                             </div>
                           </div>
                           <div className="md:col-span-2">
-                            <h4 className="text-xs font-bold uppercase text-text-secondary mb-2">
+                            <h4 className="text-xs font-bold uppercase text-text-dark-secondary mb-2">
                               Calls ({operation.details.callsDetails.length})
                             </h4>
-                            <div className="flex flex-col gap-2 text-sm font-mono bg-background p-3 rounded-md">
+                            <div className="flex flex-col gap-2 text-sm font-mono bg-background-dark p-3 rounded-md">
                               {operation.details.callsDetails.map((call, index) => (
                                 <p key={index}>
                                   <span className="text-primary">{index + 1}.</span>{' '}
-                                  <span className="text-text-secondary">Target:</span>{' '}
-                                  <span className="text-text-primary">{call.target}</span>{' '}
-                                  <span className="text-text-secondary">Value:</span>{' '}
-                                  <span className="text-text-primary">{call.value}</span>
+                                  <span className="text-text-dark-secondary">Target:</span>{' '}
+                                  <span className="text-text-dark-primary">{call.target}</span>{' '}
+                                  <span className="text-text-dark-secondary">Value:</span>{' '}
+                                  <span className="text-text-dark-primary">{call.value}</span>
                                 </p>
                               ))}
                             </div>
