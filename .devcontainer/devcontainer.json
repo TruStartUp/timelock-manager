@@ -36,7 +36,8 @@
 				"usernamehw.errorlens",
 				"formulahendry.auto-rename-tag",
 				"dsznajder.es7-react-js-snippets",
-				"anthropic.claude-code"
+				"anthropic.claude-code",
+				"google.geminicodeassist"
 			]
 		}
 	},

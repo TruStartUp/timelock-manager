@@ -4,15 +4,15 @@ This file outlines the implementation tasks for the Rootstock Timelock Managemen
 
 ## Phase 1: Project Setup
 
-- [ ] T001 Initialize Next.js project with TypeScript and Tailwind CSS
-- [ ] T002 Create project structure in `src/` as per `plan.md` (app, components, lib, hooks, services, types, styles)
-- [ ] T003 Install primary dependencies: `wagmi`, `viem`, `react-query`, `@tanstack/react-query`, `@rainbow-me/rainbowkit`
-- [ ] T004 Install development dependencies: `vitest`, `@testing-library/react`, `@testing-library/jest-dom`, `eslint`, `prettier`
-- [ ] T005 Configure ESLint and Prettier for the project in `.eslintrc.json` and `.prettierrc`
-- [ ] T006 Create `.env.example` with all required environment variables from `quickstart.md`
-- [ ] T007 Configure `tsconfig.json` for strict mode and path aliases (`@/*`)
-- [ ] T008 Configure `tailwind.config.ts` with Rootstock brand colors and "Editor Mode" theme from `spec.md`
-- [ ] T009 Create `tests/setup.ts` and `vitest.config.ts` for Vitest environment
+- [x] T001 Initialize Next.js project with TypeScript and Tailwind CSS
+- [x] T002 Create project structure in `src/` as per `plan.md` (app, components, lib, hooks, services, types, styles)
+- [x] T003 Install primary dependencies: `wagmi`, `viem`, `react-query`, `@tanstack/react-query`, `@rainbow-me/rainbowkit`
+- [x] T004 Install development dependencies: `vitest`, `@testing-library/react`, `@testing-library/jest-dom`, `eslint`, `prettier`
+- [x] T005 Configure ESLint and Prettier for the project in `.eslintrc.json` and `.prettierrc`
+- [x] T006 Create `.env.example` with all required environment variables from `quickstart.md`
+- [x] T007 Configure `tsconfig.json` for strict mode and path aliases (`@/*`)
+- [x] T008 Configure `tailwind.config.ts` with Rootstock brand colors and "Editor Mode" theme from `spec.md`
+- [x] T009 Create `tests/setup.ts` and `vitest.config.ts` for Vitest environment
 
 ## Phase 2: Foundational Layer
 
