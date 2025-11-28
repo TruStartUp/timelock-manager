@@ -31,10 +31,10 @@ This phase involves converting each static HTML design into a functional React p
 - [x] T012 [P] [US1] Connect the `DecoderView` component to relevant data hooks and services.
 
 ### New Proposal View
-- [ ] T013 [P] [US1] Create the page file for the New Proposal view at `src/pages/new_proposal.tsx`.
-- [ ] T014 [P] [US1] Implement the main `NewProposalView` component in `src/components/new_proposal/NewProposalView.tsx` based on `ui-design-files/new_proposal/code.html`.
-- [ ] T015 [P] [US1] Write unit tests for the `NewProposalView` component in `tests/components/new_proposal/NewProposalView.test.tsx`.
-- [ ] T016 [P] [US1] Connect the `NewProposalView` component to relevant data hooks and services.
+- [x] T013 [P] [US1] Create the page file for the New Proposal view at `src/pages/new_proposal.tsx`.
+- [x] T014 [P] [US1] Implement the main `NewProposalView` component in `src/components/new_proposal/NewProposalView.tsx` based on `ui-design-files/new_proposal/code.html`.
+- [x] T015 [P] [US1] Write unit tests for the `NewProposalView` component in `tests/components/new_proposal/NewProposalView.test.tsx`.
+- [x] T016 [P] [US1] Connect the `NewProposalView` component to relevant data hooks and services.
 
 ### Operations Explorer View
 - [ ] T017 [P] [US1] Create the page file for the Operations Explorer view at `src/pages/operations_explorer.tsx`.
