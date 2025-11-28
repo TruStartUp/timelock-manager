@@ -25,10 +25,10 @@ This phase involves converting each static HTML design into a functional React p
 - [x] T008 [P] [US1] Connect the `DashboardView` component to relevant data hooks and services.
 
 ### Decoder View
-- [ ] T009 [P] [US1] Create the page file for the Decoder view at `src/pages/decoder.tsx`.
-- [ ] T010 [P] [US1] Implement the main `DecoderView` component in `src/components/decoder/DecoderView.tsx` based on `ui-design-files/decoder/code.html`.
-- [ ] T011 [P] [US1] Write unit tests for the `DecoderView` component in `tests/components/decoder/DecoderView.test.tsx`.
-- [ ] T012 [P] [US1] Connect the `DecoderView` component to relevant data hooks and services.
+- [x] T009 [P] [US1] Create the page file for the Decoder view at `src/pages/decoder.tsx`.
+- [x] T010 [P] [US1] Implement the main `DecoderView` component in `src/components/decoder/DecoderView.tsx` based on `ui-design-files/decoder/code.html`.
+- [x] T011 [P] [US1] Write unit tests for the `DecoderView` component in `tests/components/decoder/DecoderView.test.tsx`.
+- [x] T012 [P] [US1] Connect the `DecoderView` component to relevant data hooks and services.
 
 ### New Proposal View
 - [ ] T013 [P] [US1] Create the page file for the New Proposal view at `src/pages/new_proposal.tsx`.
