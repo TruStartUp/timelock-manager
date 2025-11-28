@@ -37,10 +37,10 @@ This phase involves converting each static HTML design into a functional React p
 - [x] T016 [P] [US1] Connect the `NewProposalView` component to relevant data hooks and services.
 
 ### Operations Explorer View
-- [ ] T017 [P] [US1] Create the page file for the Operations Explorer view at `src/pages/operations_explorer.tsx`.
-- [ ] T018 [P] [US1] Implement the main `OperationsExplorerView` component in `src/components/operations_explorer/OperationsExplorerView.tsx` based on `ui-design-files/operations_explorer/code.html`.
-- [ ] T019 [P] [US1] Write unit tests for the `OperationsExplorerView` component in `tests/components/operations_explorer/OperationsExplorerView.test.tsx`.
-- [ ] T020 [P] [US1] Connect the `OperationsExplorerView` component to relevant data hooks and services.
+- [x] T017 [P] [US1] Create the page file for the Operations Explorer view at `src/pages/operations_explorer.tsx`.
+- [x] T018 [P] [US1] Implement the main `OperationsExplorerView` component in `src/components/operations_explorer/OperationsExplorerView.tsx` based on `ui-design-files/operations_explorer/code.html`.
+- [x] T019 [P] [US1] Write unit tests for the `OperationsExplorerView` component in `tests/components/operations_explorer/OperationsExplorerView.test.tsx`.
+- [x] T020 [P] [US1] Connect the `OperationsExplorerView` component to relevant data hooks and services.
 
 ### Permissions View
 - [ ] T021 [P] [US1] Create the page file for the Permissions view at `src/pages/permissions.tsx`.
