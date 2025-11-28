@@ -1,9 +1,52 @@
+@import "tailwindcss";
+
+/* Custom theme configuration */
+@theme {
+  --color-primary: #FFD700;
+  --color-background-light: #000000;
+  --color-background-dark: #000000;
+  --color-success: #00B500;
+  --color-text-primary: #E0E0E0;
+  --color-text-secondary: #A0A0A0;
+  --color-border-color: #333333;
+  --color-surface: #121212;
+  --color-rootstock-orange: #FF9100;
+  --color-rootstock-black: #000000;
+  --color-rootstock-off-white: #FAF9F5;
+  --color-rootstock-pink: #FF71E1;
+  --color-rootstock-green: #79C600;
+  --color-rootstock-purple: #9E76FF;
+  --color-rootstock-cyan: #08FFD0;
+  --color-rootstock-lime: #DEFF1A;
+
+  /* Font families */
+  --font-family-display: var(--font-inter), ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
+
+/* Custom component classes */
+@layer components {
+  .layout-container {
+    @apply flex h-full grow flex-col;
+  }
+
+  .layout-content-container {
+    @apply flex flex-col flex-1 gap-8;
+  }
+
+  .form-select {
+    @apply flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded text-text-primary focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-border-color bg-surface h-12 placeholder:text-text-secondary px-4 text-base font-normal leading-normal appearance-none bg-no-repeat bg-right;
+  }
+}
+
 html,
 body {
   padding: 0;
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
-    Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
+}
+
+body {
+  background-color: #000000;
+  color: #E0E0E0;
 }
 
 a {

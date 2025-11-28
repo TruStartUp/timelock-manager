@@ -19,10 +19,10 @@ This document breaks down the work required to implement the "Integrate UI Desig
 This phase involves converting each static HTML design into a functional React page. The tasks for each page/view can be executed in parallel.
 
 ### Dashboard View
-- [ ] T005 [P] [US1] Create the page file for the Dashboard view at `src/pages/dashboard.tsx`.
-- [ ] T006 [P] [US1] Implement the main `DashboardView` component in `src/components/dashboard/DashboardView.tsx` based on `ui-design-files/dashboard/code.html`.
-- [ ] T007 [P] [US1] Write unit tests for the `DashboardView` component in `tests/components/dashboard/DashboardView.test.tsx`.
-- [ ] T008 [P] [US1] Connect the `DashboardView` component to relevant data hooks and services.
+- [x] T005 [P] [US1] Create the page file for the Dashboard view at `src/pages/dashboard.tsx`.
+- [x] T006 [P] [US1] Implement the main `DashboardView` component in `src/components/dashboard/DashboardView.tsx` based on `ui-design-files/dashboard/code.html`.
+- [x] T007 [P] [US1] Write unit tests for the `DashboardView` component in `tests/components/dashboard/DashboardView.test.tsx`.
+- [x] T008 [P] [US1] Connect the `DashboardView` component to relevant data hooks and services.
 
 ### Decoder View
 - [ ] T009 [P] [US1] Create the page file for the Decoder view at `src/pages/decoder.tsx`.
