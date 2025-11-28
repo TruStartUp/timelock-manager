@@ -1,0 +1,225 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "title": "Known Contract ABIs Registry",
+  "description": "Pre-configured ABIs for common OpenZeppelin contracts used in Rootstock governance",
+  "version": "1.0.0",
+  "contracts": {
+    "TimelockController": {
+      "description": "OpenZeppelin TimelockController v5.x",
+      "source": "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v5.0.0/contracts/governance/TimelockController.sol",
+      "interface": "ITimelockController",
+      "functions": [
+        {
+          "name": "getMinDelay",
+          "signature": "getMinDelay()",
+          "selector": "0xf27a0c92",
+          "stateMutability": "view",
+          "returns": ["uint256"]
+        },
+        {
+          "name": "hashOperation",
+          "signature": "hashOperation(address,uint256,bytes,bytes32,bytes32)",
+          "selector": "0x8065657f",
+          "stateMutability": "pure"
+        },
+        {
+          "name": "schedule",
+          "signature": "schedule(address,uint256,bytes,bytes32,bytes32,uint256)",
+          "selector": "0x01d5062a",
+          "stateMutability": "nonpayable",
+          "requiresRole": "PROPOSER_ROLE"
+        },
+        {
+          "name": "scheduleBatch",
+          "signature": "scheduleBatch(address[],uint256[],bytes[],bytes32,bytes32,uint256)",
+          "selector": "0x8f2a0bb0",
+          "stateMutability": "nonpayable",
+          "requiresRole": "PROPOSER_ROLE"
+        },
+        {
+          "name": "execute",
+          "signature": "execute(address,uint256,bytes,bytes32,bytes32)",
+          "selector": "0x134008d3",
+          "stateMutability": "payable",
+          "requiresRole": "EXECUTOR_ROLE"
+        },
+        {
+          "name": "executeBatch",
+          "signature": "executeBatch(address[],uint256[],bytes[],bytes32,bytes32)",
+          "selector": "0xe38335e5",
+          "stateMutability": "payable",
+          "requiresRole": "EXECUTOR_ROLE"
+        },
+        {
+          "name": "cancel",
+          "signature": "cancel(bytes32)",
+          "selector": "0xc4d252f5",
+          "stateMutability": "nonpayable",
+          "requiresRole": "CANCELLER_ROLE"
+        },
+        {
+          "name": "getTimestamp",
+          "signature": "getTimestamp(bytes32)",
+          "selector": "0xd45c4435",
+          "stateMutability": "view",
+          "returns": ["uint256"]
+        },
+        {
+          "name": "isOperationPending",
+          "signature": "isOperationPending(bytes32)",
+          "selector": "0x584b153e",
+          "stateMutability": "view",
+          "returns": ["bool"]
+        },
+        {
+          "name": "isOperationReady",
+          "signature": "isOperationReady(bytes32)",
+          "selector": "0x13bc9f20",
+          "stateMutability": "view",
+          "returns": ["bool"]
+        },
+        {
+          "name": "isOperationDone",
+          "signature": "isOperationDone(bytes32)",
+          "selector": "0x2ab0f529",
+          "stateMutability": "view",
+          "returns": ["bool"]
+        }
+      ],
+      "events": [
+        {
+          "name": "CallScheduled",
+          "signature": "CallScheduled(bytes32,uint256,address,uint256,bytes,bytes32,uint256)",
+          "indexed": ["id", "index"]
+        },
+        {
+          "name": "CallExecuted",
+          "signature": "CallExecuted(bytes32,uint256,address,uint256,bytes)",
+          "indexed": ["id", "index"]
+        },
+        {
+          "name": "Cancelled",
+          "signature": "Cancelled(bytes32)",
+          "indexed": ["id"]
+        },
+        {
+          "name": "MinDelayChange",
+          "signature": "MinDelayChange(uint256,uint256)"
+        }
+      ],
+      "roles": {
+        "PROPOSER_ROLE": "0xb09aa5aeb3702cfd50b6b62bc4532604938f21248a27a1d5ca736082b6819cc1",
+        "EXECUTOR_ROLE": "0xd8aa0f3194971a2a116679f7c2090f6939c8d4e01a2a8d7e41d55e5351469e63",
+        "CANCELLER_ROLE": "0xfd643c72710c63c0180259aba6b2d05451e3591a24e58b6223913e945f67199f",
+        "DEFAULT_ADMIN_ROLE": "0x0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    "AccessManager": {
+      "description": "OpenZeppelin AccessManager v5.x",
+      "source": "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v5.0.0/contracts/access/manager/AccessManager.sol",
+      "interface": "IAccessManager",
+      "functions": [
+        {
+          "name": "canCall",
+          "signature": "canCall(address,address,bytes4)",
+          "selector": "0x2656227d",
+          "stateMutability": "view",
+          "returns": ["bool", "uint32"]
+        },
+        {
+          "name": "hasRole",
+          "signature": "hasRole(uint64,address)",
+          "selector": "0x0bfc0f60",
+          "stateMutability": "view",
+          "returns": ["bool", "uint32"]
+        },
+        {
+          "name": "grantRole",
+          "signature": "grantRole(uint64,address,uint32)",
+          "selector": "0x8a83dd40",
+          "stateMutability": "nonpayable"
+        },
+        {
+          "name": "revokeRole",
+          "signature": "revokeRole(uint64,address)",
+          "selector": "0xab1aa419",
+          "stateMutability": "nonpayable"
+        }
+      ],
+      "events": [
+        {
+          "name": "RoleGranted",
+          "signature": "RoleGranted(uint64,address,uint32,uint48,bool)",
+          "indexed": ["roleId", "account"]
+        },
+        {
+          "name": "RoleRevoked",
+          "signature": "RoleRevoked(uint64,address)",
+          "indexed": ["roleId", "account"]
+        }
+      ]
+    },
+    "IAccessControl": {
+      "description": "OpenZeppelin AccessControl interface",
+      "source": "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v5.0.0/contracts/access/IAccessControl.sol",
+      "interface": "IAccessControl",
+      "functions": [
+        {
+          "name": "hasRole",
+          "signature": "hasRole(bytes32,address)",
+          "selector": "0x91d14854",
+          "stateMutability": "view",
+          "returns": ["bool"]
+        },
+        {
+          "name": "getRoleAdmin",
+          "signature": "getRoleAdmin(bytes32)",
+          "selector": "0x248a9ca3",
+          "stateMutability": "view",
+          "returns": ["bytes32"]
+        },
+        {
+          "name": "grantRole",
+          "signature": "grantRole(bytes32,address)",
+          "selector": "0x2f2ff15d",
+          "stateMutability": "nonpayable"
+        },
+        {
+          "name": "revokeRole",
+          "signature": "revokeRole(bytes32,address)",
+          "selector": "0xd547741f",
+          "stateMutability": "nonpayable"
+        },
+        {
+          "name": "renounceRole",
+          "signature": "renounceRole(bytes32,address)",
+          "selector": "0x36568abe",
+          "stateMutability": "nonpayable"
+        }
+      ],
+      "events": [
+        {
+          "name": "RoleGranted",
+          "signature": "RoleGranted(bytes32,address,address)",
+          "indexed": ["role", "account", "sender"]
+        },
+        {
+          "name": "RoleRevoked",
+          "signature": "RoleRevoked(bytes32,address,address)",
+          "indexed": ["role", "account", "sender"]
+        },
+        {
+          "name": "RoleAdminChanged",
+          "signature": "RoleAdminChanged(bytes32,bytes32,bytes32)",
+          "indexed": ["role", "previousAdminRole", "newAdminRole"]
+        }
+      ]
+    }
+  },
+  "notes": {
+    "usage": "This registry provides fallback ABIs when Blockscout verification is unavailable",
+    "priority": "Known ABIs are checked after Blockscout but before 4byte directory",
+    "versioning": "ABIs are from OpenZeppelin v5.0.0 - update if deploying different versions",
+    "extension": "Add project-specific governance contracts here as they are deployed"
+  }
+}
