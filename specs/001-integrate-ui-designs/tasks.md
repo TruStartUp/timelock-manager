@@ -6,13 +6,13 @@ This document breaks down the work required to implement the "Integrate UI Desig
 
 ## Phase 1: Setup
 
-- [ ] T001 Verify project dependencies are installed by running `npm install`.
-- [ ] T002 Create parent directories for the new UI components in `src/components/` (`dashboard`, `decoder`, etc.).
+- [x] T001 Verify project dependencies are installed by running `npm install`.
+- [x] T002 Create parent directories for the new UI components in `src/components/` (`dashboard`, `decoder`, etc.).
 
 ## Phase 2: Foundational Tasks
 
-- [ ] T003 [US1] Create a shared `Layout` component in `src/components/common/Layout.tsx` to wrap the new pages, including common elements like a header or sidebar if identified from the designs.
-- [ ] T004 [US1] Write a unit test for the `Layout` component in `tests/components/common/Layout.test.tsx`.
+- [x] T003 [US1] Create a shared `Layout` component in `src/components/common/Layout.tsx` to wrap the new pages, including common elements like a header or sidebar if identified from the designs.
+- [x] T004 [US1] Write a unit test for the `Layout` component in `tests/components/common/Layout.test.tsx`.
 
 ## Phase 3: User Story 1 - Visual and Functional Parity
 
