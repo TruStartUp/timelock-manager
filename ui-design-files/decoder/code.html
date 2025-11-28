@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Rootstock - Calldata Decoder</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&amp;family=Fira+Code:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+<style>
+      .font-mono {
+        font-family: 'Fira Code', monospace;
+      }
+    </style>
+<script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "primary": "#f99006",
+              "background-light": "#f8f7f5",
+              "background-dark": "#181511",
+              "surface-dark": "#27221b",
+              "border-dark": "#55493a",
+              "text-main-dark": "#ffffff",
+              "text-secondary-dark": "#bbad9b",
+              "accent": "#007ACC",
+              "verified": "#22c55e",
+              "guessed": "#f97316",
+              "raw": "#6b7280"
+            },
+            fontFamily: {
+              "display": ["Inter", "sans-serif"],
+              "mono": ["Fira Code", "monospace"]
+            },
+            borderRadius: {
+              "DEFAULT": "0.75rem",
+              "lg": "1rem",
+              "xl": "1.5rem",
+              "full": "9999px"
+            },
+          },
+        },
+      }
+    </script>
+</head>
+<body class="bg-background-dark font-display text-text-main-dark">
+<div class="flex min-h-screen w-full">
+<!-- SideNavBar -->
+<aside class="flex w-64 flex-col gap-4 border-r border-border-dark bg-background-dark p-4">
+<div class="flex items-center gap-3">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10" data-alt="Rootstock logo" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBSFkWg1h-3oSEmvWJldSMPOqeQJhe-GF8cEnpxtfoGW6UesGIeUQ9Q94gh3qrXu3tHdMTC_L7_6Ak22nn6Vzul1bILN3ruxIPmi93pQJ-heDjmyYFfzGQjMQqJcJbP7yGhqG4_XFI9ytX6Fdl5-ep3xSTRCRVu-SWSzS9RM1PZ4AimX392TIiDvLg0Y1I-qkGytHpo7J64C7jbJ6XnsiqQMOAmU_CevycQHCKXlD1VLhprPkaBPq5RVteetRIxz7xgCbMd-0mwXVXb");'></div>
+<div class="flex flex-col">
+<h1 class="text-text-main-dark text-base font-medium leading-normal">Rootstock</h1>
+<p class="text-text-secondary-dark text-sm font-normal leading-normal">Timelock Management</p>
+</div>
+</div>
+<nav class="flex flex-col gap-2 mt-4">
+<a class="flex items-center gap-3 rounded px-3 py-2 text-text-secondary-dark hover:bg-surface-dark hover:text-text-main-dark transition-colors" href="#">
+<span class="material-symbols-outlined text-2xl">dashboard</span>
+<p class="text-sm font-medium leading-normal">Dashboard</p>
+</a>
+<a class="flex items-center gap-3 rounded px-3 py-2 text-text-secondary-dark hover:bg-surface-dark hover:text-text-main-dark transition-colors" href="#">
+<span class="material-symbols-outlined text-2xl">lock</span>
+<p class="text-sm font-medium leading-normal">Timelock</p>
+</a>
+<a class="flex items-center gap-3 rounded px-3 py-2 text-text-secondary-dark hover:bg-surface-dark hover:text-text-main-dark transition-colors" href="#">
+<span class="material-symbols-outlined text-2xl">shield_person</span>
+<p class="text-sm font-medium leading-normal">Access Manager</p>
+</a>
+<a class="flex items-center gap-3 rounded bg-surface-dark px-3 py-2 text-text-main-dark" href="#">
+<span class="material-symbols-outlined text-2xl">code</span>
+<p class="text-sm font-medium leading-normal">Calldata Decoder</p>
+</a>
+</nav>
+<div class="mt-auto flex flex-col gap-1">
+<a class="flex items-center gap-3 rounded px-3 py-2 text-text-secondary-dark hover:bg-surface-dark hover:text-text-main-dark transition-colors" href="#">
+<span class="material-symbols-outlined text-2xl">settings</span>
+<p class="text-sm font-medium leading-normal">Settings</p>
+</a>
+<a class="flex items-center gap-3 rounded px-3 py-2 text-text-secondary-dark hover:bg-surface-dark hover:text-text-main-dark transition-colors" href="#">
+<span class="material-symbols-outlined text-2xl">help</span>
+<p class="text-sm font-medium leading-normal">Help</p>
+</a>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="flex-1 p-8">
+<div class="mx-auto max-w-7xl">
+<!-- PageHeading -->
+<div class="mb-8">
+<h1 class="text-text-main-dark text-4xl font-black leading-tight tracking-[-0.033em]">Calldata Decoder</h1>
+<p class="text-text-secondary-dark text-base font-normal leading-normal mt-2">Decode arbitrary calldata or transaction hashes from the Rootstock network.</p>
+</div>
+<div class="grid grid-cols-1 gap-8 lg:grid-cols-2">
+<!-- Input Section -->
+<div class="flex flex-col gap-6">
+<h3 class="text-text-main-dark tracking-light text-2xl font-bold leading-tight">Input</h3>
+<!-- Calldata Input -->
+<div class="flex flex-col">
+<label class="text-text-main-dark text-base font-medium leading-normal pb-2" for="calldata">Calldata (0x...)</label>
+<textarea class="form-input flex w-full min-w-0 flex-1 resize-y overflow-hidden rounded-lg font-mono text-sm text-text-main-dark focus:outline-0 focus:ring-2 focus:ring-accent border border-border-dark bg-surface-dark focus:border-accent min-h-36 placeholder:text-text-secondary-dark p-4 leading-relaxed" id="calldata" placeholder="Paste raw hexadecimal calldata here..."></textarea>
+</div>
+<!-- Contract Address Input -->
+<div class="flex flex-col">
+<label class="text-text-main-dark text-base font-medium leading-normal pb-2" for="contract-address">Contract Address (Optional)</label>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg font-mono text-sm text-text-main-dark focus:outline-0 focus:ring-2 focus:ring-accent border border-border-dark bg-surface-dark focus:border-accent h-14 placeholder:text-text-secondary-dark p-4" id="contract-address" placeholder="0x..." type="text"/>
+</div>
+<!-- ABI Input -->
+<div class="flex flex-col">
+<label class="text-text-main-dark text-base font-medium leading-normal pb-2" for="abi">Contract ABI (JSON, Optional)</label>
+<textarea class="form-input flex w-full min-w-0 flex-1 resize-y overflow-hidden rounded-lg font-mono text-sm text-text-main-dark focus:outline-0 focus:ring-2 focus:ring-accent border border-border-dark bg-surface-dark focus:border-accent min-h-36 placeholder:text-text-secondary-dark p-4 leading-relaxed" id="abi" placeholder="Paste contract ABI JSON here..."></textarea>
+</div>
+<!-- Action Buttons -->
+<div class="flex items-center gap-4 mt-2">
+<button class="flex h-12 flex-1 items-center justify-center rounded-lg bg-accent px-6 text-base font-semibold text-white transition-all hover:bg-accent/90 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-background-dark">Decode</button>
+<button class="flex h-12 items-center justify-center rounded-lg border border-border-dark bg-surface-dark px-6 text-base font-semibold text-text-secondary-dark transition-all hover:bg-border-dark hover:text-text-main-dark focus:outline-none focus:ring-2 focus:ring-border-dark focus:ring-offset-2 focus:ring-offset-background-dark">Clear</button>
+</div>
+</div>
+<!-- Output Section -->
+<div class="flex flex-col gap-6">
+<h3 class="text-text-main-dark tracking-light text-2xl font-bold leading-tight">Output</h3>
+<div class="flex h-full min-h-[400px] flex-col rounded-lg border border-border-dark bg-surface-dark p-6">
+<!-- Decoded State -->
+<div class="flex flex-col gap-6">
+<div class="flex items-center justify-between">
+<h4 class="text-lg font-semibold">Decoded Function</h4>
+<span class="inline-flex items-center rounded-full bg-verified/20 px-3 py-1 text-sm font-medium text-verified">Verified</span>
+</div>
+<!-- Function Name Card -->
+<div class="rounded-lg border border-border-dark bg-background-dark p-4">
+<p class="font-mono text-sm text-text-secondary-dark">Function</p>
+<div class="flex items-center justify-between gap-2 mt-2">
+<p class="font-mono text-base break-all">
+<span class="text-yellow-400">transfer</span>(<span class="text-cyan-400">address</span> <span class="text-purple-400">to</span>, <span class="text-cyan-400">uint256</span> <span class="text-purple-400">amount</span>)
+                                        </p>
+<button class="text-text-secondary-dark hover:text-text-main-dark transition-colors">
+<span class="material-symbols-outlined">content_copy</span>
+</button>
+</div>
+</div>
+<div class="rounded-lg border border-border-dark bg-background-dark p-4">
+<p class="font-mono text-sm text-text-secondary-dark">Signature</p>
+<div class="flex items-center justify-between gap-2 mt-2">
+<p class="font-mono text-base text-orange-400">0xa9059cbb</p>
+<button class="text-text-secondary-dark hover:text-text-main-dark transition-colors">
+<span class="material-symbols-outlined">content_copy</span>
+</button>
+</div>
+</div>
+<div class="mt-2">
+<h4 class="text-lg font-semibold">Parameters</h4>
+<div class="mt-4 flex flex-col gap-3">
+<!-- Parameter 1 -->
+<div class="grid grid-cols-[1fr_2fr] items-start gap-4 rounded-lg border border-border-dark bg-background-dark p-4">
+<div class="flex flex-col">
+<p class="font-mono text-sm text-text-secondary-dark">Parameter</p>
+<p class="font-mono text-base text-purple-400 mt-1">to</p>
+</div>
+<div class="flex flex-col">
+<p class="font-mono text-sm text-text-secondary-dark">Value (<span class="text-cyan-400">address</span>)</p>
+<div class="flex items-center justify-between gap-2 mt-1">
+<p class="font-mono text-base text-orange-400 break-all">0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D</p>
+<button class="text-text-secondary-dark hover:text-text-main-dark transition-colors self-start">
+<span class="material-symbols-outlined">content_copy</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Parameter 2 -->
+<div class="grid grid-cols-[1fr_2fr] items-start gap-4 rounded-lg border border-border-dark bg-background-dark p-4">
+<div class="flex flex-col">
+<p class="font-mono text-sm text-text-secondary-dark">Parameter</p>
+<p class="font-mono text-base text-purple-400 mt-1">amount</p>
+</div>
+<div class="flex flex-col">
+<p class="font-mono text-sm text-text-secondary-dark">Value (<span class="text-cyan-400">uint256</span>)</p>
+<div class="flex items-center justify-between gap-2 mt-1">
+<p class="font-mono text-base text-orange-400 break-all">1000000000000000000</p>
+<button class="text-text-secondary-dark hover:text-text-main-dark transition-colors self-start">
+<span class="material-symbols-outlined">content_copy</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Initial/Empty State -->
+<!-- <div class="flex flex-1 items-center justify-center text-center">
+                                <p class="text-text-secondary-dark">Awaiting input to decode...</p>
+                            </div> -->
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>
