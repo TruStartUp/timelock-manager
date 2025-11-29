@@ -1,7 +1,12 @@
+import Layout from '@/components/common/Layout'
 import SettingsView from '@/components/settings/SettingsView'
 
 const SettingsPage = () => {
-  return <SettingsView />
+  return (
+    <Layout>
+      <SettingsView />
+    </Layout>
+  )
 }
 
 export default SettingsPage

@@ -31,7 +31,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           </div>
           <nav className="flex flex-col gap-2 mt-4">
             <Link
-              href="/dashboard"
+              href="/"
               className="flex items-center gap-3 px-3 py-2 text-text-light hover:bg-surface-dark rounded-full"
             >
               <span className="material-symbols-outlined">dashboard</span>
@@ -91,7 +91,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         </div>
       </aside>
       {/* Main Content */}
-      <main className="flex flex-1 p-6 lg:p-8">{children}</main>
+      <main className="flex flex-1 flex-col p-6 lg:p-8">{children}</main>
     </div>
   )
 }

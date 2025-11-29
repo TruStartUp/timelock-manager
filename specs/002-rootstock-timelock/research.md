@@ -800,11 +800,9 @@ export function parseABITypeToZod(
 
     if (size) {
       // Fixed-size array: address[3]
-      return z
-        .array(elementSchema)
-        .length(parseInt(size), {
-          message: `Array must have exactly ${size} elements`,
-        })
+      return z.array(elementSchema).length(parseInt(size), {
+        message: `Array must have exactly ${size} elements`,
+      })
     } else {
       // Dynamic array: uint256[]
       return z.array(elementSchema).min(0)

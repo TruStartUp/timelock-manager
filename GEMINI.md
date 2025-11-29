@@ -14,11 +14,12 @@ The application provides a user-friendly interface for:
 
 The application is built with a modern web stack, including:
 
-- **Framework:** Next.js 15 with App Router
-- **Language:** TypeScript (strict mode)
-- **Web3:** wagmi, viem, RainbowKit for wallet integration and blockchain interaction
-- **Data Fetching:** TanStack Query, with a primary reliance on The Graph for indexed data and Blockscout API as a fallback.
-- **Styling:** Tailwind CSS, implementing the Rootstock "Editor Mode" design system.
+- **Framework:** Next.js 15 with Pages Router
+
+* **Language:** TypeScript (strict mode)
+* **Web3:** wagmi, viem, RainbowKit for wallet integration and blockchain interaction
+* **Data Fetching:** TanStack Query, with a primary reliance on The Graph for indexed data and Blockscout API as a fallback.
+* **Styling:** Tailwind CSS, implementing the Rootstock "Editor Mode" design system.
 
 ## Building and Running
 
@@ -86,12 +87,13 @@ npm start
 
 The project follows a feature-based structure within the `src/` directory:
 
-- `src/app`: Next.js App Router pages.
-- `src/components`: Reusable React components.
-- `src/hooks`: Custom React hooks for business logic.
-- `src/lib`: Core utilities, constants, and wagmi configuration.
-- `src/services`: Clients for external APIs (The Graph, Blockscout).
-- `src/types`: TypeScript type definitions.
+- `src/pages`: Next.js Pages Router pages. The Dashboard page (`src/pages/index.tsx`) is configured as the application's homepage.
+
+* `src/components`: Reusable React components.
+* `src/hooks`: Custom React hooks for business logic.
+* `src/lib`: Core utilities, constants, and wagmi configuration.
+* `src/services`: Clients for external APIs (The Graph, Blockscout).
+* `src/types`: TypeScript type definitions.
 
 ### Specifications and Planning
 
