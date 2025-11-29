@@ -61,8 +61,8 @@ description: 'Task list for Rootstock Timelock Management App - Blockchain Integ
 - [X] T013 [P] Implement handleRoleRevoked event handler in subgraph/src/mapping.ts to create RoleAssignment entities
 - [X] T014 Configure subgraph.yaml with Rootstock Testnet (chainId 31) and sample TimelockController address
 - [X] T015 Deploy subgraph to The Graph Studio following quickstart.md instructions
-- [ ] T016 Update .env.local with NEXT_PUBLIC_RSK_TESTNET_SUBGRAPH_URL from deployment
-- [ ] T017 Verify subgraph indexing progress in The Graph Studio dashboard
+- [X] T016 Update .env.local with NEXT_PUBLIC_RSK_TESTNET_SUBGRAPH_URL from deployment
+- [X] T017 Verify subgraph indexing progress in The Graph Studio dashboard
 
 ### Core Service Layer
 
