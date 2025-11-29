@@ -1,6 +1,28 @@
-import React from 'react'
+import React, { useState } from 'react'
+import { type Address } from 'viem'
+import { useChainId } from 'wagmi'
+import { rootstock, rootstockTestnet } from 'wagmi/chains'
+import { useOperationsSummary } from '@/hooks/useOperations'
 
 const DashboardView: React.FC = () => {
+  const chainId = useChainId()
+  
+  // State for selected timelock contract address
+  // Using the actual deployed TimelockController on Rootstock Testnet
+  const [timelockAddress, setTimelockAddress] = useState<Address | undefined>(
+    '0x09a3fa8b0706829ad2b66719b851793a7b20d08a' as Address // Real testnet contract
+  )
+
+  // Fetch operations summary from subgraph
+  const { data: summary, isLoading, isError } = useOperationsSummary(timelockAddress)
+  
+  // Get network name
+  const networkName = chainId === rootstock.id 
+    ? 'Rootstock Mainnet' 
+    : chainId === rootstockTestnet.id 
+    ? 'Rootstock Testnet' 
+    : 'Unknown Network'
+
   return (
     <>
       {/* Top Section: Contract Selector & Network Status */}
@@ -16,7 +38,8 @@ const DashboardView: React.FC = () => {
           <select
             className="form-select flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded text-text-primary focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-border-color bg-surface h-12 placeholder:text-text-secondary px-4 text-base font-normal leading-normal appearance-none bg-no-repeat bg-right"
             id="timelock-contract"
-            defaultValue="TimelockController (0x1234...5678)"
+            value={timelockAddress}
+            onChange={(e) => setTimelockAddress(e.target.value as Address)}
             style={{
               backgroundImage:
                 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuBbm7BqvtrYyzpJI6ttwu0AnSuggWCWF8N_1bJ7ZkCJjxg1D2rvAYQKqoeR7FZDmampY9M2vwqzOic8RjPKnbOtf80cHrIayTWsd5d8IgARI5Yh-rbxwVjomNK0qFqsJwdxN76JR7sQI_VIKTGs4DbKxW0rELKIr3QcUmf8huvb_TsXcqEPB4H7E_Xouhj8eBOE2tSIoPAxvLWQfJ7mQRZIPni8FTAAYe_sYdOkLJ0v2msCBdUlOsYjXlNrCNJMYNHmTn1G1CqJLFxf")',
@@ -24,9 +47,9 @@ const DashboardView: React.FC = () => {
               backgroundSize: '1.5em 1.5em',
             }}
           >
-            <option>TimelockController (0x1234...5678)</option>
-            <option>AccessManager (0xABCD...EF01)</option>
-            <option>OldTimelock (0x9876...5432)</option>
+            <option value="0x09a3fa8b0706829ad2b66719b851793a7b20d08a">
+              TimelockController - Testnet (0x09a3...d08a)
+            </option>
           </select>
         </div>
         {/* Chips as Network Status Indicator */}
@@ -36,7 +59,7 @@ const DashboardView: React.FC = () => {
             <p className="text-text-secondary text-sm font-medium leading-normal">
               Connected to:{' '}
               <span className="text-text-primary font-semibold">
-                Rootstock Mainnet
+                {networkName}
               </span>
             </p>
           </div>
@@ -49,30 +72,49 @@ const DashboardView: React.FC = () => {
           Operations Overview
         </h2>
         {/* Stats Cards */}
+        {isError && (
+          <div className="rounded border border-red-500/50 bg-red-500/10 p-4">
+            <p className="text-red-500 text-sm">
+              Failed to load operations data. Please check your connection and try again.
+            </p>
+          </div>
+        )}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           <div className="flex flex-col gap-2 rounded border border-border-color p-6 bg-surface">
             <p className="text-text-secondary text-base font-medium leading-normal">
               Pending Operations
             </p>
-            <p className="text-text-primary tracking-light text-3xl font-bold leading-tight">
-              12
-            </p>
+            {isLoading ? (
+              <div className="h-9 w-16 animate-pulse bg-border-color rounded"></div>
+            ) : (
+              <p className="text-text-primary tracking-light text-3xl font-bold leading-tight">
+                {summary?.pending ?? 0}
+              </p>
+            )}
           </div>
           <div className="flex flex-col gap-2 rounded border border-border-color p-6 bg-surface">
             <p className="text-text-secondary text-base font-medium leading-normal">
               Ready for Execution
             </p>
-            <p className="text-text-primary tracking-light text-3xl font-bold leading-tight">
-              3
-            </p>
+            {isLoading ? (
+              <div className="h-9 w-16 animate-pulse bg-border-color rounded"></div>
+            ) : (
+              <p className="text-text-primary tracking-light text-3xl font-bold leading-tight">
+                {summary?.ready ?? 0}
+              </p>
+            )}
           </div>
           <div className="flex flex-col gap-2 rounded border border-border-color p-6 bg-surface">
             <p className="text-text-secondary text-base font-medium leading-normal">
               Executed Operations
             </p>
-            <p className="text-text-primary tracking-light text-3xl font-bold leading-tight">
-              89
-            </p>
+            {isLoading ? (
+              <div className="h-9 w-16 animate-pulse bg-border-color rounded"></div>
+            ) : (
+              <p className="text-text-primary tracking-light text-3xl font-bold leading-tight">
+                {summary?.executed ?? 0}
+              </p>
+            )}
           </div>
         </div>
         {/* SectionHeader for Roles */}

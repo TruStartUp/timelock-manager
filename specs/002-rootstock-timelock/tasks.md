@@ -101,14 +101,14 @@ description: 'Task list for Rootstock Timelock Management App - Blockchain Integ
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T028 [P] [US1] Unit test for operation status calculation in tests/unit/status.test.ts (PENDING → READY → EXECUTED transitions)
-- [ ] T029 [P] [US1] Integration test for useOperations hook in tests/integration/operations-fetch.test.tsx with mock subgraph responses
+- [X] T028 [P] [US1] Unit test for operation status calculation in tests/unit/status.test.ts (PENDING → READY → EXECUTED transitions)
+- [X] T029 [P] [US1] Integration test for useOperations hook in tests/integration/operations-fetch.test.tsx with mock subgraph responses
 
 ### Implementation for User Story 1
 
-- [ ] T030 [P] [US1] Create useOperations hook in src/hooks/useOperations.ts to fetch operations from subgraph with filters (status, proposer, target, date range)
-- [ ] T031 [P] [US1] Create useOperationStatus hook in src/hooks/useOperationStatus.ts with real-time countdown timer and contract state checks (getTimestamp, isOperationReady, isOperationDone)
-- [ ] T032 [US1] Integrate useOperations in src/components/dashboard/DashboardView.tsx to replace mock operation counts (Pending: X, Ready: Y, Executed: Z)
+- [X] T030 [P] [US1] Create useOperations hook in src/hooks/useOperations.ts to fetch operations from subgraph with filters (status, proposer, target, date range)
+- [X] T031 [P] [US1] Create useOperationStatus hook in src/hooks/useOperationStatus.ts with real-time countdown timer and contract state checks (getTimestamp, isOperationReady, isOperationDone)
+- [X] T032 [US1] Integrate useOperations in src/components/dashboard/DashboardView.tsx to replace mock operation counts (Pending: X, Ready: Y, Executed: Z)
 - [ ] T033 [US1] Integrate useOperations in src/components/operations_explorer/OperationsExplorerView.tsx to replace mockOperations array
 - [ ] T034 [US1] Integrate useOperationStatus in src/components/operations_explorer/OperationsExplorerView.tsx for each operation row to show live countdown and status
 - [ ] T035 [US1] Add error handling in OperationsExplorerView for subgraph unavailable scenario with "Using fallback data source" notice

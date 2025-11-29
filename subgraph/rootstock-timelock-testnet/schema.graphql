@@ -1,3 +1,156 @@
+# ============================================================================
+# Aggregated Entities (User-facing data model)
+# ============================================================================
+
+"""
+Represents a scheduled governance operation in a TimelockController.
+Aggregates data from CallScheduled, CallExecuted, and Cancelled events.
+"""
+type Operation @entity(immutable: false) {
+  "Operation ID (bytes32 hash from hashOperation/hashOperationBatch)"
+  id: Bytes!
+  
+  "Sequential index for sorting (blockNumber * 1000000 + logIndex)"
+  index: BigInt!
+  
+  "TimelockController contract address"
+  timelockController: Bytes!
+  
+  "Single target for schedule(), null for scheduleBatch()"
+  target: Bytes
+  
+  "Single value for schedule(), null for scheduleBatch()"
+  value: BigInt
+  
+  "Single calldata for schedule(), null for scheduleBatch()"
+  data: Bytes
+  
+  "Predecessor operation that must execute first (0x0 if none)"
+  predecessor: Bytes!
+  
+  "Salt for operation ID uniqueness"
+  salt: Bytes!
+  
+  "Delay in seconds before operation becomes executable"
+  delay: BigInt!
+  
+  "Ready timestamp (scheduledAt + delay)"
+  timestamp: BigInt!
+  
+  "Current status: PENDING, READY, EXECUTED, CANCELLED"
+  status: String!
+  
+  "When the operation was scheduled"
+  scheduledAt: BigInt!
+  
+  "Transaction that scheduled this operation"
+  scheduledTx: Bytes!
+  
+  "Proposer who scheduled (has PROPOSER_ROLE)"
+  scheduledBy: Bytes!
+  
+  "When executed (null if not executed)"
+  executedAt: BigInt
+  
+  "Transaction that executed (null if not executed)"
+  executedTx: Bytes
+  
+  "Executor who executed (null if not executed)"
+  executedBy: Bytes
+  
+  "When cancelled (null if not cancelled)"
+  cancelledAt: BigInt
+  
+  "Transaction that cancelled (null if not cancelled)"
+  cancelledTx: Bytes
+  
+  "Canceller who cancelled (null if not cancelled)"
+  cancelledBy: Bytes
+  
+  "Calls in this operation (for batch operations)"
+  calls: [Call!]! @derivedFrom(field: "operation")
+}
+
+"""
+Individual function call within an operation (for batch operations).
+For single-call operations, data is stored in the Operation entity.
+"""
+type Call @entity(immutable: true) {
+  "Composite ID: operationId-index"
+  id: Bytes!
+  
+  "Parent operation"
+  operation: Operation!
+  
+  "Index within batch (from CallScheduled event)"
+  index: Int!
+  
+  "Target contract to call"
+  target: Bytes!
+  
+  "Value to send in wei"
+  value: BigInt!
+  
+  "Encoded function calldata"
+  data: Bytes!
+  
+  "Decoded function signature (if available)"
+  signature: String
+}
+
+"""
+AccessControl role in the TimelockController contract.
+"""
+type Role @entity(immutable: false) {
+  "Role hash (keccak256 of role name)"
+  id: Bytes!
+  
+  "TimelockController this role belongs to"
+  timelockController: Bytes!
+  
+  "Admin role that can grant/revoke this role"
+  adminRole: Bytes
+  
+  "Current number of members"
+  memberCount: Int!
+  
+  "Role assignments (grants and revokes)"
+  assignments: [RoleAssignment!]! @derivedFrom(field: "role")
+}
+
+"""
+Event-sourced record of role grants and revokes.
+"""
+type RoleAssignment @entity(immutable: true) {
+  "Composite ID: roleHash-account-txHash-logIndex"
+  id: Bytes!
+  
+  "Role being granted or revoked"
+  role: Role!
+  
+  "Account receiving or losing the role"
+  account: Bytes!
+  
+  "true = RoleGranted, false = RoleRevoked"
+  granted: Boolean!
+  
+  "When the event occurred"
+  timestamp: BigInt!
+  
+  "Block number of the event"
+  blockNumber: BigInt!
+  
+  "Transaction that emitted the event"
+  txHash: Bytes!
+  
+  "Address that called grantRole/revokeRole"
+  sender: Bytes!
+}
+
+# ============================================================================
+# Raw Event Entities (Immutable audit trail)
+# ============================================================================
+
 type CallExecuted @entity(immutable: true) {
   id: Bytes!
   internal_id: Bytes! # bytes32

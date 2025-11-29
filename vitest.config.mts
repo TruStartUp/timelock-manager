@@ -8,6 +8,11 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: './tests/setup.ts',
+    exclude: [
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/subgraph/**', // Exclude subgraph tests (use matchstick-as instead)
+    ],
   },
   resolve: {
     alias: {

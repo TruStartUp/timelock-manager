@@ -162,7 +162,7 @@ subgraph/
 ```
 
 **Core directories** (created during initial setup):
-- `src/lib/` - Core utilities (currently contains `constants.ts`)
+- `src/lib/` - Core utilities (`constants.ts`, `validation.ts`, and `abis/` for contract ABIs)
 - `src/hooks/` - Custom React hooks (empty - add as needed)
 - `src/services/` - External API clients (implemented: blockscout, fourbyte, subgraph)
 - `src/types/` - TypeScript type definitions (`abi.ts`, `operation.ts`, `role.ts`)
@@ -182,6 +182,32 @@ This project follows a **constitution-based, spec-driven workflow**. Read [.spec
 5. **Deploy**: Merge to main triggers automated deployment
 
 **Breaking changes** (ABI updates, contract changes) require migration guides.
+
+### Slash Commands (Claude Code)
+
+The project includes custom slash commands in `.claude/commands/` for spec-driven development:
+
+- `/speckit.specify` - Create or update feature specification from natural language
+- `/speckit.clarify` - Identify underspecified areas and ask clarification questions
+- `/speckit.plan` - Execute implementation planning workflow
+- `/speckit.tasks` - Generate actionable, dependency-ordered tasks
+- `/speckit.implement` - Execute the implementation plan
+- `/speckit.checklist` - Generate custom checklist for current feature
+- `/speckit.analyze` - Perform cross-artifact consistency analysis
+- `/speckit.constitution` - Create or update project constitution
+- `/speckit.taskstoissues` - Convert tasks into GitHub issues
+
+These commands integrate with the constitution-based workflow defined in `.specify/memory/constitution.md`.
+
+### Claude Code Permissions
+
+The project has pre-approved permissions in `.claude/settings.local.json` for common operations:
+- Build and test commands (`npm run build:*`, `npm test:*`, `npx tsc:*`)
+- Git operations (`git fetch:*`)
+- File system operations (`find:*`, `mkdir:*`)
+- Web search capabilities
+
+These permissions allow Claude Code to work efficiently without requiring approval for routine tasks.
 
 ### Subgraph Development
 
@@ -253,11 +279,14 @@ The project uses **Vitest** with React Testing Library.
 # Run all tests
 npm test
 
-# Run specific test file
+# Run tests in watch mode (interactive)
+npx vitest
+
+# Run a specific test file
 npx vitest run tests/components/dashboard/DashboardView.test.tsx
 
-# Run tests in watch mode
-npx vitest
+# Run tests matching a pattern
+npx vitest run -t "DashboardView"
 ```
 
 **Test structure**:
