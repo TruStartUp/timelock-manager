@@ -53,12 +53,12 @@ description: 'Task list for Rootstock Timelock Management App - Blockchain Integ
 
 ### Subgraph Deployment (P0 - Blocking All Stories)
 
-- [ ] T008 Create subgraph schema in subgraph/schema.graphql with Operation, Call, Role, RoleAssignment entities from data-model.md
-- [ ] T009 Implement handleCallScheduled event handler in subgraph/src/mapping.ts to create Operation and Call entities
-- [ ] T010 [P] Implement handleCallExecuted event handler in subgraph/src/mapping.ts to update Operation.executedAt
-- [ ] T011 [P] Implement handleCancelled event handler in subgraph/src/mapping.ts to update Operation.cancelledAt
-- [ ] T012 [P] Implement handleRoleGranted event handler in subgraph/src/mapping.ts to create RoleAssignment entities
-- [ ] T013 [P] Implement handleRoleRevoked event handler in subgraph/src/mapping.ts to create RoleAssignment entities
+- [X] T008 Create subgraph schema in subgraph/schema.graphql with Operation, Call, Role, RoleAssignment entities from data-model.md
+- [X] T009 Implement handleCallScheduled event handler in subgraph/src/mapping.ts to create Operation and Call entities
+- [X] T010 [P] Implement handleCallExecuted event handler in subgraph/src/mapping.ts to update Operation.executedAt
+- [X] T011 [P] Implement handleCancelled event handler in subgraph/src/mapping.ts to update Operation.cancelledAt
+- [X] T012 [P] Implement handleRoleGranted event handler in subgraph/src/mapping.ts to create RoleAssignment entities
+- [X] T013 [P] Implement handleRoleRevoked event handler in subgraph/src/mapping.ts to create RoleAssignment entities
 - [ ] T014 Configure subgraph.yaml with Rootstock Testnet (chainId 31) and sample TimelockController address
 - [ ] T015 Deploy subgraph to The Graph Studio following quickstart.md instructions
 - [ ] T016 Update .env.local with NEXT_PUBLIC_RSK_TESTNET_SUBGRAPH_URL from deployment
