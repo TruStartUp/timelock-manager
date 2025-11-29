@@ -5,7 +5,7 @@
 **Status**: Draft
 **Input**: User description: "Rootstock Timelock Management App with AccessManager and TimelockController exploration, operation management, and transaction building capabilities"
 
-## User Scenarios & Testing *(mandatory)*
+## User Scenarios & Testing _(mandatory)_
 
 ### User Story 1 - View Pending Timelock Operations (Priority: P1)
 
@@ -168,11 +168,12 @@ An advanced user or developer needs to configure custom RPC endpoints for Rootst
 
 - **Missing Contract Interfaces**: What happens when TimelockController doesn't implement supportsInterface? Fallback to checking for presence of known functions like getMinDelay, hashOperation, schedule, execute.
 
-## Requirements *(mandatory)*
+## Requirements _(mandatory)_
 
 ### Functional Requirements
 
 #### Network & Wallet
+
 - **FR-001**: System MUST support connection via RainbowKit-compatible wallets including MetaMask, WalletConnect, and injected providers
 - **FR-002**: System MUST support exactly two networks: Rootstock mainnet (chainId 30) and Rootstock testnet (chainId 31)
 - **FR-003**: System MUST display a "Wrong network" banner when connected wallet is on an unsupported network
@@ -181,12 +182,14 @@ An advanced user or developer needs to configure custom RPC endpoints for Rootst
 - **FR-006**: System MUST load RPC URLs from environment variables (NEXT_PUBLIC_RSK_MAINNET_RPC_URL and NEXT_PUBLIC_RSK_TESTNET_RPC_URL)
 
 #### Contract Discovery & Validation
+
 - **FR-007**: System MUST accept TimelockController contract addresses as input for exploration
 - **FR-008**: System MUST validate TimelockController contracts by checking supportsInterface or presence of functions: getMinDelay, hashOperation, schedule, execute
 - **FR-009**: System MUST retrieve and display the current minDelay value from TimelockController via getMinDelay()
 - **FR-010**: System MUST identify whether roles are stored locally on the Timelock (AccessControl) or on an external AccessManager contract
 
 #### Role & Permission Management
+
 - **FR-011**: System MUST display the four standard TimelockController roles: PROPOSER_ROLE (0xb09aa5aeb3702cfd50b6b62bc4532604938f21248a27a1d5ca736082b6819cc1), EXECUTOR_ROLE (0xd8aa0f3194971a2a116679f7c2090f6939c8d4e01a2a8d7e41d55e5351469e63), CANCELLER_ROLE (0xfd643c72710c63c0180259aba6b2d05451e3591a24e58b6223913e945f67199f), DEFAULT_ADMIN_ROLE (0x0000000000000000000000000000000000000000000000000000000000000000)
 - **FR-012**: System MUST fetch role member lists by querying The Graph subgraph for RoleGranted and RoleRevoked events emitted by the TimelockController
 - **FR-013**: System MUST verify current user's role permissions in real-time using RPC calls to hasRole(role, userAddress) before enabling action buttons
@@ -194,6 +197,7 @@ An advanced user or developer needs to configure custom RPC endpoints for Rootst
 - **FR-015**: System MUST show role grant/revoke history with action type, target address, transaction hash, and timestamp for each role
 
 #### Operations Explorer
+
 - **FR-016**: System MUST fetch operation data primarily from The Graph subgraphs indexing TimelockController events (CallScheduled, CallExecuted, Cancelled)
 - **FR-017**: System MUST fall back to Rootstock Blockscout API when subgraph is unavailable
 - **FR-018**: System MUST calculate and display operation status as: Pending (scheduled but timestamp < ETA and not cancelled), Ready (timestamp ≥ ETA and not done/cancelled), Executed (isOperationDone returns true), Canceled (Cancelled event emitted)
@@ -207,6 +211,7 @@ An advanced user or developer needs to configure custom RPC endpoints for Rootst
 - **FR-026**: System MUST provide a link from operation details to the Decoder view with calldata preloaded
 
 #### Operation Execution & Cancellation
+
 - **FR-027**: System MUST provide "Execute" action for operations in Ready status that calls execute() or executeBatch() on the TimelockController
 - **FR-028**: System MUST provide "Cancel" action for pending operations that calls cancel(id) on the TimelockController
 - **FR-029**: System MUST disable Execute button when connected wallet does not have EXECUTOR_ROLE, with tooltip "Your wallet does not have the EXECUTOR_ROLE"
@@ -215,6 +220,7 @@ An advanced user or developer needs to configure custom RPC endpoints for Rootst
 - **FR-032**: System MUST highlight dangerous functions (upgrade, admin changes, updateDelay) with visual warnings
 
 #### Proposal Builder / Scheduler
+
 - **FR-033**: System MUST support scheduling both single-call operations via schedule() and batch operations via scheduleBatch()
 - **FR-034**: System MUST accept target contract address as input for proposal building
 - **FR-035**: System MUST fetch contract ABI via Blockscout API (/api/v2/smart-contracts/{address}) for verified contracts
@@ -234,6 +240,7 @@ An advanced user or developer needs to configure custom RPC endpoints for Rootst
 - **FR-049**: System MUST display operation ID, ETA, and transaction hash on successful scheduling
 
 #### Calldata Decoder
+
 - **FR-050**: System MUST provide standalone decoder accepting: Raw calldata (0x...), Optional contract address, Optional ABI JSON, Transaction hash
 - **FR-051**: System MUST attempt ABI resolution in priority order: Manual ABI (highest), Session cache, Blockscout API with proxy resolution, Known contracts registry, 4byte directory (lowest)
 - **FR-052**: System MUST query 4byte directory (https://www.4byte.directory/api/v1/signatures/) for function signatures when higher-priority methods fail
@@ -244,6 +251,7 @@ An advanced user or developer needs to configure custom RPC endpoints for Rootst
 - **FR-057**: System MUST store user-provided ABIs in sessionStorage for reuse during the session
 
 #### Design System & Branding
+
 - **FR-058**: System MUST use Rootstock Brand color palette: Primary Orange (#FF9100), Black (#000000), Off-White (#FAF9F5), Secondary accents (Pink #FF71E1, Green #79C600, Purple #9E76FF, Cyan #08FFD0, Lime #DEFF1A)
 - **FR-059**: System MUST implement "Editor Mode" aesthetic with: Black background, Colored text containers, Off-White text on black, Colored blocks with black text for highlights
 - **FR-060**: System MUST use Rootstock Sans or functional sans-serif fallback (Inter/Roboto Mono) for typography
@@ -252,6 +260,7 @@ An advanced user or developer needs to configure custom RPC endpoints for Rootst
 - **FR-063**: System MUST maintain 10% spacing rule for internal padding and margins based on component height
 
 #### Data Architecture & Performance
+
 - **FR-064**: System MUST use The Graph subgraphs as primary data source for operations and role events
 - **FR-065**: System MUST deploy one subgraph per network (mainnet and testnet) indexing: CallScheduled, CallExecuted, Cancelled, RoleGranted, RoleRevoked events
 - **FR-066**: System MUST use Blockscout API as fallback when subgraph is unavailable
@@ -273,7 +282,7 @@ An advanced user or developer needs to configure custom RPC endpoints for Rootst
 
 - **Network Configuration**: Settings for connecting to Rootstock blockchain. Key attributes: chain ID (30 or 31), network name (Mainnet/Testnet), RPC URL, Blockscout API URL, Subgraph URL, connection status.
 
-## Success Criteria *(mandatory)*
+## Success Criteria _(mandatory)_
 
 ### Measurable Outcomes
 

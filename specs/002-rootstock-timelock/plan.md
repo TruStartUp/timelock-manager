@@ -16,31 +16,34 @@ Build a Web3 governance application for exploring and managing OpenZeppelin Time
 **Target Platform**: Web browsers (desktop/mobile responsive), deployed to Vercel or Next.js-compatible hosting
 **Project Type**: Web application (frontend-focused with API routes for data aggregation)
 **Performance Goals**:
-  - Operations list load <5 seconds for 100+ operations
-  - Real-time role permission checks <500ms
-  - Subgraph to Blockscout fallback <2 seconds
-  - UI supports 20+ batched calls without degradation
-  - Filters/search on 100+ operations <3 seconds response
+
+- Operations list load <5 seconds for 100+ operations
+- Real-time role permission checks <500ms
+- Subgraph to Blockscout fallback <2 seconds
+- UI supports 20+ batched calls without degradation
+- Filters/search on 100+ operations <3 seconds response
 
 **Constraints**:
-  - Must maintain read-only functionality when wallet disconnected or on wrong network
-  - ABI required to proceed in Proposal Builder (security constraint)
-  - All transaction buttons disabled on network mismatch
-  - No server-side wallet management (client-side only via RainbowKit)
-  - Rootstock brand guidelines strictly enforced (Editor Mode aesthetic)
+
+- Must maintain read-only functionality when wallet disconnected or on wrong network
+- ABI required to proceed in Proposal Builder (security constraint)
+- All transaction buttons disabled on network mismatch
+- No server-side wallet management (client-side only via RainbowKit)
+- Rootstock brand guidelines strictly enforced (Editor Mode aesthetic)
 
 **Scale/Scope**:
-  - Support 2 networks (Rootstock mainnet + testnet)
-  - Handle multiple TimelockController contracts (one at a time in MVP)
-  - 8 main routes (Dashboard, Operations, Roles, Proposal Builder, Decoder, Settings, Operation Detail, Role Detail)
-  - 69 functional requirements across 9 feature areas
-  - ~15-20 React components for UI library
-  - 5-8 custom wagmi hooks for blockchain interactions
-  - 2 subgraph schemas (one per network)
+
+- Support 2 networks (Rootstock mainnet + testnet)
+- Handle multiple TimelockController contracts (one at a time in MVP)
+- 8 main routes (Dashboard, Operations, Roles, Proposal Builder, Decoder, Settings, Operation Detail, Role Detail)
+- 69 functional requirements across 9 feature areas
+- ~15-20 React components for UI library
+- 5-8 custom wagmi hooks for blockchain interactions
+- 2 subgraph schemas (one per network)
 
 ## Constitution Check
 
-*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
+_GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
 
 ### ✅ Principle I: Secure Smart Contract Interaction
 
@@ -76,36 +79,36 @@ Build a Web3 governance application for exploring and managing OpenZeppelin Time
 
 **Compliance Status**: PASS
 
-| Required | Planned | Status |
-|----------|---------|--------|
-| Next.js 15+ App Router | Next.js 15 App Router | ✅ |
-| viem 2.40+ | viem for encoding/decoding (FR-048) | ✅ |
-| RainbowKit 2.2+ | RainbowKit for wallets (FR-001) | ✅ |
-| wagmi 2.17+ | wagmi for hooks (FR-013: useReadContract for hasRole) | ✅ |
-| TanStack Query 5.55+ | Wraps wagmi hooks automatically | ✅ |
-| TypeScript 5.5+ strict | TypeScript strict mode | ✅ |
-| CSS Modules or Tailwind | Tailwind CSS (per existing CLAUDE.md) | ✅ |
-| Vitest or Jest | Vitest + @testing-library/react | ✅ |
+| Required                | Planned                                               | Status |
+| ----------------------- | ----------------------------------------------------- | ------ |
+| Next.js 15+ App Router  | Next.js 15 App Router                                 | ✅     |
+| viem 2.40+              | viem for encoding/decoding (FR-048)                   | ✅     |
+| RainbowKit 2.2+         | RainbowKit for wallets (FR-001)                       | ✅     |
+| wagmi 2.17+             | wagmi for hooks (FR-013: useReadContract for hasRole) | ✅     |
+| TanStack Query 5.55+    | Wraps wagmi hooks automatically                       | ✅     |
+| TypeScript 5.5+ strict  | TypeScript strict mode                                | ✅     |
+| CSS Modules or Tailwind | Tailwind CSS (per existing CLAUDE.md)                 | ✅     |
+| Vitest or Jest          | Vitest + @testing-library/react                       | ✅     |
 
 ### 🔍 Additional Technology (Not in Constitution - Requires Documentation)
 
 The following technologies are required by the feature spec but not covered by constitution:
 
 1. **The Graph** - Primary data source for operations and role events (FR-064, FR-065)
-   - *Justification*: TimelockController doesn't implement AccessControlEnumerable, so we cannot enumerate role members on-chain. The Graph subgraph indexes RoleGranted/RoleRevoked events to provide role member lists.
-   - *Alternative considered*: Pure RPC queries rejected because no enumeration functions exist
+   - _Justification_: TimelockController doesn't implement AccessControlEnumerable, so we cannot enumerate role members on-chain. The Graph subgraph indexes RoleGranted/RoleRevoked events to provide role member lists.
+   - _Alternative considered_: Pure RPC queries rejected because no enumeration functions exist
 
 2. **Blockscout API** - Fallback data source + ABI fetching (FR-017, FR-035)
-   - *Justification*: Provides contract verification status and ABIs for verified contracts, plus fallback when subgraph unavailable
-   - *Alternative considered*: Etherscan API not available for Rootstock
+   - _Justification_: Provides contract verification status and ABIs for verified contracts, plus fallback when subgraph unavailable
+   - _Alternative considered_: Etherscan API not available for Rootstock
 
 3. **4byte Directory** - Function signature lookup (FR-052)
-   - *Justification*: Low-confidence fallback for decoding when no verified ABI available
-   - *Alternative considered*: None - this is industry standard for signature guessing
+   - _Justification_: Low-confidence fallback for decoding when no verified ABI available
+   - _Alternative considered_: None - this is industry standard for signature guessing
 
 4. **Radix UI** - Accessible component primitives (mentioned in design doc)
-   - *Justification*: Provides accessible headless components (modals, dropdowns, tooltips) that align with Rootstock design system
-   - *Alternative considered*: Building from scratch rejected due to accessibility complexity
+   - _Justification_: Provides accessible headless components (modals, dropdowns, tooltips) that align with Rootstock design system
+   - _Alternative considered_: Building from scratch rejected due to accessibility complexity
 
 **Recommendation**: Amend constitution to include these Web3-specific data sources, OR document as project-specific dependencies with rationale.
 
@@ -313,6 +316,7 @@ tests/
 **Output**: [research.md](./research.md)
 
 Comprehensive research completed covering:
+
 1. The Graph subgraph best practices for TimelockController
 2. Proxy contract detection (EIP-1967 & EIP-1822)
 3. Blockscout API integration patterns
@@ -329,6 +333,7 @@ All NEEDS CLARIFICATION items resolved with specific technology decisions, ratio
 ## Phase 1: Design & Contracts ✅ COMPLETE
 
 **Outputs**:
+
 - [data-model.md](./data-model.md) - Entity schemas, validation rules, relationships, state transitions
 - [contracts/subgraph.graphql](./contracts/subgraph.graphql) - The Graph schema for indexing TimelockController events
 - [contracts/blockscout.yaml](./contracts/blockscout.yaml) - Blockscout API integration specification
@@ -336,6 +341,7 @@ All NEEDS CLARIFICATION items resolved with specific technology decisions, ratio
 - [quickstart.md](./quickstart.md) - Developer onboarding guide with installation, setup, deployment, testing, and troubleshooting
 
 **Agent Context Updated**: CLAUDE.md updated with:
+
 - Language: TypeScript 5.5+ (strict mode enabled)
 - Framework: Next.js 15+, React 19+, wagmi 2.17+, viem 2.40+, RainbowKit 2.2+, TanStack Query 5.55+
 - Database: SessionStorage (ABI cache), The Graph subgraphs, Blockscout API (fallback)
@@ -350,4 +356,3 @@ All NEEDS CLARIFICATION items resolved with specific technology decisions, ratio
 This will generate `tasks.md` with dependency-ordered implementation tasks based on the complete planning artifacts.
 
 **Readiness**: All prerequisites complete. Ready to proceed to task generation.
-

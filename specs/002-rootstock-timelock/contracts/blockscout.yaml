@@ -223,10 +223,10 @@ x-integration-notes:
 
   proxy-detection:
     eip1967:
-      slot: "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc"
+      slot: '0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc'
       description: Transparent proxy pattern
     eip1822:
-      slot: "0xc5f16f0fcc639fa48a6947836d9850f504798523bf8c9a3a87d5876cf622bcf7"
+      slot: '0xc5f16f0fcc639fa48a6947836d9850f504798523bf8c9a3a87d5876cf622bcf7'
       description: Universal upgradeable proxy
     fallback:
       description: If Blockscout doesn't detect proxy, read storage slots directly using viem
