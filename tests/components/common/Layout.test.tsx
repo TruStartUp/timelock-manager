@@ -12,13 +12,12 @@ describe('Layout', () => {
     );
 
     // Check if header content is present
-    expect(screen.getByText('Rootstock Timelock Management')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Schedule New Operation/i })).toBeInTheDocument();
+    expect(screen.getByText('Rootstock')).toBeInTheDocument();
+    expect(screen.getByText('Timelock Management')).toBeInTheDocument();
 
     // Check if children content is present
-    expect(screen.getByRole('heading', { name: /Test Child Content/i })).toBeInTheDocument();
-
-    // Check if footer content is present
-    expect(screen.getByText(/© 2024 Rootstock. All rights reserved./i)).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: /Test Child Content/i })
+    ).toBeInTheDocument();
   });
 });

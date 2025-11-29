@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState } from 'react'
 
 const SettingsView = () => {
-  const [useCustomRpc, setUseCustomRpc] = useState(false);
-  const [rpcUrl, setRpcUrl] = useState('');
+  const [useCustomRpc, setUseCustomRpc] = useState(false)
+  const [rpcUrl, setRpcUrl] = useState('')
 
   return (
     <main className="flex-1 p-8 md:p-12 overflow-y-auto">
@@ -84,10 +84,7 @@ const SettingsView = () => {
             </div>
           </div>
           <div className="flex flex-col gap-2">
-            <label
-              className="text-sm font-medium text-white"
-              htmlFor="rpc-url"
-            >
+            <label className="text-sm font-medium text-white" htmlFor="rpc-url">
               Custom RPC URL
             </label>
             <div className="relative">
@@ -187,7 +184,7 @@ const SettingsView = () => {
         </section>
       </div>
     </main>
-  );
-};
+  )
+}
 
-export default SettingsView;
+export default SettingsView

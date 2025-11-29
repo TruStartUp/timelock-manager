@@ -1,44 +1,46 @@
-import React, { useState } from 'react';
+import React, { useState } from 'react'
 
 const NewProposalView: React.FC = () => {
   // State for wizard steps
-  const [currentStep, setCurrentStep] = useState(1);
-  const [contractAddress, setContractAddress] = useState('');
-  const [abiFetched, setAbiFetched] = useState(false);
-  const [selectedFunction, setSelectedFunction] = useState('transfer(address to, uint256 amount)');
+  const [currentStep, setCurrentStep] = useState(1)
+  const [contractAddress, setContractAddress] = useState('')
+  const [abiFetched, setAbiFetched] = useState(false)
+  const [selectedFunction, setSelectedFunction] = useState(
+    'transfer(address to, uint256 amount)'
+  )
   const [functionParams, setFunctionParams] = useState({
     to: '',
     amount: '',
-  });
+  })
 
   // Handler for Fetch ABI button
   const handleFetchAbi = () => {
     // TODO: Implement actual ABI fetching logic when data hooks/services are available
-    console.log('Fetching ABI for contract:', contractAddress);
-    setAbiFetched(true);
-  };
+    console.log('Fetching ABI for contract:', contractAddress)
+    setAbiFetched(true)
+  }
 
   // Handler for Back button
   const handleBack = () => {
     if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
+      setCurrentStep(currentStep - 1)
     }
-  };
+  }
 
   // Handler for Next button
   const handleNext = () => {
     if (currentStep < 3) {
-      setCurrentStep(currentStep + 1);
+      setCurrentStep(currentStep + 1)
     }
-  };
+  }
 
   // Handler for function parameter changes
   const handleParamChange = (paramName: string, value: string) => {
     setFunctionParams({
       ...functionParams,
       [paramName]: value,
-    });
-  };
+    })
+  }
 
   return (
     <div className="flex min-h-screen">
@@ -55,7 +57,9 @@ const NewProposalView: React.FC = () => {
               }}
             ></div>
             <div className="flex flex-col">
-              <h1 className="text-text-primary text-base font-medium leading-normal">Timelock Wizard</h1>
+              <h1 className="text-text-primary text-base font-medium leading-normal">
+                Timelock Wizard
+              </h1>
               <p className="text-text-secondary text-sm font-normal leading-normal">
                 Schedule a new operation
               </p>
@@ -70,8 +74,8 @@ const NewProposalView: React.FC = () => {
               }`}
               href="#"
               onClick={(e) => {
-                e.preventDefault();
-                setCurrentStep(1);
+                e.preventDefault()
+                setCurrentStep(1)
               }}
             >
               <span
@@ -83,7 +87,9 @@ const NewProposalView: React.FC = () => {
               </span>
               <p
                 className={`text-sm leading-normal ${
-                  currentStep === 1 ? 'text-primary font-bold' : 'text-text-primary font-medium'
+                  currentStep === 1
+                    ? 'text-primary font-bold'
+                    : 'text-text-primary font-medium'
                 }`}
               >
                 1. Target
@@ -95,8 +101,8 @@ const NewProposalView: React.FC = () => {
               }`}
               href="#"
               onClick={(e) => {
-                e.preventDefault();
-                setCurrentStep(2);
+                e.preventDefault()
+                setCurrentStep(2)
               }}
             >
               <span
@@ -108,7 +114,9 @@ const NewProposalView: React.FC = () => {
               </span>
               <p
                 className={`text-sm leading-normal ${
-                  currentStep === 2 ? 'text-primary font-bold' : 'text-text-primary font-medium'
+                  currentStep === 2
+                    ? 'text-primary font-bold'
+                    : 'text-text-primary font-medium'
                 }`}
               >
                 2. Function
@@ -120,8 +128,8 @@ const NewProposalView: React.FC = () => {
               }`}
               href="#"
               onClick={(e) => {
-                e.preventDefault();
-                setCurrentStep(3);
+                e.preventDefault()
+                setCurrentStep(3)
               }}
             >
               <span
@@ -133,7 +141,9 @@ const NewProposalView: React.FC = () => {
               </span>
               <p
                 className={`text-sm leading-normal ${
-                  currentStep === 3 ? 'text-primary font-bold' : 'text-text-primary font-medium'
+                  currentStep === 3
+                    ? 'text-primary font-bold'
+                    : 'text-text-primary font-medium'
                 }`}
               >
                 3. Review
@@ -145,11 +155,14 @@ const NewProposalView: React.FC = () => {
         {/* Help Section */}
         <div className="flex flex-col gap-4 p-4 bg-surface rounded border border-border-color">
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-text-secondary">help</span>
+            <span className="material-symbols-outlined text-text-secondary">
+              help
+            </span>
             <h3 className="text-sm font-bold text-text-primary">Need help?</h3>
           </div>
           <p className="text-sm text-text-secondary leading-relaxed">
-            Refer to the documentation for detailed instructions on scheduling operations.
+            Refer to the documentation for detailed instructions on scheduling
+            operations.
           </p>
           <button className="flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-full h-10 px-4 bg-background border border-border-color text-text-primary text-sm font-medium leading-normal tracking-[0.015em] hover:bg-border-color transition-colors">
             <span className="truncate">View Docs</span>
@@ -168,7 +181,8 @@ const NewProposalView: React.FC = () => {
                   Step 1: Select Target Contract
                 </p>
                 <p className="text-text-secondary text-base font-normal leading-normal">
-                  Enter the address of the contract you wish to interact with and fetch its ABI.
+                  Enter the address of the contract you wish to interact with
+                  and fetch its ABI.
                 </p>
               </div>
               <div className="flex flex-col gap-4 rounded-lg border border-border-color bg-surface p-6">
@@ -193,7 +207,9 @@ const NewProposalView: React.FC = () => {
                   </button>
                   {abiFetched && (
                     <div className="flex items-center gap-2 text-sm text-success">
-                      <span className="material-symbols-outlined text-base">task_alt</span>
+                      <span className="material-symbols-outlined text-base">
+                        task_alt
+                      </span>
                       <p>ABI fetched successfully!</p>
                     </div>
                   )}
@@ -210,7 +226,8 @@ const NewProposalView: React.FC = () => {
                   Step 2: Configure Function Call
                 </p>
                 <p className="text-text-secondary text-base font-normal leading-normal">
-                  Select a function from the ABI and provide the required arguments.
+                  Select a function from the ABI and provide the required
+                  arguments.
                 </p>
               </div>
               <div className="flex flex-col gap-6 rounded-lg border border-border-color bg-surface p-6">
@@ -255,7 +272,9 @@ const NewProposalView: React.FC = () => {
                       placeholder="1000000000000000000"
                       type="text"
                       value={functionParams.amount}
-                      onChange={(e) => handleParamChange('amount', e.target.value)}
+                      onChange={(e) =>
+                        handleParamChange('amount', e.target.value)
+                      }
                     />
                   </label>
                 </div>
@@ -279,7 +298,7 @@ const NewProposalView: React.FC = () => {
         </div>
       </main>
     </div>
-  );
-};
+  )
+}
 
-export default NewProposalView;
+export default NewProposalView

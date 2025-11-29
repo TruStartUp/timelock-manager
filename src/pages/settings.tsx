@@ -1,7 +1,7 @@
-import SettingsView from '@/components/settings/SettingsView';
+import SettingsView from '@/components/settings/SettingsView'
 
 const SettingsPage = () => {
-  return <SettingsView />;
-};
+  return <SettingsView />
+}
 
-export default SettingsPage;
+export default SettingsPage

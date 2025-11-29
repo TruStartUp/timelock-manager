@@ -7,15 +7,18 @@ This document outlines key technology decisions, patterns, and best practices fo
 ## 1. The Graph Subgraph Best Practices for TimelockController
 
 ### Decision
+
 Structure the subgraph schema with separate entities for `Operation`, `Call`, `Role`, and `RoleAssignment`. Use immutable entities for event-driven data (CallScheduled, CallExecuted, Cancelled) with derived relationships from the one side.
 
 ### Rationale
+
 - **Immutable Entities**: TimelockController events (CallScheduled, CallExecuted, Cancelled, RoleGranted, RoleRevoked) represent one-time blockchain occurrences that should never be modified, making them ideal candidates for immutable entities marked with `(immutable: true)`
 - **Performance Optimization**: The Graph best practices recommend storing relationships on the "one" side (Operation) and deriving the "many" side (Calls) to dramatically increase both indexing and querying performance
 - **Batch Operations Support**: When `scheduleBatch` is called, OpenZeppelin's TimelockController emits one CallScheduled event per transaction in the batch. Each event includes an `index` parameter to maintain order within the batch
 - **Event Processing Order**: The Graph processes events in the order they appear in blocks, ensuring that CallScheduled events from the same transaction are processed sequentially with their correct indices
 
 ### Alternatives Considered
+
 - **Single Entity Approach**: Storing all operation data (including multiple calls) in a single entity with array fields was rejected because The Graph's best practices explicitly warn against large arrays, which hurt performance and create copies on updates
 - **Storing Relationships on Both Sides**: This was rejected because it creates redundant data and reduces performance compared to using derived fields
 - **Using Non-Immutable Entities**: This was rejected because TimelockController events never change once emitted, and immutable entities provide faster indexing
@@ -23,51 +26,52 @@ Structure the subgraph schema with separate entities for `Operation`, `Call`, `R
 ### Implementation Notes
 
 **Schema Structure:**
+
 ```graphql
 type Operation @entity(immutable: true) {
-  id: Bytes!                    # Operation hash (bytes32)
-  index: BigInt!                # Sequential index for sorting
-  target: Bytes                 # Single target (for schedule) or null (for batch)
-  value: BigInt                 # Single value (for schedule) or null (for batch)
-  data: Bytes                   # Single data (for schedule) or null (for batch)
-  predecessor: Bytes!           # bytes32 predecessor hash
-  salt: Bytes!                  # bytes32 salt
-  delay: BigInt!                # Delay in seconds
-  timestamp: BigInt!            # Ready timestamp (block.timestamp + delay)
-  status: OperationStatus!      # PENDING, READY, EXECUTED, CANCELLED
-  scheduledAt: BigInt!          # Block timestamp when scheduled
-  scheduledTx: Bytes!           # Transaction hash
-  executedAt: BigInt            # Block timestamp when executed (if applicable)
-  executedTx: Bytes             # Transaction hash (if executed)
-  cancelledAt: BigInt           # Block timestamp when cancelled (if applicable)
-  cancelledTx: Bytes            # Transaction hash (if cancelled)
-  calls: [Call!]! @derivedFrom(field: "operation")  # Derived relationship
+  id: Bytes! # Operation hash (bytes32)
+  index: BigInt! # Sequential index for sorting
+  target: Bytes # Single target (for schedule) or null (for batch)
+  value: BigInt # Single value (for schedule) or null (for batch)
+  data: Bytes # Single data (for schedule) or null (for batch)
+  predecessor: Bytes! # bytes32 predecessor hash
+  salt: Bytes! # bytes32 salt
+  delay: BigInt! # Delay in seconds
+  timestamp: BigInt! # Ready timestamp (block.timestamp + delay)
+  status: OperationStatus! # PENDING, READY, EXECUTED, CANCELLED
+  scheduledAt: BigInt! # Block timestamp when scheduled
+  scheduledTx: Bytes! # Transaction hash
+  executedAt: BigInt # Block timestamp when executed (if applicable)
+  executedTx: Bytes # Transaction hash (if executed)
+  cancelledAt: BigInt # Block timestamp when cancelled (if applicable)
+  cancelledTx: Bytes # Transaction hash (if cancelled)
+  calls: [Call!]! @derivedFrom(field: "operation") # Derived relationship
 }
 
 type Call @entity(immutable: true) {
-  id: Bytes!                    # Composite: operationId-index
-  operation: Operation!         # Parent operation
-  index: Int!                   # Index within batch (from event)
-  target: Bytes!                # Target contract address
-  value: BigInt!                # Value in wei
-  data: Bytes!                  # Encoded function call data
-  signature: String             # Decoded function signature (if available)
+  id: Bytes! # Composite: operationId-index
+  operation: Operation! # Parent operation
+  index: Int! # Index within batch (from event)
+  target: Bytes! # Target contract address
+  value: BigInt! # Value in wei
+  data: Bytes! # Encoded function call data
+  signature: String # Decoded function signature (if available)
 }
 
 type Role @entity {
-  id: Bytes!                    # Role hash (PROPOSER_ROLE, EXECUTOR_ROLE, etc.)
-  roleHash: Bytes!              # bytes32 role identifier
-  adminRole: Role               # Admin role that can grant/revoke this role
+  id: Bytes! # Role hash (PROPOSER_ROLE, EXECUTOR_ROLE, etc.)
+  roleHash: Bytes! # bytes32 role identifier
+  adminRole: Role # Admin role that can grant/revoke this role
   members: [RoleAssignment!]! @derivedFrom(field: "role")
 }
 
 type RoleAssignment @entity(immutable: true) {
-  id: Bytes!                    # Composite: roleHash-account-txHash
-  role: Role!                   # Parent role
-  account: Bytes!               # Account address
-  granted: Boolean!             # true = granted, false = revoked
-  timestamp: BigInt!            # Block timestamp
-  txHash: Bytes!                # Transaction hash
+  id: Bytes! # Composite: roleHash-account-txHash
+  role: Role! # Parent role
+  account: Bytes! # Account address
+  granted: Boolean! # true = granted, false = revoked
+  timestamp: BigInt! # Block timestamp
+  txHash: Bytes! # Transaction hash
 }
 
 enum OperationStatus {
@@ -79,46 +83,49 @@ enum OperationStatus {
 ```
 
 **Handling Batch Operations in Mappings:**
+
 ```typescript
 export function handleCallScheduled(event: CallScheduled): void {
-  const operationId = event.params.id;
-  const index = event.params.index;
+  const operationId = event.params.id
+  const index = event.params.index
 
   // Create or load Operation entity
-  let operation = Operation.load(operationId);
+  let operation = Operation.load(operationId)
   if (operation == null) {
-    operation = new Operation(operationId);
-    operation.predecessor = event.params.predecessor;
-    operation.salt = event.params.salt;
-    operation.delay = event.params.delay;
-    operation.timestamp = event.block.timestamp.plus(event.params.delay);
-    operation.status = "PENDING";
-    operation.scheduledAt = event.block.timestamp;
-    operation.scheduledTx = event.transaction.hash;
-    operation.index = event.block.number.times(BigInt.fromI32(1000000)).plus(event.logIndex);
+    operation = new Operation(operationId)
+    operation.predecessor = event.params.predecessor
+    operation.salt = event.params.salt
+    operation.delay = event.params.delay
+    operation.timestamp = event.block.timestamp.plus(event.params.delay)
+    operation.status = 'PENDING'
+    operation.scheduledAt = event.block.timestamp
+    operation.scheduledTx = event.transaction.hash
+    operation.index = event.block.number
+      .times(BigInt.fromI32(1000000))
+      .plus(event.logIndex)
   }
 
   // Check if this is a batch operation (index > 0) or single operation
   if (index.isZero()) {
     // Single operation
-    operation.target = event.params.target;
-    operation.value = event.params.value;
-    operation.data = event.params.data;
+    operation.target = event.params.target
+    operation.value = event.params.value
+    operation.data = event.params.data
   }
 
-  operation.save();
+  operation.save()
 
   // Create Call entity for both single and batch operations
-  const callId = operationId.concat(Bytes.fromI32(index.toI32()));
-  let call = new Call(callId);
-  call.operation = operation.id;
-  call.index = index.toI32();
-  call.target = event.params.target;
-  call.value = event.params.value;
-  call.data = event.params.data;
+  const callId = operationId.concat(Bytes.fromI32(index.toI32()))
+  let call = new Call(callId)
+  call.operation = operation.id
+  call.index = index.toI32()
+  call.target = event.params.target
+  call.value = event.params.value
+  call.data = event.params.data
   // Optionally decode signature from data
-  call.signature = decodeSignature(event.params.data);
-  call.save();
+  call.signature = decodeSignature(event.params.data)
+  call.save()
 }
 ```
 
@@ -126,6 +133,7 @@ export function handleCallScheduled(event: CallScheduled): void {
 Use The Graph's built-in support for reorgs by ensuring all entities are properly indexed with block numbers. The Graph automatically handles reorgs by reverting entities created in reverted blocks.
 
 **Query Optimization Patterns:**
+
 ```graphql
 # Query operations with their calls efficiently (derived field)
 query GetOperationWithCalls($operationId: Bytes!) {
@@ -163,6 +171,7 @@ query GetPendingOperations {
 
 **Using indexerHints for Pruning:**
 Add to subgraph manifest to enable automatic pruning of old data:
+
 ```yaml
 features:
   - ipfsOnEthereumContracts
@@ -171,6 +180,7 @@ indexerHints:
 ```
 
 ### References
+
 - [The Graph Best Practice Cookbook](https://thegraph.academy/developers/best-practice/)
 - [The Graph Advanced Features](https://thegraph.com/docs/en/subgraphs/developing/creating/advanced/)
 - [OpenZeppelin Subgraphs](https://github.com/OpenZeppelin/openzeppelin-subgraphs)
@@ -182,15 +192,18 @@ indexerHints:
 ## 2. Proxy Contract Detection (EIP-1967 & EIP-1822)
 
 ### Decision
+
 Use the `evm-proxy-detection` library with viem's public client to automatically detect and handle multiple proxy patterns (EIP-1967, EIP-1822, EIP-1167, etc.) with graceful fallbacks.
 
 ### Rationale
+
 - **Multiple Standards Support**: Real-world contracts use various proxy patterns. The `evm-proxy-detection` library handles EIP-1967 (Transparent Proxy), EIP-1822 (UUPS), EIP-1167 (Minimal Proxy/Clone), and other patterns automatically
 - **Viem Integration**: The library accepts any EIP-1193-compatible provider, making it seamless to integrate with viem's public client
 - **Batch RPC Support**: By using viem's HTTP transport with `batch: true`, proxy detection can make multiple storage slot reads efficiently in a single RPC batch
 - **Type Safety**: The library returns structured results including proxy type and implementation address, enabling type-safe handling downstream
 
 ### Alternatives Considered
+
 - **Manual Storage Slot Reading**: Implementing manual `getStorageAt` calls for each proxy standard was rejected due to complexity, maintenance burden, and lack of support for edge cases
 - **Only Supporting EIP-1967**: This was rejected because many contracts use UUPS (EIP-1822) or other patterns, and limiting support would reduce app utility
 - **Contract Calls to Implementation Getters**: Some proxies don't expose public getters, making this approach unreliable
@@ -198,21 +211,23 @@ Use the `evm-proxy-detection` library with viem's public client to automatically
 ### Implementation Notes
 
 **Installation:**
+
 ```bash
 npm install evm-proxy-detection viem
 ```
 
 **Basic Implementation:**
+
 ```typescript
-import { createPublicClient, http, type Address } from 'viem';
-import { detectProxy } from 'evm-proxy-detection';
-import { rootstock } from 'wagmi/chains';
+import { createPublicClient, http, type Address } from 'viem'
+import { detectProxy } from 'evm-proxy-detection'
+import { rootstock } from 'wagmi/chains'
 
 // Create viem public client with batch support
 const publicClient = createPublicClient({
   chain: rootstock,
-  transport: http(undefined, { batch: true })
-});
+  transport: http(undefined, { batch: true }),
+})
 
 /**
  * Detects if an address is a proxy and returns implementation address
@@ -220,33 +235,33 @@ const publicClient = createPublicClient({
  * @returns Implementation address if proxy, original address if not
  */
 export async function resolveImplementation(address: Address): Promise<{
-  isProxy: boolean;
-  implementation: Address;
-  proxyType?: string;
+  isProxy: boolean
+  implementation: Address
+  proxyType?: string
 }> {
   try {
-    const result = await detectProxy(address, publicClient.request);
+    const result = await detectProxy(address, publicClient.request)
 
     if (result) {
       return {
         isProxy: true,
         implementation: result.target as Address,
-        proxyType: result.type
-      };
+        proxyType: result.type,
+      }
     }
 
     // Not a proxy, return original address
     return {
       isProxy: false,
-      implementation: address
-    };
+      implementation: address,
+    }
   } catch (error) {
-    console.error('Proxy detection failed:', error);
+    console.error('Proxy detection failed:', error)
     // Fallback: assume not a proxy
     return {
       isProxy: false,
-      implementation: address
-    };
+      implementation: address,
+    }
   }
 }
 ```
@@ -258,89 +273,100 @@ If the library is unavailable, here are the key storage slots:
 // EIP-1967 Storage Slots
 const EIP1967_SLOTS = {
   // keccak256('eip1967.proxy.implementation') - 1
-  IMPLEMENTATION: '0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc',
+  IMPLEMENTATION:
+    '0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc',
   // keccak256('eip1967.proxy.admin') - 1
   ADMIN: '0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103',
   // keccak256('eip1967.proxy.beacon') - 1
-  BEACON: '0xa3f0ad74e5423aebfd80d3ef4346578335a9a72aeaee59ff6cb3582b35133d50'
-} as const;
+  BEACON: '0xa3f0ad74e5423aebfd80d3ef4346578335a9a72aeaee59ff6cb3582b35133d50',
+} as const
 
 // EIP-1822 (UUPS) Storage Slot
-const EIP1822_SLOT = '0xc5f16f0fcc639fa48a6947836d9850f504798523bf8c9a3a87d5876cf622bcf7'; // keccak256("PROXIABLE")
+const EIP1822_SLOT =
+  '0xc5f16f0fcc639fa48a6947836d9850f504798523bf8c9a3a87d5876cf622bcf7' // keccak256("PROXIABLE")
 
 /**
  * Manual fallback for detecting EIP-1967 proxies
  */
-async function detectEIP1967Manually(address: Address): Promise<Address | null> {
+async function detectEIP1967Manually(
+  address: Address
+): Promise<Address | null> {
   try {
     const implementationSlot = await publicClient.getStorageAt({
       address,
-      slot: EIP1967_SLOTS.IMPLEMENTATION
-    });
+      slot: EIP1967_SLOTS.IMPLEMENTATION,
+    })
 
     if (implementationSlot && implementationSlot !== '0x' + '0'.repeat(64)) {
       // Remove leading zeros and format as address
-      return ('0x' + implementationSlot.slice(-40)) as Address;
+      return ('0x' + implementationSlot.slice(-40)) as Address
     }
 
-    return null;
+    return null
   } catch {
-    return null;
+    return null
   }
 }
 ```
 
 **Integration with ABI Fetching:**
+
 ```typescript
 /**
  * Fetches ABI for a contract, resolving proxies first
  */
 export async function fetchContractABI(address: Address): Promise<any[]> {
   // Step 1: Resolve proxy to implementation
-  const { implementation, proxyType } = await resolveImplementation(address);
+  const { implementation, proxyType } = await resolveImplementation(address)
 
   console.log(
     proxyType
       ? `Detected ${proxyType} proxy, fetching ABI for implementation: ${implementation}`
       : `No proxy detected, fetching ABI for: ${address}`
-  );
+  )
 
   // Step 2: Fetch ABI from Blockscout using implementation address
-  const abi = await fetchABIFromBlockscout(implementation);
+  const abi = await fetchABIFromBlockscout(implementation)
 
-  return abi;
+  return abi
 }
 ```
 
 **Edge Cases and Fallbacks:**
+
 1. **Storage Read Failures**: If storage reads fail (node doesn't support it), fall back to assuming no proxy
 2. **Invalid Implementation Address**: Validate that the resolved address is a valid checksummed address
 3. **Beacon Proxies**: For EIP-1967 beacon proxies, the implementation is stored in the beacon contract, requiring a second resolution step
 4. **Metamorphic Contracts**: Some contracts can change their code; cache with short TTL and provide manual refresh option
 
 **Caching Strategy:**
+
 ```typescript
 // Cache proxy detection results (5 minute TTL)
-const proxyCache = new Map<Address, {
-  result: { isProxy: boolean; implementation: Address; proxyType?: string };
-  timestamp: number;
-}>();
+const proxyCache = new Map<
+  Address,
+  {
+    result: { isProxy: boolean; implementation: Address; proxyType?: string }
+    timestamp: number
+  }
+>()
 
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const CACHE_TTL = 5 * 60 * 1000 // 5 minutes
 
 export async function resolveImplementationCached(address: Address) {
-  const cached = proxyCache.get(address);
+  const cached = proxyCache.get(address)
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-    return cached.result;
+    return cached.result
   }
 
-  const result = await resolveImplementation(address);
-  proxyCache.set(address, { result, timestamp: Date.now() });
-  return result;
+  const result = await resolveImplementation(address)
+  proxyCache.set(address, { result, timestamp: Date.now() })
+  return result
 }
 ```
 
 ### References
+
 - [evm-proxy-detection on GitHub](https://github.com/abipub/evm-proxy-detection)
 - [EIP-1967: Standard Proxy Storage Slots](https://eips.ethereum.org/EIPS/eip-1967)
 - [EIP-1822: Universal Upgradeable Proxy Standard (UUPS)](https://eips.ethereum.org/EIPS/eip-1822)
@@ -353,15 +379,18 @@ export async function resolveImplementationCached(address: Address) {
 ## 3. Blockscout API Integration Patterns
 
 ### Decision
+
 Use Blockscout's v2 REST API with IP-based rate limiting awareness (10 RPS default), implement exponential backoff retry logic, and cache ABI responses in localStorage with TTL-based invalidation.
 
 ### Rationale
+
 - **v2 REST API Stability**: Blockscout's v2 API provides stable endpoints for contract verification status and ABI retrieval with clear response formats
 - **Rate Limiting Reality**: The default 10 requests/second limit is shared across all users on the same IP. API keys don't help for REST endpoints (only JSON RPC), so client-side rate limiting and caching are essential
 - **Rootstock Support**: Blockscout is the primary block explorer for Rootstock (rootstock.blockscout.com and rootstock-testnet.blockscout.com), making it the authoritative source for verified contract ABIs
 - **Graceful Degradation**: When Blockscout is unavailable, the app should fall back to manual ABI input rather than failing completely
 
 ### Alternatives Considered
+
 - **Etherscan API**: Not applicable for Rootstock network
 - **On-Chain ABI Storage**: Very few contracts store ABIs on-chain; this would have extremely limited utility
 - **Sourcify Integration**: Could be added as a secondary fallback, but Blockscout integration is more critical for Rootstock
@@ -369,24 +398,25 @@ Use Blockscout's v2 REST API with IP-based rate limiting awareness (10 RPS defau
 ### Implementation Notes
 
 **Blockscout v2 API Endpoints for Rootstock:**
+
 ```typescript
 const BLOCKSCOUT_API_BASE = {
   mainnet: 'https://rootstock.blockscout.com/api/v2',
-  testnet: 'https://rootstock-testnet.blockscout.com/api/v2'
-} as const;
+  testnet: 'https://rootstock-testnet.blockscout.com/api/v2',
+} as const
 
 /**
  * Blockscout v2 API client with rate limiting and caching
  */
 export class BlockscoutClient {
-  private baseUrl: string;
-  private requestQueue: Array<() => Promise<void>> = [];
-  private processing = false;
-  private lastRequestTime = 0;
-  private readonly REQUEST_INTERVAL = 150; // 150ms = ~6.6 RPS (conservative)
+  private baseUrl: string
+  private requestQueue: Array<() => Promise<void>> = []
+  private processing = false
+  private lastRequestTime = 0
+  private readonly REQUEST_INTERVAL = 150 // 150ms = ~6.6 RPS (conservative)
 
   constructor(network: 'mainnet' | 'testnet') {
-    this.baseUrl = BLOCKSCOUT_API_BASE[network];
+    this.baseUrl = BLOCKSCOUT_API_BASE[network]
   }
 
   /**
@@ -399,44 +429,44 @@ export class BlockscoutClient {
     return new Promise((resolve, reject) => {
       this.requestQueue.push(async () => {
         try {
-          const now = Date.now();
-          const timeSinceLastRequest = now - this.lastRequestTime;
+          const now = Date.now()
+          const timeSinceLastRequest = now - this.lastRequestTime
           if (timeSinceLastRequest < this.REQUEST_INTERVAL) {
-            await new Promise(r =>
+            await new Promise((r) =>
               setTimeout(r, this.REQUEST_INTERVAL - timeSinceLastRequest)
-            );
+            )
           }
 
-          const response = await fetch(url, options);
-          this.lastRequestTime = Date.now();
+          const response = await fetch(url, options)
+          this.lastRequestTime = Date.now()
 
           if (!response.ok) {
             if (response.status === 429) {
-              throw new Error('RATE_LIMITED');
+              throw new Error('RATE_LIMITED')
             }
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`)
           }
 
-          const data = await response.json();
-          resolve(data);
+          const data = await response.json()
+          resolve(data)
         } catch (error) {
-          reject(error);
+          reject(error)
         }
-      });
+      })
 
       if (!this.processing) {
-        this.processQueue();
+        this.processQueue()
       }
-    });
+    })
   }
 
   private async processQueue() {
-    this.processing = true;
+    this.processing = true
     while (this.requestQueue.length > 0) {
-      const request = this.requestQueue.shift();
-      if (request) await request();
+      const request = this.requestQueue.shift()
+      if (request) await request()
     }
-    this.processing = false;
+    this.processing = false
   }
 
   /**
@@ -446,56 +476,55 @@ export class BlockscoutClient {
     address: Address,
     maxRetries = 3
   ): Promise<{ abi: any[]; verified: boolean }> {
-    const cacheKey = `blockscout_abi_${address}_${this.baseUrl}`;
+    const cacheKey = `blockscout_abi_${address}_${this.baseUrl}`
 
     // Check cache first
-    const cached = this.getFromCache(cacheKey);
-    if (cached) return cached;
+    const cached = this.getFromCache(cacheKey)
+    if (cached) return cached
 
-    let lastError: Error | null = null;
+    let lastError: Error | null = null
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
         const data = await this.rateLimitedRequest<{
-          is_verified: boolean;
-          abi?: any[];
-          message?: string;
-        }>(`${this.baseUrl}/smart-contracts/${address}`);
+          is_verified: boolean
+          abi?: any[]
+          message?: string
+        }>(`${this.baseUrl}/smart-contracts/${address}`)
 
         if (!data.is_verified) {
-          return { abi: [], verified: false };
+          return { abi: [], verified: false }
         }
 
         if (!data.abi) {
-          throw new Error('ABI not found in verified contract response');
+          throw new Error('ABI not found in verified contract response')
         }
 
-        const result = { abi: data.abi, verified: true };
-        this.saveToCache(cacheKey, result);
-        return result;
-
+        const result = { abi: data.abi, verified: true }
+        this.saveToCache(cacheKey, result)
+        return result
       } catch (error) {
-        lastError = error as Error;
+        lastError = error as Error
 
         if (error.message === 'RATE_LIMITED') {
           // Exponential backoff: 1s, 2s, 4s
-          const backoffMs = Math.pow(2, attempt) * 1000;
-          await new Promise(r => setTimeout(r, backoffMs));
-          continue;
+          const backoffMs = Math.pow(2, attempt) * 1000
+          await new Promise((r) => setTimeout(r, backoffMs))
+          continue
         }
 
         // Don't retry on 404 (contract not found)
         if (error.message.includes('404')) {
-          return { abi: [], verified: false };
+          return { abi: [], verified: false }
         }
 
         // Retry other errors
         if (attempt < maxRetries - 1) {
-          await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+          await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)))
         }
       }
     }
 
-    throw lastError || new Error('Failed to fetch ABI from Blockscout');
+    throw lastError || new Error('Failed to fetch ABI from Blockscout')
   }
 
   /**
@@ -505,10 +534,10 @@ export class BlockscoutClient {
     try {
       const data = await this.rateLimitedRequest<{ is_verified: boolean }>(
         `${this.baseUrl}/smart-contracts/${address}`
-      );
-      return data.is_verified;
+      )
+      return data.is_verified
     } catch {
-      return false;
+      return false
     }
   }
 
@@ -517,61 +546,64 @@ export class BlockscoutClient {
    */
   private getFromCache(key: string): any | null {
     try {
-      const cached = localStorage.getItem(key);
-      if (!cached) return null;
+      const cached = localStorage.getItem(key)
+      if (!cached) return null
 
-      const { data, timestamp } = JSON.parse(cached);
-      const TTL = 24 * 60 * 60 * 1000; // 24 hours
+      const { data, timestamp } = JSON.parse(cached)
+      const TTL = 24 * 60 * 60 * 1000 // 24 hours
 
       if (Date.now() - timestamp < TTL) {
-        return data;
+        return data
       }
 
-      localStorage.removeItem(key);
-      return null;
+      localStorage.removeItem(key)
+      return null
     } catch {
-      return null;
+      return null
     }
   }
 
   private saveToCache(key: string, data: any): void {
     try {
-      localStorage.setItem(key, JSON.stringify({
-        data,
-        timestamp: Date.now()
-      }));
+      localStorage.setItem(
+        key,
+        JSON.stringify({
+          data,
+          timestamp: Date.now(),
+        })
+      )
     } catch (error) {
-      console.warn('Failed to cache ABI:', error);
+      console.warn('Failed to cache ABI:', error)
     }
   }
 }
 ```
 
 **Usage Example:**
+
 ```typescript
 // In your React component or service
-const blockscout = new BlockscoutClient(
-  chainId === 30 ? 'mainnet' : 'testnet'
-);
+const blockscout = new BlockscoutClient(chainId === 30 ? 'mainnet' : 'testnet')
 
 try {
-  const { abi, verified } = await blockscout.getContractABI(contractAddress);
+  const { abi, verified } = await blockscout.getContractABI(contractAddress)
 
   if (!verified) {
     // Show manual ABI input UI
-    setShowManualABIInput(true);
+    setShowManualABIInput(true)
   } else {
     // Use the ABI
-    setContractABI(abi);
+    setContractABI(abi)
   }
 } catch (error) {
-  console.error('Blockscout API error:', error);
+  console.error('Blockscout API error:', error)
   // Fallback: show manual ABI input
-  setShowManualABIInput(true);
+  setShowManualABIInput(true)
 }
 ```
 
 **Error Handling Strategy:**
+
 1. **429 Rate Limit**: Exponential backoff (1s, 2s, 4s) then show user message
 2. **404 Not Found**: Assume unverified contract, offer manual ABI input
 3. **500 Server Error**: Retry with backoff, then show "Blockscout unavailable" message
@@ -579,30 +611,34 @@ try {
 5. **Invalid Response**: Log error, fall back to manual input
 
 **Cache Invalidation:**
+
 ```typescript
 // Clear ABI cache for specific address (user-triggered)
-export function clearABICache(address: Address, network: 'mainnet' | 'testnet') {
-  const baseUrl = BLOCKSCOUT_API_BASE[network];
-  const cacheKey = `blockscout_abi_${address}_${baseUrl}`;
-  localStorage.removeItem(cacheKey);
+export function clearABICache(
+  address: Address,
+  network: 'mainnet' | 'testnet'
+) {
+  const baseUrl = BLOCKSCOUT_API_BASE[network]
+  const cacheKey = `blockscout_abi_${address}_${baseUrl}`
+  localStorage.removeItem(cacheKey)
 }
 
 // Clear all expired cache entries (run on app startup)
 export function clearExpiredCache() {
-  const TTL = 24 * 60 * 60 * 1000;
+  const TTL = 24 * 60 * 60 * 1000
   for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
+    const key = localStorage.key(i)
     if (key?.startsWith('blockscout_abi_')) {
       try {
-        const cached = localStorage.getItem(key);
+        const cached = localStorage.getItem(key)
         if (cached) {
-          const { timestamp } = JSON.parse(cached);
+          const { timestamp } = JSON.parse(cached)
           if (Date.now() - timestamp >= TTL) {
-            localStorage.removeItem(key);
+            localStorage.removeItem(key)
           }
         }
       } catch {
-        localStorage.removeItem(key);
+        localStorage.removeItem(key)
       }
     }
   }
@@ -611,32 +647,34 @@ export function clearExpiredCache() {
 
 **Batch ABI Fetching Pattern:**
 When loading multiple operations that target different contracts:
+
 ```typescript
 async function fetchABIsForOperations(operations: Operation[]) {
   // Extract unique contract addresses
-  const uniqueAddresses = [...new Set(
-    operations.flatMap(op => op.calls.map(call => call.target))
-  )];
+  const uniqueAddresses = [
+    ...new Set(operations.flatMap((op) => op.calls.map((call) => call.target))),
+  ]
 
   // Fetch ABIs in parallel with rate limiting built-in
   const abiResults = await Promise.allSettled(
-    uniqueAddresses.map(address => blockscout.getContractABI(address))
-  );
+    uniqueAddresses.map((address) => blockscout.getContractABI(address))
+  )
 
   // Build address -> ABI map
-  const abiMap = new Map<Address, any[]>();
+  const abiMap = new Map<Address, any[]>()
   uniqueAddresses.forEach((address, i) => {
-    const result = abiResults[i];
+    const result = abiResults[i]
     if (result.status === 'fulfilled' && result.value.verified) {
-      abiMap.set(address, result.value.abi);
+      abiMap.set(address, result.value.abi)
     }
-  });
+  })
 
-  return abiMap;
+  return abiMap
 }
 ```
 
 ### References
+
 - [Blockscout Smart Contract Verification API](https://docs.blockscout.com/devs/verification/blockscout-smart-contract-verification-api)
 - [Blockscout API Requests & Limits](https://docs.blockscout.com/devs/apis/requests-and-limits)
 - [Rootstock Mainnet Blockscout](https://rootstock.blockscout.com/)
@@ -647,15 +685,18 @@ async function fetchABIsForOperations(operations: Operation[]) {
 ## 4. ABI-Driven Dynamic Form Generation
 
 ### Decision
-Build a React Hook Form + Zod-based dynamic form generator that parses ABI function inputs and generates typed form fields with comprehensive validation for Solidity types (address, uint*, int*, bytes*, string, bool, arrays, tuples).
+
+Build a React Hook Form + Zod-based dynamic form generator that parses ABI function inputs and generates typed form fields with comprehensive validation for Solidity types (address, uint*, int*, bytes\*, string, bool, arrays, tuples).
 
 ### Rationale
+
 - **Type Safety**: Zod provides runtime validation that catches errors before submission, preventing failed transactions due to invalid inputs
 - **Developer Experience**: React Hook Form offers excellent performance with minimal re-renders and simple integration patterns
 - **Solidity Type Coverage**: The system must handle all common Solidity types including complex ones (arrays, tuples/structs) to support arbitrary contract interactions
 - **User Feedback**: Real-time validation with clear error messages improves UX and reduces transaction failures
 
 ### Alternatives Considered
+
 - **Formik + Yup**: More verbose than React Hook Form, slower performance with large forms
 - **Uncontrolled Forms**: No validation until submission, poor UX
 - **Manual Validation**: Error-prone, doesn't scale to complex types
@@ -663,70 +704,73 @@ Build a React Hook Form + Zod-based dynamic form generator that parses ABI funct
 ### Implementation Notes
 
 **Core Types and Validation:**
+
 ```typescript
-import { z } from 'zod';
-import { isAddress, getAddress } from 'viem';
+import { z } from 'zod'
+import { isAddress, getAddress } from 'viem'
 
 /**
  * Zod validators for Solidity types
  */
 export const solidityValidators = {
   // Address with EIP-55 checksum validation
-  address: z.string()
-    .refine(
-      (val) => isAddress(val),
-      { message: 'Invalid Ethereum address' }
-    )
+  address: z
+    .string()
+    .refine((val) => isAddress(val), { message: 'Invalid Ethereum address' })
     .transform((val) => getAddress(val)), // Normalize to checksummed
 
   // uint8 to uint256
   uint: (bits: number = 256) => {
-    const max = BigInt(2 ** bits) - BigInt(1);
-    return z.string()
-      .refine(
-        (val) => {
-          try {
-            const n = BigInt(val);
-            return n >= BigInt(0) && n <= max;
-          } catch {
-            return false;
-          }
-        },
-        { message: `Must be a valid uint${bits} (0 to ${max.toString()})` }
-      );
+    const max = BigInt(2 ** bits) - BigInt(1)
+    return z.string().refine(
+      (val) => {
+        try {
+          const n = BigInt(val)
+          return n >= BigInt(0) && n <= max
+        } catch {
+          return false
+        }
+      },
+      { message: `Must be a valid uint${bits} (0 to ${max.toString()})` }
+    )
   },
 
   // int8 to int256
   int: (bits: number = 256) => {
-    const max = BigInt(2 ** (bits - 1)) - BigInt(1);
-    const min = -(BigInt(2 ** (bits - 1)));
-    return z.string()
-      .refine(
-        (val) => {
-          try {
-            const n = BigInt(val);
-            return n >= min && n <= max;
-          } catch {
-            return false;
-          }
-        },
-        { message: `Must be a valid int${bits} (${min.toString()} to ${max.toString()})` }
-      );
+    const max = BigInt(2 ** (bits - 1)) - BigInt(1)
+    const min = -BigInt(2 ** (bits - 1))
+    return z.string().refine(
+      (val) => {
+        try {
+          const n = BigInt(val)
+          return n >= min && n <= max
+        } catch {
+          return false
+        }
+      },
+      {
+        message: `Must be a valid int${bits} (${min.toString()} to ${max.toString()})`,
+      }
+    )
   },
 
   // bytes (dynamic) - hex string
-  bytes: z.string()
-    .refine(
-      (val) => /^0x[0-9a-fA-F]*$/.test(val) && val.length % 2 === 0,
-      { message: 'Must be a valid hex string (0x...)' }
-    ),
+  bytes: z
+    .string()
+    .refine((val) => /^0x[0-9a-fA-F]*$/.test(val) && val.length % 2 === 0, {
+      message: 'Must be a valid hex string (0x...)',
+    }),
 
   // bytesN (fixed) - hex string with exact length
-  bytesFixed: (size: number) => z.string()
-    .refine(
-      (val) => /^0x[0-9a-fA-F]*$/.test(val) && val.length === 2 + size * 2,
-      { message: `Must be a ${size}-byte hex string (${2 + size * 2} chars including 0x)` }
-    ),
+  bytesFixed: (size: number) =>
+    z
+      .string()
+      .refine(
+        (val) => /^0x[0-9a-fA-F]*$/.test(val) && val.length === 2 + size * 2,
+        {
+          message: `Must be a ${size}-byte hex string (${2 + size * 2} chars including 0x)`,
+        }
+      ),
 
   // string (UTF-8)
   string: z.string().min(0),
@@ -739,67 +783,76 @@ export const solidityValidators = {
 
   // tuple (struct) - JSON object or array
   tuple: (components: z.ZodTypeAny[]) => z.tuple(components as any),
-};
+}
 
 /**
  * Parse ABI type string into Zod schema
  */
-export function parseABITypeToZod(type: string, components?: any[]): z.ZodTypeAny {
+export function parseABITypeToZod(
+  type: string,
+  components?: any[]
+): z.ZodTypeAny {
   // Handle arrays: uint256[], address[3]
-  const arrayMatch = type.match(/^(.+?)\[(\d*)\]$/);
+  const arrayMatch = type.match(/^(.+?)\[(\d*)\]$/)
   if (arrayMatch) {
-    const [, baseType, size] = arrayMatch;
-    const elementSchema = parseABITypeToZod(baseType);
+    const [, baseType, size] = arrayMatch
+    const elementSchema = parseABITypeToZod(baseType)
 
     if (size) {
       // Fixed-size array: address[3]
-      return z.array(elementSchema)
-        .length(parseInt(size), { message: `Array must have exactly ${size} elements` });
+      return z
+        .array(elementSchema)
+        .length(parseInt(size), {
+          message: `Array must have exactly ${size} elements`,
+        })
     } else {
       // Dynamic array: uint256[]
-      return z.array(elementSchema).min(0);
+      return z.array(elementSchema).min(0)
     }
   }
 
   // Handle tuple (struct)
   if (type === 'tuple' && components) {
-    const schemas = components.map(comp => parseABITypeToZod(comp.type, comp.components));
-    return solidityValidators.tuple(schemas);
+    const schemas = components.map((comp) =>
+      parseABITypeToZod(comp.type, comp.components)
+    )
+    return solidityValidators.tuple(schemas)
   }
 
   // Handle uint variants
   if (type.startsWith('uint')) {
-    const bits = parseInt(type.slice(4)) || 256;
-    return solidityValidators.uint(bits);
+    const bits = parseInt(type.slice(4)) || 256
+    return solidityValidators.uint(bits)
   }
 
   // Handle int variants
   if (type.startsWith('int')) {
-    const bits = parseInt(type.slice(3)) || 256;
-    return solidityValidators.int(bits);
+    const bits = parseInt(type.slice(3)) || 256
+    return solidityValidators.int(bits)
   }
 
   // Handle bytes variants
   if (type.startsWith('bytes')) {
-    const size = parseInt(type.slice(5));
-    return size ? solidityValidators.bytesFixed(size) : solidityValidators.bytes;
+    const size = parseInt(type.slice(5))
+    return size ? solidityValidators.bytesFixed(size) : solidityValidators.bytes
   }
 
   // Handle primitive types
   switch (type) {
     case 'address':
-      return solidityValidators.address;
+      return solidityValidators.address
     case 'string':
-      return solidityValidators.string;
+      return solidityValidators.string
     case 'bool':
-      return solidityValidators.bool;
+      return solidityValidators.bool
     default:
-      throw new Error(`Unsupported ABI type: ${type}`);
+      throw new Error(`Unsupported ABI type: ${type}`)
   }
 }
 ```
 
 **Dynamic Form Generator Component:**
+
 ```typescript
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -860,6 +913,7 @@ export function DynamicABIForm({ inputs, onSubmit }: DynamicFormProps) {
 ```
 
 **Form Field Component with Type-Specific Inputs:**
+
 ```typescript
 function FormField({ input, register, error, setValue, value }: FormFieldProps) {
   const { name, type } = input;
@@ -1018,6 +1072,7 @@ function FormField({ input, register, error, setValue, value }: FormFieldProps) 
 ```
 
 **Usage in Schedule Operation Flow:**
+
 ```typescript
 function ScheduleOperationForm({ targetContract }: Props) {
   const [abi, setABI] = useState<any[]>([]);
@@ -1087,6 +1142,7 @@ function ScheduleOperationForm({ targetContract }: Props) {
 ```
 
 ### References
+
 - [React Hook Form Documentation](https://react-hook-form.com/)
 - [Zod Documentation](https://zod.dev/)
 - [Solidity ABI Specification](https://docs.soliditylang.org/en/latest/abi-spec.html)
@@ -1098,15 +1154,18 @@ function ScheduleOperationForm({ targetContract }: Props) {
 ## 5. Rootstock Network Configuration with wagmi
 
 ### Decision
+
 Configure custom Rootstock chains (mainnet: 30, testnet: 31) using wagmi's `defineChain` with official RPC endpoints and Blockscout explorers, integrate with RainbowKit for wallet connection UI, and implement network switching with fallback to `wallet_addEthereumChain`.
 
 ### Rationale
+
 - **Official Starter Kit Reference**: Rootstock provides an official wagmi starter kit with pre-configured chain settings, ensuring compatibility
 - **Wagmi v2 Pattern**: The `defineChain` function provides type-safe chain configuration with built-in validation
 - **RainbowKit Integration**: RainbowKit's custom chain support allows seamless integration of Rootstock with popular wallet connectors
 - **Network Switching UX**: Proactive network detection with one-click switching reduces user friction
 
 ### Alternatives Considered
+
 - **Hardcoded Chain Objects**: Less maintainable than using `defineChain` with proper typing
 - **Only Supporting Mainnet**: Developers need testnet access; conditional testnet support is essential
 - **Manual Network Addition**: Showing instructions instead of programmatic addition creates poor UX
@@ -1114,8 +1173,9 @@ Configure custom Rootstock chains (mainnet: 30, testnet: 31) using wagmi's `defi
 ### Implementation Notes
 
 **Chain Configuration (src/chains.ts):**
+
 ```typescript
-import { defineChain } from 'viem';
+import { defineChain } from 'viem'
 
 /**
  * Rootstock Mainnet (Chain ID: 30)
@@ -1149,7 +1209,7 @@ export const rootstock = defineChain({
     //   blockCreated: 0,
     // },
   },
-});
+})
 
 /**
  * Rootstock Testnet (Chain ID: 31)
@@ -1177,20 +1237,23 @@ export const rootstockTestnet = defineChain({
     },
   },
   testnet: true,
-});
+})
 ```
 
 **Wagmi Configuration (src/wagmi.ts):**
+
 ```typescript
-import { http, createConfig } from 'wagmi';
-import { rootstock, rootstockTestnet } from './chains';
-import { injected, walletConnect } from 'wagmi/connectors';
+import { http, createConfig } from 'wagmi'
+import { rootstock, rootstockTestnet } from './chains'
+import { injected, walletConnect } from 'wagmi/connectors'
 
 // Determine which chains to support
 const chains = [
   rootstock,
-  ...(process.env.NEXT_PUBLIC_ENABLE_TESTNETS === 'true' ? [rootstockTestnet] : []),
-] as const;
+  ...(process.env.NEXT_PUBLIC_ENABLE_TESTNETS === 'true'
+    ? [rootstockTestnet]
+    : []),
+] as const
 
 export const config = createConfig({
   chains,
@@ -1205,29 +1268,33 @@ export const config = createConfig({
     [rootstockTestnet.id]: http(),
   },
   ssr: true,
-});
+})
 
 // Export for easy access
-export { rootstock, rootstockTestnet };
+export { rootstock, rootstockTestnet }
 ```
 
 **RainbowKit Configuration (src/rainbowkit.ts):**
+
 ```typescript
-import { getDefaultConfig } from '@rainbow-me/rainbowkit';
-import { rootstock, rootstockTestnet } from './chains';
+import { getDefaultConfig } from '@rainbow-me/rainbowkit'
+import { rootstock, rootstockTestnet } from './chains'
 
 export const rainbowkitConfig = getDefaultConfig({
   appName: 'Rootstock Timelock Manager',
   projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID!,
   chains: [
     rootstock,
-    ...(process.env.NEXT_PUBLIC_ENABLE_TESTNETS === 'true' ? [rootstockTestnet] : []),
+    ...(process.env.NEXT_PUBLIC_ENABLE_TESTNETS === 'true'
+      ? [rootstockTestnet]
+      : []),
   ] as const,
   ssr: true,
-});
+})
 ```
 
 **Network Switching Component:**
+
 ```typescript
 import { useSwitchChain, useAccount, useChainId } from 'wagmi';
 import { rootstock, rootstockTestnet } from './chains';
@@ -1264,46 +1331,50 @@ export function NetworkSwitcher({ requiredChainId }: { requiredChainId: number }
 ```
 
 **Programmatic Network Addition (Fallback):**
+
 ```typescript
-import { rootstock, rootstockTestnet } from './chains';
+import { rootstock, rootstockTestnet } from './chains'
 
 /**
  * Add Rootstock network to MetaMask if not present
  */
 export async function addRootstockToMetaMask(chainId: 30 | 31) {
   if (typeof window.ethereum === 'undefined') {
-    throw new Error('MetaMask not installed');
+    throw new Error('MetaMask not installed')
   }
 
-  const chain = chainId === 30 ? rootstock : rootstockTestnet;
+  const chain = chainId === 30 ? rootstock : rootstockTestnet
 
   try {
     // Try to switch first
     await window.ethereum.request({
       method: 'wallet_switchEthereumChain',
       params: [{ chainId: `0x${chainId.toString(16)}` }],
-    });
+    })
   } catch (switchError: any) {
     // Chain not added, add it
     if (switchError.code === 4902) {
       await window.ethereum.request({
         method: 'wallet_addEthereumChain',
-        params: [{
-          chainId: `0x${chainId.toString(16)}`,
-          chainName: chain.name,
-          nativeCurrency: chain.nativeCurrency,
-          rpcUrls: [chain.rpcUrls.default.http[0]],
-          blockExplorerUrls: [chain.blockExplorers.default.url],
-        }],
-      });
+        params: [
+          {
+            chainId: `0x${chainId.toString(16)}`,
+            chainName: chain.name,
+            nativeCurrency: chain.nativeCurrency,
+            rpcUrls: [chain.rpcUrls.default.http[0]],
+            blockExplorerUrls: [chain.blockExplorers.default.url],
+          },
+        ],
+      })
     } else {
-      throw switchError;
+      throw switchError
     }
   }
 }
 ```
 
 **Usage in App Provider:**
+
 ```typescript
 // src/pages/_app.tsx
 import '@rainbow-me/rainbowkit/styles.css';
@@ -1328,6 +1399,7 @@ export default function App({ Component, pageProps }) {
 ```
 
 **Environment Variables (.env.local):**
+
 ```bash
 # Enable Rootstock Testnet in addition to Mainnet
 NEXT_PUBLIC_ENABLE_TESTNETS=true
@@ -1337,18 +1409,24 @@ NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=your_project_id_here
 ```
 
 **Network Detection Hook:**
+
 ```typescript
-import { useChainId } from 'wagmi';
-import { rootstock, rootstockTestnet } from './chains';
+import { useChainId } from 'wagmi'
+import { rootstock, rootstockTestnet } from './chains'
 
 export function useRootstockNetwork() {
-  const chainId = useChainId();
+  const chainId = useChainId()
 
-  const isRootstock = chainId === rootstock.id || chainId === rootstockTestnet.id;
-  const isMainnet = chainId === rootstock.id;
-  const isTestnet = chainId === rootstockTestnet.id;
+  const isRootstock =
+    chainId === rootstock.id || chainId === rootstockTestnet.id
+  const isMainnet = chainId === rootstock.id
+  const isTestnet = chainId === rootstockTestnet.id
 
-  const currentChain = isMainnet ? rootstock : isTestnet ? rootstockTestnet : null;
+  const currentChain = isMainnet
+    ? rootstock
+    : isTestnet
+      ? rootstockTestnet
+      : null
 
   return {
     isRootstock,
@@ -1356,11 +1434,12 @@ export function useRootstockNetwork() {
     isTestnet,
     chainId,
     currentChain,
-  };
+  }
 }
 ```
 
 ### References
+
 - [Rootstock Wagmi Starter Kit](https://github.com/rsksmart/rsk-wagmi-starter-kit)
 - [Rootstock Developer Portal - Wagmi Quickstart](https://dev.rootstock.io/developers/quickstart/wagmi/)
 - [Wagmi defineChain](https://wagmi.sh/core/api/chains)
@@ -1373,15 +1452,18 @@ export function useRootstockNetwork() {
 ## 6. Real-Time Role Permission Verification
 
 ### Decision
+
 Use wagmi's `useReadContract` hook with TanStack Query's `staleTime` and `gcTime` configuration, implement optimistic caching with 5-minute TTL, and provide manual refresh triggers for critical permission checks.
 
 ### Rationale
+
 - **Built-in Caching**: TanStack Query (integrated with wagmi) provides automatic caching with stale-time management, eliminating need for custom cache implementation
 - **Minimal RPC Calls**: With proper `staleTime`, permission checks are read from cache unless data is stale, dramatically reducing RPC overhead
 - **Real-Time Updates**: Query invalidation on role change events ensures UI reflects current permissions
 - **User Experience**: Loading states and optimistic updates prevent UI flicker while maintaining accuracy
 
 ### Alternatives Considered
+
 - **Direct RPC Polling**: High network overhead, poor performance, potential rate limiting
 - **WebSocket Subscriptions**: Not widely supported by Rootstock public nodes, added complexity
 - **No Caching**: Every UI component would trigger separate RPC calls, unacceptable performance
@@ -1390,36 +1472,40 @@ Use wagmi's `useReadContract` hook with TanStack Query's `staleTime` and `gcTime
 ### Implementation Notes
 
 **Permission Check Hook with Caching:**
+
 ```typescript
-import { useReadContract, useAccount } from 'wagmi';
-import { Address, zeroHash } from 'viem';
+import { useReadContract, useAccount } from 'wagmi'
+import { Address, zeroHash } from 'viem'
 
 // AccessControl ABI fragment
 const ACCESS_CONTROL_ABI = [
   {
     inputs: [
       { name: 'role', type: 'bytes32' },
-      { name: 'account', type: 'address' }
+      { name: 'account', type: 'address' },
     ],
     name: 'hasRole',
     outputs: [{ name: '', type: 'bool' }],
     stateMutability: 'view',
     type: 'function',
   },
-] as const;
+] as const
 
 // Common roles for TimelockController
 export const TIMELOCK_ROLES = {
   ADMIN: '0x0000000000000000000000000000000000000000000000000000000000000000', // DEFAULT_ADMIN_ROLE
-  PROPOSER: '0xb09aa5aeb3702cfd50b6b62bc4532604938f21248a27a1d5ca736082b6819cc1', // keccak256("PROPOSER_ROLE")
-  EXECUTOR: '0xd8aa0f3194971a2a116679f7c2090f6939c8d4e01a2a8d7e41d55e5351469e63', // keccak256("EXECUTOR_ROLE")
-  CANCELLER: '0xfd643c72710c63c0180259aba6b2d05451e3591a24e58b62239378085726f783', // keccak256("CANCELLER_ROLE")
-} as const;
+  PROPOSER:
+    '0xb09aa5aeb3702cfd50b6b62bc4532604938f21248a27a1d5ca736082b6819cc1', // keccak256("PROPOSER_ROLE")
+  EXECUTOR:
+    '0xd8aa0f3194971a2a116679f7c2090f6939c8d4e01a2a8d7e41d55e5351469e63', // keccak256("EXECUTOR_ROLE")
+  CANCELLER:
+    '0xfd643c72710c63c0180259aba6b2d05451e3591a24e58b62239378085726f783', // keccak256("CANCELLER_ROLE")
+} as const
 
 interface UseHasRoleOptions {
-  enabled?: boolean;
-  staleTime?: number; // How long data is considered fresh (default: 5 minutes)
-  gcTime?: number; // How long to keep in cache (default: 10 minutes)
+  enabled?: boolean
+  staleTime?: number // How long data is considered fresh (default: 5 minutes)
+  gcTime?: number // How long to keep in cache (default: 10 minutes)
 }
 
 /**
@@ -1431,8 +1517,8 @@ export function useHasRole(
   accountAddress?: Address,
   options: UseHasRoleOptions = {}
 ) {
-  const { address: connectedAddress } = useAccount();
-  const account = accountAddress || connectedAddress;
+  const { address: connectedAddress } = useAccount()
+  const account = accountAddress || connectedAddress
 
   const {
     data: hasRole,
@@ -1447,12 +1533,12 @@ export function useHasRole(
     functionName: 'hasRole',
     args: [role as `0x${string}`, account!],
     query: {
-      enabled: !!account && (options.enabled !== false),
+      enabled: !!account && options.enabled !== false,
       staleTime: options.staleTime || 5 * 60 * 1000, // 5 minutes default
       gcTime: options.gcTime || 10 * 60 * 1000, // 10 minutes default
       retry: 2,
     },
-  });
+  })
 
   return {
     hasRole: hasRole ?? false,
@@ -1461,13 +1547,14 @@ export function useHasRole(
     error,
     refetch,
     queryKey,
-  };
+  }
 }
 ```
 
 **Multi-Role Check Hook (Batch Optimization):**
+
 ```typescript
-import { useReadContracts } from 'wagmi';
+import { useReadContracts } from 'wagmi'
 
 /**
  * Check multiple roles at once (more efficient)
@@ -1478,29 +1565,32 @@ export function useHasRoles(
   accountAddress?: Address,
   options: UseHasRoleOptions = {}
 ) {
-  const { address: connectedAddress } = useAccount();
-  const account = accountAddress || connectedAddress;
+  const { address: connectedAddress } = useAccount()
+  const account = accountAddress || connectedAddress
 
-  const contracts = roles.map(role => ({
+  const contracts = roles.map((role) => ({
     address: contractAddress,
     abi: ACCESS_CONTROL_ABI,
     functionName: 'hasRole' as const,
     args: [role as `0x${string}`, account!] as const,
-  }));
+  }))
 
   const { data, isLoading, isError, error, refetch } = useReadContracts({
     contracts,
     query: {
-      enabled: !!account && (options.enabled !== false),
+      enabled: !!account && options.enabled !== false,
       staleTime: options.staleTime || 5 * 60 * 1000,
       gcTime: options.gcTime || 10 * 60 * 1000,
     },
-  });
+  })
 
-  const roleResults = roles.reduce((acc, role, index) => {
-    acc[role] = data?.[index]?.result ?? false;
-    return acc;
-  }, {} as Record<string, boolean>);
+  const roleResults = roles.reduce(
+    (acc, role, index) => {
+      acc[role] = data?.[index]?.result ?? false
+      return acc
+    },
+    {} as Record<string, boolean>
+  )
 
   return {
     roles: roleResults,
@@ -1510,55 +1600,59 @@ export function useHasRoles(
     isError,
     error,
     refetch,
-  };
+  }
 }
 ```
 
 **Convenience Hooks for Timelock Roles:**
+
 ```typescript
 /**
  * Check if connected account can propose operations
  */
 export function useCanPropose(timelockAddress: Address) {
-  return useHasRole(timelockAddress, TIMELOCK_ROLES.PROPOSER);
+  return useHasRole(timelockAddress, TIMELOCK_ROLES.PROPOSER)
 }
 
 /**
  * Check if connected account can execute operations
  */
 export function useCanExecute(timelockAddress: Address) {
-  return useHasRole(timelockAddress, TIMELOCK_ROLES.EXECUTOR);
+  return useHasRole(timelockAddress, TIMELOCK_ROLES.EXECUTOR)
 }
 
 /**
  * Check if connected account can cancel operations
  */
 export function useCanCancel(timelockAddress: Address) {
-  return useHasRole(timelockAddress, TIMELOCK_ROLES.CANCELLER);
+  return useHasRole(timelockAddress, TIMELOCK_ROLES.CANCELLER)
 }
 
 /**
  * Check if connected account is admin
  */
 export function useIsAdmin(timelockAddress: Address) {
-  return useHasRole(timelockAddress, TIMELOCK_ROLES.ADMIN);
+  return useHasRole(timelockAddress, TIMELOCK_ROLES.ADMIN)
 }
 
 /**
  * Get all timelock permissions at once
  */
 export function useTimelockPermissions(timelockAddress: Address) {
-  return useHasRoles(
-    timelockAddress,
-    [TIMELOCK_ROLES.ADMIN, TIMELOCK_ROLES.PROPOSER, TIMELOCK_ROLES.EXECUTOR, TIMELOCK_ROLES.CANCELLER]
-  );
+  return useHasRoles(timelockAddress, [
+    TIMELOCK_ROLES.ADMIN,
+    TIMELOCK_ROLES.PROPOSER,
+    TIMELOCK_ROLES.EXECUTOR,
+    TIMELOCK_ROLES.CANCELLER,
+  ])
 }
 ```
 
 **Automatic Invalidation on Role Changes:**
+
 ```typescript
-import { useQueryClient } from '@tanstack/react-query';
-import { useWatchContractEvent } from 'wagmi';
+import { useQueryClient } from '@tanstack/react-query'
+import { useWatchContractEvent } from 'wagmi'
 
 // RoleGranted/RoleRevoked event ABI
 const ROLE_CHANGE_EVENTS_ABI = [
@@ -1580,13 +1674,13 @@ const ROLE_CHANGE_EVENTS_ABI = [
       { name: 'sender', type: 'address', indexed: true },
     ],
   },
-] as const;
+] as const
 
 /**
  * Watch for role changes and invalidate queries
  */
 export function useInvalidateRolesOnChange(timelockAddress: Address) {
-  const queryClient = useQueryClient();
+  const queryClient = useQueryClient()
 
   // Watch RoleGranted events
   useWatchContractEvent({
@@ -1596,10 +1690,13 @@ export function useInvalidateRolesOnChange(timelockAddress: Address) {
     onLogs() {
       // Invalidate all hasRole queries for this contract
       queryClient.invalidateQueries({
-        queryKey: ['readContract', { address: timelockAddress, functionName: 'hasRole' }],
-      });
+        queryKey: [
+          'readContract',
+          { address: timelockAddress, functionName: 'hasRole' },
+        ],
+      })
     },
-  });
+  })
 
   // Watch RoleRevoked events
   useWatchContractEvent({
@@ -1608,14 +1705,18 @@ export function useInvalidateRolesOnChange(timelockAddress: Address) {
     eventName: 'RoleRevoked',
     onLogs() {
       queryClient.invalidateQueries({
-        queryKey: ['readContract', { address: timelockAddress, functionName: 'hasRole' }],
-      });
+        queryKey: [
+          'readContract',
+          { address: timelockAddress, functionName: 'hasRole' },
+        ],
+      })
     },
-  });
+  })
 }
 ```
 
 **UI Component with Permission Gates:**
+
 ```typescript
 function OperationControls({ timelockAddress, operation }: Props) {
   const { hasRole: canExecute, isLoading: loadingExecute } = useCanExecute(timelockAddress);
@@ -1651,6 +1752,7 @@ function OperationControls({ timelockAddress, operation }: Props) {
 ```
 
 **Manual Refresh Pattern:**
+
 ```typescript
 function PermissionSettings({ timelockAddress }: Props) {
   const { roles, isLoading, refetch } = useTimelockPermissions(timelockAddress);
@@ -1688,29 +1790,34 @@ function PermissionSettings({ timelockAddress }: Props) {
 ```
 
 **Graceful Degradation on RPC Failure:**
+
 ```typescript
 function useHasRoleWithFallback(
   contractAddress: Address,
   role: string,
   accountAddress?: Address
 ) {
-  const result = useHasRole(contractAddress, role, accountAddress);
+  const result = useHasRole(contractAddress, role, accountAddress)
 
   if (result.isError) {
-    console.warn('Permission check failed, assuming no permission:', result.error);
+    console.warn(
+      'Permission check failed, assuming no permission:',
+      result.error
+    )
     // Fail closed: assume no permission on error
     return {
       ...result,
       hasRole: false,
       errorMessage: 'Unable to verify permissions. Please refresh.',
-    };
+    }
   }
 
-  return result;
+  return result
 }
 ```
 
 ### References
+
 - [Wagmi useReadContract](https://wagmi.sh/react/api/hooks/useReadContract)
 - [Wagmi useReadContracts (batching)](https://wagmi.sh/react/api/hooks/useReadContracts)
 - [TanStack Query staleTime & gcTime](https://tanstack.com/query/latest/docs/framework/react/guides/important-defaults)
@@ -1721,15 +1828,18 @@ function useHasRoleWithFallback(
 ## 7. Operation Status Calculation
 
 ### Decision
+
 Implement a deterministic status calculation using TimelockController's `getTimestamp`, `isOperationReady`, and `isOperationDone` functions, with client-side timestamp comparison for "Ready" detection and real-time countdown timers.
 
 ### Rationale
+
 - **Contract Authority**: The TimelockController contract is the source of truth for operation states. Using its view functions ensures accuracy
 - **Four-State Model**: OpenZeppelin's model (Unset, Pending, Ready, Done) maps cleanly to UI states with clear transitions
 - **Block Timestamp Reliability**: Ethereum/Rootstock block timestamps are monotonically increasing and safe for timelock comparisons
 - **Real-Time UX**: Client-side countdown timers provide better UX than static "ready at" timestamps
 
 ### Alternatives Considered
+
 - **Polling Contract State**: Too many RPC calls, poor performance
 - **Server-Side Status Calculation**: Adds latency, requires backend infrastructure
 - **Relying Only on Events**: Misses status transitions (e.g., Pending → Ready) that occur passively
@@ -1737,6 +1847,7 @@ Implement a deterministic status calculation using TimelockController's `getTime
 ### Implementation Notes
 
 **TimelockController View Functions:**
+
 ```typescript
 const TIMELOCK_CONTROLLER_ABI = [
   {
@@ -1774,29 +1885,36 @@ const TIMELOCK_CONTROLLER_ABI = [
     stateMutability: 'view',
     type: 'function',
   },
-] as const;
+] as const
 ```
 
 **Operation Status Type:**
+
 ```typescript
-export type OperationStatus = 'UNSET' | 'PENDING' | 'READY' | 'EXECUTED' | 'CANCELLED';
+export type OperationStatus =
+  | 'UNSET'
+  | 'PENDING'
+  | 'READY'
+  | 'EXECUTED'
+  | 'CANCELLED'
 
 export interface OperationStatusInfo {
-  status: OperationStatus;
-  timestamp: bigint; // Ready timestamp (0 for UNSET, 1 for DONE/CANCELLED)
-  isReady: boolean;
-  isDone: boolean;
-  isPending: boolean;
-  secondsUntilReady: number | null; // null if not pending
+  status: OperationStatus
+  timestamp: bigint // Ready timestamp (0 for UNSET, 1 for DONE/CANCELLED)
+  isReady: boolean
+  isDone: boolean
+  isPending: boolean
+  secondsUntilReady: number | null // null if not pending
 }
 ```
 
 **Status Calculation Hook:**
-```typescript
-import { useReadContracts, useBlockNumber } from 'wagmi';
-import { useEffect, useState } from 'react';
 
-const _DONE_TIMESTAMP = 1n; // OpenZeppelin uses timestamp=1 for done operations
+```typescript
+import { useReadContracts, useBlockNumber } from 'wagmi'
+import { useEffect, useState } from 'react'
+
+const _DONE_TIMESTAMP = 1n // OpenZeppelin uses timestamp=1 for done operations
 
 /**
  * Get comprehensive operation status from TimelockController
@@ -1805,15 +1923,15 @@ export function useOperationStatus(
   timelockAddress: Address,
   operationId: `0x${string}`
 ): OperationStatusInfo & { isLoading: boolean; error: Error | null } {
-  const [currentTime, setCurrentTime] = useState(Math.floor(Date.now() / 1000));
+  const [currentTime, setCurrentTime] = useState(Math.floor(Date.now() / 1000))
 
   // Update current time every second for countdown
   useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentTime(Math.floor(Date.now() / 1000));
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
+      setCurrentTime(Math.floor(Date.now() / 1000))
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [])
 
   // Batch fetch all status data
   const { data, isLoading, error } = useReadContracts({
@@ -1847,7 +1965,7 @@ export function useOperationStatus(
       staleTime: 30_000, // 30 seconds
       refetchInterval: 30_000, // Refetch every 30 seconds
     },
-  });
+  })
 
   if (isLoading || !data) {
     return {
@@ -1859,39 +1977,39 @@ export function useOperationStatus(
       secondsUntilReady: null,
       isLoading,
       error: error || null,
-    };
+    }
   }
 
-  const timestamp = data[0]?.result ?? 0n;
-  const isReady = data[1]?.result ?? false;
-  const isDone = data[2]?.result ?? false;
-  const isPending = data[3]?.result ?? false;
+  const timestamp = data[0]?.result ?? 0n
+  const isReady = data[1]?.result ?? false
+  const isDone = data[2]?.result ?? false
+  const isPending = data[3]?.result ?? false
 
   // Determine status
-  let status: OperationStatus;
+  let status: OperationStatus
   if (timestamp === 0n) {
-    status = 'UNSET';
+    status = 'UNSET'
   } else if (isDone) {
     // Check if cancelled (from events) or executed
     // Note: Contract doesn't distinguish; we need event data for this
-    status = 'EXECUTED'; // Default assumption
+    status = 'EXECUTED' // Default assumption
   } else if (isReady) {
-    status = 'READY';
+    status = 'READY'
   } else if (isPending) {
-    status = 'PENDING';
+    status = 'PENDING'
   } else {
-    status = 'UNSET';
+    status = 'UNSET'
   }
 
   // Calculate seconds until ready (for pending operations)
-  let secondsUntilReady: number | null = null;
+  let secondsUntilReady: number | null = null
   if (status === 'PENDING' && timestamp > 0n) {
-    const timestampSeconds = Number(timestamp);
-    secondsUntilReady = Math.max(0, timestampSeconds - currentTime);
+    const timestampSeconds = Number(timestamp)
+    secondsUntilReady = Math.max(0, timestampSeconds - currentTime)
 
     // If countdown reached zero, status should be READY
     if (secondsUntilReady === 0 && !isReady) {
-      status = 'READY';
+      status = 'READY'
     }
   }
 
@@ -1904,13 +2022,14 @@ export function useOperationStatus(
     secondsUntilReady,
     isLoading: false,
     error: null,
-  };
+  }
 }
 ```
 
 **Enhanced Status with Event Data (Cancelled Detection):**
+
 ```typescript
-import { useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query'
 
 /**
  * Fetch operation events from subgraph to distinguish EXECUTED vs CANCELLED
@@ -1919,7 +2038,7 @@ export function useOperationStatusEnhanced(
   timelockAddress: Address,
   operationId: `0x${string}`
 ) {
-  const baseStatus = useOperationStatus(timelockAddress, operationId);
+  const baseStatus = useOperationStatus(timelockAddress, operationId)
 
   // Query subgraph for event data
   const { data: events } = useQuery({
@@ -1941,27 +2060,28 @@ export function useOperationStatusEnhanced(
           `,
           variables: { id: operationId },
         }),
-      });
-      const json = await response.json();
-      return json.data.operation;
+      })
+      const json = await response.json()
+      return json.data.operation
     },
     enabled: baseStatus.isDone,
     staleTime: Infinity, // Done operations never change
-  });
+  })
 
   // Override status if we have event data showing cancellation
   if (baseStatus.isDone && events?.cancelledAt) {
     return {
       ...baseStatus,
       status: 'CANCELLED' as OperationStatus,
-    };
+    }
   }
 
-  return baseStatus;
+  return baseStatus
 }
 ```
 
 **Countdown Timer Component:**
+
 ```typescript
 function OperationCountdown({ secondsUntilReady }: { secondsUntilReady: number }) {
   if (secondsUntilReady <= 0) {
@@ -1987,6 +2107,7 @@ function OperationCountdown({ secondsUntilReady }: { secondsUntilReady: number }
 ```
 
 **Status Badge Component:**
+
 ```typescript
 function OperationStatusBadge({ status }: { status: OperationStatus }) {
   const styles = {
@@ -2014,6 +2135,7 @@ function OperationStatusBadge({ status }: { status: OperationStatus }) {
 ```
 
 **Operation List with Status:**
+
 ```typescript
 function OperationsList({ timelockAddress, operations }: Props) {
   return (
@@ -2046,12 +2168,14 @@ function OperationsList({ timelockAddress, operations }: Props) {
 ```
 
 **Edge Cases Handled:**
+
 1. **Clock Skew**: Client time may differ from block time by a few seconds. We use block timestamps from contract as source of truth
 2. **Block Timestamp Lag**: Latest block may be a few seconds old. Status checks refetch every 30 seconds to catch transitions
 3. **Concurrent Execution**: If operation is executed between status check and button click, transaction will revert gracefully
 4. **Cancelled Operations**: Detected via subgraph event data, not just contract state
 
 ### References
+
 - [OpenZeppelin TimelockController Source](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/governance/TimelockController.sol)
 - [Ethereum Block Timestamp Documentation](https://ethereum.org/en/developers/docs/blocks/#block-time)
 - [Wagmi useReadContracts](https://wagmi.sh/react/api/hooks/useReadContracts)
@@ -2061,15 +2185,18 @@ function OperationsList({ timelockAddress, operations }: Props) {
 ## 8. Tailwind + Rootstock Design System Integration
 
 ### Decision
+
 Configure Tailwind CSS with custom Rootstock brand colors in the theme extension, implement a dark-first design system with semantic color tokens, and use CSS custom properties for theming with the new `@theme` directive in Tailwind v4 (when migrating).
 
 ### Rationale
+
 - **Brand Consistency**: Custom color palette ensures the app visually aligns with Rootstock's brand identity
 - **Dark Mode Native**: Rootstock's brand aesthetic is dark-themed; building dark-first reduces complexity
 - **Semantic Tokens**: Using role-based color names (e.g., `bg-brand-primary`) instead of literal colors improves maintainability
 - **Tailwind v4 Ready**: Using CSS custom properties prepares for easy migration to Tailwind v4's native variable support
 
 ### Alternatives Considered
+
 - **CSS-in-JS (styled-components)**: Adds bundle size, conflicts with Tailwind's utility-first approach
 - **Material-UI**: Heavy framework, doesn't match Rootstock's aesthetic
 - **Custom CSS Only**: Loses Tailwind's utility classes and responsive design benefits
@@ -2122,10 +2249,11 @@ const rootstockColors = {
     900: '#0f172a', // Darker bg
     950: '#020617', // Darkest
   },
-};
+}
 ```
 
 **Tailwind Configuration (tailwind.config.js):**
+
 ```javascript
 /** @type {import('tailwindcss').Config} */
 module.exports = {
@@ -2158,16 +2286,18 @@ module.exports = {
         mono: ['JetBrains Mono', 'Courier New', 'monospace'],
       },
       boxShadow: {
-        'editor': '0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2)',
-        'editor-lg': '0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2)',
+        editor:
+          '0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2)',
+        'editor-lg':
+          '0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2)',
         'button-3d': '0 4px 0 0 rgba(0, 0, 0, 0.3)',
         'button-3d-pressed': '0 2px 0 0 rgba(0, 0, 0, 0.3)',
       },
       borderRadius: {
-        'editor': '8px',
+        editor: '8px',
       },
       animation: {
-        'glow': 'glow 2s ease-in-out infinite alternate',
+        glow: 'glow 2s ease-in-out infinite alternate',
       },
       keyframes: {
         glow: {
@@ -2180,10 +2310,11 @@ module.exports = {
   plugins: [
     require('@tailwindcss/forms'), // Better form styling
   ],
-};
+}
 ```
 
 **Global Styles (src/styles/globals.css):**
+
 ```css
 @tailwind base;
 @tailwind components;
@@ -2210,7 +2341,8 @@ module.exports = {
   }
 
   /* Code/address styling */
-  code, .font-mono {
+  code,
+  .font-mono {
     font-family: 'JetBrains Mono', 'Courier New', monospace;
   }
 }
@@ -2327,6 +2459,7 @@ module.exports = {
 ```
 
 **Component Example with Rootstock Styling:**
+
 ```tsx
 function TimelockDashboard() {
   return (
@@ -2344,11 +2477,15 @@ function TimelockDashboard() {
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div className="card">
-          <div className="text-brand-dark-400 text-sm mb-1">Pending Operations</div>
+          <div className="text-brand-dark-400 text-sm mb-1">
+            Pending Operations
+          </div>
           <div className="text-3xl font-bold text-brand-primary-500">12</div>
         </div>
         <div className="card">
-          <div className="text-brand-dark-400 text-sm mb-1">Ready to Execute</div>
+          <div className="text-brand-dark-400 text-sm mb-1">
+            Ready to Execute
+          </div>
           <div className="text-3xl font-bold text-green-400">3</div>
         </div>
         <div className="card">
@@ -2379,20 +2516,23 @@ function TimelockDashboard() {
         </div>
       </div>
     </div>
-  );
+  )
 }
 ```
 
 **Responsive Design Pattern:**
+
 ```tsx
 // Mobile-first responsive design
-<div className="
+<div
+  className="
   grid grid-cols-1        /* Mobile: 1 column */
   sm:grid-cols-2          /* Small: 2 columns */
   md:grid-cols-3          /* Medium: 3 columns */
   lg:grid-cols-4          /* Large: 4 columns */
   gap-4
-">
+"
+>
   {/* Cards */}
 </div>
 ```
@@ -2401,7 +2541,7 @@ function TimelockDashboard() {
 When migrating to Tailwind v4, use the new `@theme` directive:
 
 ```css
-@import "tailwindcss";
+@import 'tailwindcss';
 
 @theme {
   /* Rootstock brand colors as CSS variables */
@@ -2409,7 +2549,9 @@ When migrating to Tailwind v4, use the new `@theme` directive:
   --color-brand-primary-500: #f97316;
   --color-brand-primary-900: #7c2d12;
 
-  --color-brand-secondary-500: oklch(68% 0.1 250); /* Can use oklch for better perceptual uniformity */
+  --color-brand-secondary-500: oklch(
+    68% 0.1 250
+  ); /* Can use oklch for better perceptual uniformity */
 
   --color-brand-dark-900: #0f172a;
   --color-brand-dark-950: #020617;
@@ -2417,6 +2559,7 @@ When migrating to Tailwind v4, use the new `@theme` directive:
 ```
 
 ### References
+
 - [Tailwind CSS Customizing Colors](https://v3.tailwindcss.com/docs/customizing-colors)
 - [Tailwind CSS Dark Mode](https://tailwindcss.com/docs/dark-mode)
 - [Tailwind v4 Custom Colors with CSS Variables](https://medium.com/@dvasquez.422/custom-colours-in-tailwind-css-v4-acc3322cd2da)
@@ -2436,6 +2579,7 @@ This research document provides comprehensive technical guidance for building th
 5. **References**: Links to official documentation
 
 The patterns chosen prioritize:
+
 - **Developer Experience**: Type safety, clear APIs, good tooling
 - **Performance**: Caching, batching, minimal RPC calls
 - **User Experience**: Real-time updates, clear status, graceful errors

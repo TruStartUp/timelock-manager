@@ -15,6 +15,7 @@ Before you begin, ensure you have the following installed:
 - **Rootstock Wallet Setup**: Add Rootstock testnet to your wallet (instructions below)
 
 **Recommended Tools**:
+
 - **Visual Studio Code**: With TypeScript and ESLint extensions
 - **Graph CLI**: For deploying subgraphs (`npm install -g @graphprotocol/graph-cli`)
 
@@ -36,6 +37,7 @@ npm install
 ```
 
 This installs all required packages including:
+
 - Next.js 15, React 19
 - wagmi 2.17+, viem 2.40+, RainbowKit 2.2+
 - TanStack Query 5.55+
@@ -76,6 +78,7 @@ NEXT_PUBLIC_ENABLE_TESTNETS=true
 ```
 
 **Getting a WalletConnect Project ID**:
+
 1. Visit [WalletConnect Cloud](https://cloud.walletconnect.com/)
 2. Sign up / Log in
 3. Create a new project
@@ -102,6 +105,7 @@ Add Rootstock Testnet to MetaMask:
 4. Click "Save"
 
 **Getting Testnet tRBTC**:
+
 - Faucet: [https://faucet.rootstock.io/](https://faucet.rootstock.io/)
 - Enter your wallet address and request tRBTC
 
@@ -118,6 +122,7 @@ npm run dev
 The app will be available at [http://localhost:3000](http://localhost:3000)
 
 **What happens on dev server start**:
+
 - TypeScript type checking runs in background
 - Tailwind CSS compiles custom Rootstock theme
 - Hot module replacement enabled for instant updates
@@ -143,11 +148,13 @@ specs/                # Feature specifications and planning docs
 ### TypeScript Configuration
 
 The project uses **TypeScript strict mode**. All code must:
+
 - Have no implicit `any` types
 - Use explicit return types for functions
 - Enable all strict checks
 
 Verify types compile:
+
 ```bash
 npm run type-check
 ```
@@ -174,11 +181,13 @@ The app requires a deployed subgraph to index TimelockController events. Follow 
 ### Option 1: The Graph Studio (Recommended for Production)
 
 1. **Install Graph CLI**:
+
    ```bash
    npm install -g @graphprotocol/graph-cli
    ```
 
 2. **Navigate to subgraph directory**:
+
    ```bash
    cd subgraph
    ```
@@ -188,6 +197,7 @@ The app requires a deployed subgraph to index TimelockController events. Follow 
    - Create an account
    - Create a new subgraph named `rootstock-timelock-mainnet`
    - Copy the deploy key
+
    ```bash
    graph auth --studio <DEPLOY_KEY>
    ```
@@ -198,18 +208,20 @@ The app requires a deployed subgraph to index TimelockController events. Follow 
    - Set `startBlock:` to deployment block (for faster syncing)
 
    Example:
+
    ```yaml
    dataSources:
      - kind: ethereum/contract
        name: TimelockController
        network: rootstock-testnet
        source:
-         address: "0x1234567890abcdef1234567890abcdef12345678"
+         address: '0x1234567890abcdef1234567890abcdef12345678'
          abi: TimelockController
          startBlock: 5000000
    ```
 
 5. **Build and deploy**:
+
    ```bash
    graph codegen
    graph build
@@ -225,17 +237,20 @@ The app requires a deployed subgraph to index TimelockController events. Follow 
 1. **Install Docker** and **Docker Compose**
 
 2. **Clone graph-node**:
+
    ```bash
    git clone https://github.com/graphprotocol/graph-node
    cd graph-node/docker
    ```
 
 3. **Start services**:
+
    ```bash
    docker-compose up
    ```
 
 4. **Create and deploy locally**:
+
    ```bash
    cd <project-root>/subgraph
    graph create --node http://localhost:8020/ timelock-local
@@ -314,6 +329,7 @@ npm run build
 This creates an optimized production build in `.next/` directory.
 
 **Build checks**:
+
 - TypeScript compilation
 - ESLint validation
 - Unused dependencies warning
@@ -330,11 +346,13 @@ Runs the production build on [http://localhost:3000](http://localhost:3000)
 ### Deploying to Vercel
 
 1. **Install Vercel CLI**:
+
    ```bash
    npm install -g vercel
    ```
 
 2. **Link project**:
+
    ```bash
    vercel link
    ```
@@ -349,6 +367,7 @@ Runs the production build on [http://localhost:3000](http://localhost:3000)
    ```
 
 **Automatic Deployments**:
+
 - Push to `main` → Deploys to production
 - Pull requests → Deploy preview environments
 
@@ -371,11 +390,13 @@ Restart dev server after changing env vars.
 ### Issue: "Subgraph not returning data"
 
 **Possible causes**:
+
 1. Subgraph not deployed or still syncing
 2. Wrong subgraph URL in `.env.local`
 3. TimelockController address mismatch in `subgraph.yaml`
 
 **Solution**:
+
 - Check subgraph indexing status in The Graph Studio
 - Verify `NEXT_PUBLIC_RSK_TESTNET_SUBGRAPH_URL` is correct
 - Ensure `subgraph.yaml` has correct contract address
@@ -385,6 +406,7 @@ Restart dev server after changing env vars.
 ### Issue: "Wrong network" banner always showing
 
 **Solution**:
+
 1. Check MetaMask is on Rootstock Testnet (chainId 31)
 2. Verify chain ID in `src/lib/wagmi.ts` matches (30 or 31)
 3. Clear browser cache and hard refresh
@@ -394,11 +416,13 @@ Restart dev server after changing env vars.
 ### Issue: "Contract ABI not found" for verified contracts
 
 **Possible causes**:
+
 1. Blockscout API rate limit hit (10 req/s)
 2. Contract not actually verified on Blockscout
 3. Proxy contract with implementation not detected
 
 **Solution**:
+
 - Wait 1 second between ABI fetches (rate limit)
 - Verify contract on Blockscout manually
 - Use manual ABI input as fallback
@@ -412,12 +436,12 @@ Restart dev server after changing env vars.
 ```typescript
 // ❌ Bad
 function handleData(data) {
-  return data.value;
+  return data.value
 }
 
 // ✅ Good
 function handleData(data: Operation): BigInt {
-  return data.value;
+  return data.value
 }
 ```
 
@@ -432,14 +456,14 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
-    setupFiles: './tests/setup.ts'
+    setupFiles: './tests/setup.ts',
   },
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src')
-    }
-  }
-});
+      '@': path.resolve(__dirname, './src'),
+    },
+  },
+})
 ```
 
 ---
@@ -470,6 +494,7 @@ export default defineConfig({
 ## Support
 
 For issues or questions:
+
 1. Check this Quickstart Guide
 2. Review the [Feature Specification](./spec.md)
 3. Consult the [Constitution](./.specify/memory/constitution.md) for project principles

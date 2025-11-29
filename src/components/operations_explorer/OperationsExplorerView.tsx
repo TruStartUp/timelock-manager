@@ -1,32 +1,34 @@
-import React, { useState } from 'react';
+import React, { useState } from 'react'
 
-type OperationStatus = 'All' | 'Pending' | 'Ready' | 'Executed' | 'Canceled';
+type OperationStatus = 'All' | 'Pending' | 'Ready' | 'Executed' | 'Canceled'
 
 interface Operation {
-  id: string;
-  status: Exclude<OperationStatus, 'All'>;
-  calls: number;
-  targets: string[];
+  id: string
+  status: Exclude<OperationStatus, 'All'>
+  calls: number
+  targets: string[]
   eta: {
-    relative: string;
-    absolute: string;
-  };
-  proposer: string;
+    relative: string
+    absolute: string
+  }
+  proposer: string
   details?: {
-    fullId: string;
-    fullProposer: string;
-    scheduled: string;
+    fullId: string
+    fullProposer: string
+    scheduled: string
     callsDetails: Array<{
-      target: string;
-      value: string;
-    }>;
-  };
+      target: string
+      value: string
+    }>
+  }
 }
 
 const OperationsExplorerView: React.FC = () => {
-  const [selectedFilter, setSelectedFilter] = useState<OperationStatus>('All');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [expandedRowId, setExpandedRowId] = useState<string | null>('0xab...c456');
+  const [selectedFilter, setSelectedFilter] = useState<OperationStatus>('All')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [expandedRowId, setExpandedRowId] = useState<string | null>(
+    '0xab...c456'
+  )
 
   // Example operations data - will be replaced with actual data from hooks/services
   const operations: Operation[] = [
@@ -66,7 +68,13 @@ const OperationsExplorerView: React.FC = () => {
       id: '0x7f...e3d4',
       status: 'Executed',
       calls: 5,
-      targets: ['0x5a...b6c7', '0x1a...c7d8', '0x2b...d8e9', '0x3c...e9f0', '0x4d...f0a1'],
+      targets: [
+        '0x5a...b6c7',
+        '0x1a...c7d8',
+        '0x2b...d8e9',
+        '0x3c...e9f0',
+        '0x4d...f0a1',
+      ],
       eta: {
         relative: '-',
         absolute: '2023-10-25 10:00 UTC',
@@ -84,56 +92,56 @@ const OperationsExplorerView: React.FC = () => {
       },
       proposer: '0x7a...b3c4',
     },
-  ];
+  ]
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Ready':
-        return 'bg-status-ready';
+        return 'bg-status-ready'
       case 'Pending':
-        return 'bg-status-pending';
+        return 'bg-status-pending'
       case 'Executed':
-        return 'bg-status-executed';
+        return 'bg-status-executed'
       case 'Canceled':
-        return 'bg-status-canceled';
+        return 'bg-status-canceled'
       default:
-        return 'bg-border-dark';
+        return 'bg-border-dark'
     }
-  };
+  }
 
   const getStatusTextColor = (status: string) => {
     switch (status) {
       case 'Ready':
-        return 'text-status-ready';
+        return 'text-status-ready'
       case 'Pending':
-        return 'text-status-pending';
+        return 'text-status-pending'
       case 'Executed':
-        return 'text-status-executed';
+        return 'text-status-executed'
       case 'Canceled':
-        return 'text-status-canceled';
+        return 'text-status-canceled'
       default:
-        return 'text-text-dark-secondary';
+        return 'text-text-dark-secondary'
     }
-  };
+  }
 
   const handleRowClick = (id: string) => {
-    setExpandedRowId(expandedRowId === id ? null : id);
-  };
+    setExpandedRowId(expandedRowId === id ? null : id)
+  }
 
   const handleExecute = (id: string) => {
     // TODO: Implement execute logic with data hooks/services
-    console.log('Execute operation:', id);
-  };
+    console.log('Execute operation:', id)
+  }
 
   const handleCancel = (id: string) => {
     // TODO: Implement cancel logic with data hooks/services
-    console.log('Cancel operation:', id);
-  };
+    console.log('Cancel operation:', id)
+  }
 
   const formatTargets = (targets: string[]) => {
-    if (targets.length <= 1) return targets[0] || '';
-    return `${targets[0]}, +${targets.length - 1} more`;
-  };
+    if (targets.length <= 1) return targets[0] || ''
+    return `${targets[0]}, +${targets.length - 1} more`
+  }
 
   return (
     <>
@@ -141,7 +149,11 @@ const OperationsExplorerView: React.FC = () => {
       <header className="flex items-center justify-between whitespace-nowrap border-b border-solid border-border-dark px-6 py-4 mb-4">
         <div className="flex items-center gap-4 text-text-dark-primary">
           <div className="size-6 text-primary">
-            <svg fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+            <svg
+              fill="none"
+              viewBox="0 0 48 48"
+              xmlns="http://www.w3.org/2000/svg"
+            >
               <path
                 clipRule="evenodd"
                 d="M24 4H6V17.3333V30.6667H24V44H42V30.6667V17.3333H24V4Z"
@@ -172,20 +184,27 @@ const OperationsExplorerView: React.FC = () => {
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between rounded-lg bg-surface-dark p-3">
           {/* Filter Chips */}
           <div className="flex flex-wrap gap-2">
-            {(['All', 'Pending', 'Ready', 'Executed', 'Canceled'] as OperationStatus[]).map(
-              (filter) => (
-                <button
-                  key={filter}
-                  className={`flex h-9 shrink-0 items-center justify-center gap-x-2 rounded-full px-4 text-sm font-medium leading-normal transition-colors ${selectedFilter === filter
-                      ? 'bg-primary text-background-dark'
-                      : 'bg-border-dark text-text-dark-primary hover:bg-white/10'
-                    }`}
-                  onClick={() => setSelectedFilter(filter)}
-                >
-                  {filter}
-                </button>
-              )
-            )}
+            {(
+              [
+                'All',
+                'Pending',
+                'Ready',
+                'Executed',
+                'Canceled',
+              ] as OperationStatus[]
+            ).map((filter) => (
+              <button
+                key={filter}
+                className={`flex h-9 shrink-0 items-center justify-center gap-x-2 rounded-full px-4 text-sm font-medium leading-normal transition-colors ${
+                  selectedFilter === filter
+                    ? 'bg-primary text-background-dark'
+                    : 'bg-border-dark text-text-dark-primary hover:bg-white/10'
+                }`}
+                onClick={() => setSelectedFilter(filter)}
+              >
+                {filter}
+              </button>
+            ))}
           </div>
 
           {/* Search Bar & Advanced Filter */}
@@ -218,12 +237,18 @@ const OperationsExplorerView: React.FC = () => {
               <tr>
                 <th className="px-6 py-4" scope="col">
                   <div className="flex items-center gap-1 cursor-pointer">
-                    ID <span className="material-symbols-outlined !text-base">swap_vert</span>
+                    ID{' '}
+                    <span className="material-symbols-outlined !text-base">
+                      swap_vert
+                    </span>
                   </div>
                 </th>
                 <th className="px-6 py-4" scope="col">
                   <div className="flex items-center gap-1 cursor-pointer">
-                    Status <span className="material-symbols-outlined !text-base">swap_vert</span>
+                    Status{' '}
+                    <span className="material-symbols-outlined !text-base">
+                      swap_vert
+                    </span>
                   </div>
                 </th>
                 <th className="px-6 py-4 text-center" scope="col">
@@ -234,12 +259,18 @@ const OperationsExplorerView: React.FC = () => {
                 </th>
                 <th className="px-6 py-4" scope="col">
                   <div className="flex items-center gap-1 cursor-pointer">
-                    ETA <span className="material-symbols-outlined !text-base">swap_vert</span>
+                    ETA{' '}
+                    <span className="material-symbols-outlined !text-base">
+                      swap_vert
+                    </span>
                   </div>
                 </th>
                 <th className="px-6 py-4" scope="col">
                   <div className="flex items-center gap-1 cursor-pointer">
-                    Proposer <span className="material-symbols-outlined !text-base">swap_vert</span>
+                    Proposer{' '}
+                    <span className="material-symbols-outlined !text-base">
+                      swap_vert
+                    </span>
                   </div>
                 </th>
                 <th className="px-6 py-4 text-right" scope="col">
@@ -252,17 +283,24 @@ const OperationsExplorerView: React.FC = () => {
                 <React.Fragment key={operation.id}>
                   {/* Main Row */}
                   <tr
-                    className={`border-b border-border-dark transition-colors cursor-pointer ${expandedRowId === operation.id
+                    className={`border-b border-border-dark transition-colors cursor-pointer ${
+                      expandedRowId === operation.id
                         ? 'bg-primary/10 hover:bg-primary/20'
                         : 'hover:bg-white/5'
-                      }`}
+                    }`}
                     onClick={() => handleRowClick(operation.id)}
                   >
-                    <td className="px-6 py-4 font-mono text-text-dark-primary">{operation.id}</td>
+                    <td className="px-6 py-4 font-mono text-text-dark-primary">
+                      {operation.id}
+                    </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
-                        <div className={`h-2.5 w-2.5 rounded-full ${getStatusColor(operation.status)}`}></div>
-                        <span className={`font-medium ${getStatusTextColor(operation.status)}`}>
+                        <div
+                          className={`h-2.5 w-2.5 rounded-full ${getStatusColor(operation.status)}`}
+                        ></div>
+                        <span
+                          className={`font-medium ${getStatusTextColor(operation.status)}`}
+                        >
                           {operation.status}
                         </span>
                       </div>
@@ -275,12 +313,21 @@ const OperationsExplorerView: React.FC = () => {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-col">
-                        <span className="font-medium text-text-dark-primary">{operation.eta.relative}</span>
-                        <span className="text-xs text-text-dark-secondary">{operation.eta.absolute}</span>
+                        <span className="font-medium text-text-dark-primary">
+                          {operation.eta.relative}
+                        </span>
+                        <span className="text-xs text-text-dark-secondary">
+                          {operation.eta.absolute}
+                        </span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 font-mono text-text-dark-secondary">{operation.proposer}</td>
-                    <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                    <td className="px-6 py-4 font-mono text-text-dark-secondary">
+                      {operation.proposer}
+                    </td>
+                    <td
+                      className="px-6 py-4"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <div className="flex justify-end gap-2">
                         {operation.status === 'Ready' && (
                           <>
@@ -321,16 +368,28 @@ const OperationsExplorerView: React.FC = () => {
                             </h4>
                             <div className="flex flex-col gap-1 text-sm font-mono">
                               <p>
-                                <span className="text-text-dark-secondary">ID:</span>{' '}
-                                <span className="text-text-dark-primary">{operation.details.fullId}</span>
+                                <span className="text-text-dark-secondary">
+                                  ID:
+                                </span>{' '}
+                                <span className="text-text-dark-primary">
+                                  {operation.details.fullId}
+                                </span>
                               </p>
                               <p>
-                                <span className="text-text-dark-secondary">Proposer:</span>{' '}
-                                <span className="text-text-dark-primary">{operation.details.fullProposer}</span>
+                                <span className="text-text-dark-secondary">
+                                  Proposer:
+                                </span>{' '}
+                                <span className="text-text-dark-primary">
+                                  {operation.details.fullProposer}
+                                </span>
                               </p>
                               <p>
-                                <span className="text-text-dark-secondary">Scheduled:</span>{' '}
-                                <span className="text-text-dark-primary">{operation.details.scheduled}</span>
+                                <span className="text-text-dark-secondary">
+                                  Scheduled:
+                                </span>{' '}
+                                <span className="text-text-dark-primary">
+                                  {operation.details.scheduled}
+                                </span>
                               </p>
                             </div>
                           </div>
@@ -339,15 +398,27 @@ const OperationsExplorerView: React.FC = () => {
                               Calls ({operation.details.callsDetails.length})
                             </h4>
                             <div className="flex flex-col gap-2 text-sm font-mono bg-background-dark p-3 rounded-md">
-                              {operation.details.callsDetails.map((call, index) => (
-                                <p key={index}>
-                                  <span className="text-primary">{index + 1}.</span>{' '}
-                                  <span className="text-text-dark-secondary">Target:</span>{' '}
-                                  <span className="text-text-dark-primary">{call.target}</span>{' '}
-                                  <span className="text-text-dark-secondary">Value:</span>{' '}
-                                  <span className="text-text-dark-primary">{call.value}</span>
-                                </p>
-                              ))}
+                              {operation.details.callsDetails.map(
+                                (call, index) => (
+                                  <p key={index}>
+                                    <span className="text-primary">
+                                      {index + 1}.
+                                    </span>{' '}
+                                    <span className="text-text-dark-secondary">
+                                      Target:
+                                    </span>{' '}
+                                    <span className="text-text-dark-primary">
+                                      {call.target}
+                                    </span>{' '}
+                                    <span className="text-text-dark-secondary">
+                                      Value:
+                                    </span>{' '}
+                                    <span className="text-text-dark-primary">
+                                      {call.value}
+                                    </span>
+                                  </p>
+                                )
+                              )}
                             </div>
                           </div>
                         </div>
@@ -361,7 +432,7 @@ const OperationsExplorerView: React.FC = () => {
         </div>
       </main>
     </>
-  );
-};
+  )
+}
 
-export default OperationsExplorerView;
+export default OperationsExplorerView

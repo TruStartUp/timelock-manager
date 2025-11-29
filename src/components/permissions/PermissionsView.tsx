@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState } from 'react'
 
 const PermissionsView = () => {
-  const [searchValue, setSearchValue] = useState('');
+  const [searchValue, setSearchValue] = useState('')
   return (
     <main className="flex flex-1 p-6 lg:p-8">
       <div className="grid grid-cols-12 gap-6 w-full">
@@ -34,7 +34,9 @@ const PermissionsView = () => {
               </div>
               <div className="shrink-0">
                 <div className="text-primary flex size-7 items-center justify-center">
-                  <span className="material-symbols-outlined">chevron_right</span>
+                  <span className="material-symbols-outlined">
+                    chevron_right
+                  </span>
                 </div>
               </div>
             </div>
@@ -49,7 +51,9 @@ const PermissionsView = () => {
               </div>
               <div className="shrink-0">
                 <div className="text-text-dark flex size-7 items-center justify-center">
-                  <span className="material-symbols-outlined">chevron_right</span>
+                  <span className="material-symbols-outlined">
+                    chevron_right
+                  </span>
                 </div>
               </div>
             </div>
@@ -64,7 +68,9 @@ const PermissionsView = () => {
               </div>
               <div className="shrink-0">
                 <div className="text-text-dark flex size-7 items-center justify-center">
-                  <span className="material-symbols-outlined">chevron_right</span>
+                  <span className="material-symbols-outlined">
+                    chevron_right
+                  </span>
                 </div>
               </div>
             </div>
@@ -79,7 +85,9 @@ const PermissionsView = () => {
               </div>
               <div className="shrink-0">
                 <div className="text-text-dark flex size-7 items-center justify-center">
-                  <span className="material-symbols-outlined">chevron_right</span>
+                  <span className="material-symbols-outlined">
+                    chevron_right
+                  </span>
                 </div>
               </div>
             </div>
@@ -215,7 +223,7 @@ const PermissionsView = () => {
         </div>
       </div>
     </main>
-  );
-};
+  )
+}
 
-export default PermissionsView;
+export default PermissionsView

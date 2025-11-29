@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 /* Custom theme configuration */
 @theme {
@@ -14,22 +14,24 @@
   --color-status-executed: #94a3b8;
   --color-status-canceled: #f87171;
 
-  --color-success: #00B500;
-  --color-text-primary: #E0E0E0;
-  --color-text-secondary: #A0A0A0;
+  --color-success: #00b500;
+  --color-text-primary: #e0e0e0;
+  --color-text-secondary: #a0a0a0;
   --color-border-color: #333333;
   --color-surface: #121212;
-  --color-rootstock-orange: #FF9100;
+  --color-rootstock-orange: #ff9100;
   --color-rootstock-black: #000000;
-  --color-rootstock-off-white: #FAF9F5;
-  --color-rootstock-pink: #FF71E1;
-  --color-rootstock-green: #79C600;
-  --color-rootstock-purple: #9E76FF;
-  --color-rootstock-cyan: #08FFD0;
-  --color-rootstock-lime: #DEFF1A;
+  --color-rootstock-off-white: #faf9f5;
+  --color-rootstock-pink: #ff71e1;
+  --color-rootstock-green: #79c600;
+  --color-rootstock-purple: #9e76ff;
+  --color-rootstock-cyan: #08ffd0;
+  --color-rootstock-lime: #deff1a;
 
   /* Font families */
-  --font-family-display: var(--font-inter), ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --font-family-display:
+    var(--font-inter), ui-sans-serif, system-ui, sans-serif,
+    'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
 }
 
 /* Custom component classes */
@@ -55,7 +57,7 @@ body {
 
 body {
   background-color: #000000;
-  color: #E0E0E0;
+  color: #e0e0e0;
 }
 
 a {

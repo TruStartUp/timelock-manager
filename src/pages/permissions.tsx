@@ -1,7 +1,7 @@
-import PermissionsView from '@/components/permissions/PermissionsView';
+import PermissionsView from '@/components/permissions/PermissionsView'
 
 const PermissionsPage = () => {
-  return <PermissionsView />;
-};
+  return <PermissionsView />
+}
 
-export default PermissionsPage;
+export default PermissionsPage

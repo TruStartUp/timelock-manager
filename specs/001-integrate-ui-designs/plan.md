@@ -21,13 +21,13 @@ This plan details the technical approach for integrating the new UI designs into
 
 ## Constitution Check
 
-*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
+_GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
 
--   **Adherence to Conventions**: PASS. The plan follows the existing project structure and technology stack (Next.js, Tailwind CSS).
--   **No New Dependencies**: PASS. The plan leverages the existing libraries and frameworks.
--   **Testable Code**: PASS. Components will be designed to be testable, and existing testing frameworks will be used.
+- **Adherence to Conventions**: PASS. The plan follows the existing project structure and technology stack (Next.js, Tailwind CSS).
+- **No New Dependencies**: PASS. The plan leverages the existing libraries and frameworks.
+- **Testable Code**: PASS. Components will be designed to be testable, and existing testing frameworks will be used.
 
-*All constitution gates pass.*
+_All constitution gates pass._
 
 ## Project Structure
 
@@ -68,5 +68,5 @@ tests/
 > **Fill ONLY if Constitution Check has violations that must be justified**
 
 | Violation | Why Needed | Simpler Alternative Rejected Because |
-|-----------|------------|-------------------------------------|
-| N/A       | N/A        | N/A                                 |
+| --------- | ---------- | ------------------------------------ |
+| N/A       | N/A        | N/A                                  |
