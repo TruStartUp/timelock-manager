@@ -101,8 +101,8 @@ description: 'Task list for Rootstock Timelock Management App - Blockchain Integ
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T028 [P] [US1] Unit test for operation status calculation in tests/unit/status.test.ts (PENDING → READY → EXECUTED transitions)
-- [ ] T029 [P] [US1] Integration test for useOperations hook in tests/integration/operations-fetch.test.tsx with mock subgraph responses
+- [X] T028 [P] [US1] Unit test for operation status calculation in tests/unit/status.test.ts (PENDING → READY → EXECUTED transitions)
+- [X] T029 [P] [US1] Integration test for useOperations hook in tests/integration/operations-fetch.test.tsx with mock subgraph responses
 
 ### Implementation for User Story 1
 
