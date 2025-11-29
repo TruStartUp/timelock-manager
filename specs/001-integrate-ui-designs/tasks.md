@@ -43,10 +43,10 @@ This phase involves converting each static HTML design into a functional React p
 - [x] T020 [P] [US1] Connect the `OperationsExplorerView` component to relevant data hooks and services.
 
 ### Permissions View
-- [ ] T021 [P] [US1] Create the page file for the Permissions view at `src/pages/permissions.tsx`.
-- [ ] T022 [P] [US1] Implement the main `PermissionsView` component in `src/components/permissions/PermissionsView.tsx` based on `ui-design-files/permissions/code.html`.
-- [ ] T023 [P] [US1] Write unit tests for the `PermissionsView` component in `tests/components/permissions/PermissionsView.test.tsx`.
-- [ ] T024 [P] [US1] Connect the `PermissionsView` component to relevant data hooks and services.
+- [x] T021 [P] [US1] Create the page file for the Permissions view at `src/pages/permissions.tsx`.
+- [x] T022 [P] [US1] Implement the main `PermissionsView` component in `src/components/permissions/PermissionsView.tsx` based on `ui-design-files/permissions/code.html`.
+- [x] T023 [P] [US1] Write unit tests for the `PermissionsView` component in `tests/components/permissions/PermissionsView.test.tsx`.
+- [x] T024 [P] [US1] Connect the `PermissionsView` component to relevant data hooks and services.
 
 ### Settings View
 - [ ] T025 [P] [US1] Create the page file for the Settings view at `src/pages/settings.tsx`.

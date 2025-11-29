@@ -91,6 +91,3 @@ The `specs/` directory contains all the planning and design documents, including
 *   `data-model.md`: The application's data model.
 *   `quickstart.md`: A guide for developers to get started.
 *   `tasks.md`: A detailed list of implementation tasks.
-
-## Recent Changes
-- 001-integrate-ui-designs: Added [if applicable, e.g., PostgreSQL, CoreData, files or N/A]

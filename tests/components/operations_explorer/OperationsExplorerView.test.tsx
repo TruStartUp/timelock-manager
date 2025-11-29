@@ -179,7 +179,7 @@ describe('OperationsExplorerView', () => {
     // Click the first action button (which should be in the table)
     const actionCancelButton = cancelButtons.find((button) => {
       // Action buttons have specific styling classes
-      return button.className.includes('bg-red-400/20');
+      return button.className.includes('bg-status-canceled/20');
     });
 
     expect(actionCancelButton).toBeDefined();
