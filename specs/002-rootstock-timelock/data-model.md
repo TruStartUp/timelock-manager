@@ -378,10 +378,10 @@ const ROOTSTOCK_MAINNET: NetworkConfiguration = {
   chainName: 'Rootstock Mainnet',
   rpcUrl:
     process.env.NEXT_PUBLIC_RSK_MAINNET_RPC_URL || 'https://public-node.rsk.co',
-  blockscoutApiUrl: 'https://explorer.rsk.co/api',
+  blockscoutApiUrl: 'https://rootstock.blockscout.com/api',
   subgraphUrl: process.env.NEXT_PUBLIC_RSK_MAINNET_SUBGRAPH_URL,
   nativeCurrency: { name: 'Rootstock Bitcoin', symbol: 'RBTC', decimals: 18 },
-  blockExplorerUrl: 'https://explorer.rsk.co',
+  blockExplorerUrl: 'https://rootstock.blockscout.com/',
 }
 
 const ROOTSTOCK_TESTNET: NetworkConfiguration = {
@@ -390,10 +390,10 @@ const ROOTSTOCK_TESTNET: NetworkConfiguration = {
   rpcUrl:
     process.env.NEXT_PUBLIC_RSK_TESTNET_RPC_URL ||
     'https://public-node.testnet.rsk.co',
-  blockscoutApiUrl: 'https://explorer.testnet.rsk.co/api',
+  blockscoutApiUrl: 'https://rootstock-testnet.blockscout.com/api',
   subgraphUrl: process.env.NEXT_PUBLIC_RSK_TESTNET_SUBGRAPH_URL,
   nativeCurrency: { name: 'Rootstock Bitcoin', symbol: 'tRBTC', decimals: 18 },
-  blockExplorerUrl: 'https://explorer.testnet.rsk.co',
+  blockExplorerUrl: 'https://rootstock-testnet.blockscout.com/',
 }
 ```
 

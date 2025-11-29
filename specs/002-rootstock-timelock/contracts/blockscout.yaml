@@ -5,9 +5,9 @@ info:
   version: 1.0.0
 
 servers:
-  - url: https://explorer.rsk.co/api
+  - url: https://rootstock.blockscout.com/api
     description: Rootstock Mainnet Blockscout
-  - url: https://explorer.testnet.rsk.co/api
+  - url: https://rootstock-testnet.blockscout.com/api
     description: Rootstock Testnet Blockscout
 
 paths:

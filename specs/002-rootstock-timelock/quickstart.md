@@ -67,8 +67,8 @@ NEXT_PUBLIC_RSK_MAINNET_SUBGRAPH_URL=https://api.studio.thegraph.com/query/<your
 NEXT_PUBLIC_RSK_TESTNET_SUBGRAPH_URL=https://api.studio.thegraph.com/query/<your-subgraph>/rootstock-timelock-testnet/v1
 
 # Rootstock Blockscout APIs (Defaults provided, can override)
-NEXT_PUBLIC_RSK_MAINNET_BLOCKSCOUT_URL=https://explorer.rsk.co/api
-NEXT_PUBLIC_RSK_TESTNET_BLOCKSCOUT_URL=https://explorer.testnet.rsk.co/api
+NEXT_PUBLIC_RSK_MAINNET_BLOCKSCOUT_URL='https://rootstock.blockscout.com/api
+NEXT_PUBLIC_RSK_TESTNET_BLOCKSCOUT_URL='https://rootstock-testnet.blockscout.com/api
 
 # 4byte Directory (Default provided)
 NEXT_PUBLIC_4BYTE_DIRECTORY_URL=https://www.4byte.directory/api/v1/

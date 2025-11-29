@@ -1,9 +1,12 @@
 # Feature Specification: Rootstock Timelock Management App
 
-**Feature Branch**: `001-rootstock-timelock`
+**Feature Branch**: `002-rootstock-timelock`
 **Created**: 2025-11-28
-**Status**: Draft
+**Updated**: 2025-11-28
+**Status**: UI Implementation In Progress
 **Input**: User description: "Rootstock Timelock Management App with AccessManager and TimelockController exploration, operation management, and transaction building capabilities"
+
+**Implementation Notes**: Primary UI views have been implemented with mock data structures representing the data flows described in this specification. The implemented views include: Dashboard (operations overview and role summary), Operations Explorer (filterable operations table with expandable details), New Proposal wizard (multi-step contract interaction builder), Calldata Decoder (hex decoding tool), and Permissions management (role holders and history). These views establish the UI patterns and information architecture; blockchain integration is pending.
 
 ## User Scenarios & Testing _(mandatory)_
 

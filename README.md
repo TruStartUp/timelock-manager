@@ -14,7 +14,7 @@ The Timelock Management App provides a user-friendly interface for governance pa
 
 ## Tech Stack
 
-- **Framework:** [Next.js](https://nextjs.org/) (App Router)
+- **Framework:** [Next.js](https://nextjs.org/) (Pages Router)
 - **Language:** TypeScript
 - **Web3:** [wagmi](https://wagmi.sh/), [viem](https://viem.sh/), and [RainbowKit](https://rainbowkit.com) for wallet integration and blockchain interaction.
 - **Data Fetching:** [TanStack Query](https://tanstack.com/query/latest) with a primary reliance on [The Graph](https://thegraph.com/) for indexed data and the [Blockscout API](https://docs.blockscout.com/for-users/api) as a fallback.
