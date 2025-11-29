@@ -21,8 +21,8 @@ npm start
 # Run tests
 npm test
 
-# Run tests in watch mode (not configured yet - add to package.json if needed)
-npm run test:watch
+# Run tests in watch mode
+npx vitest
 
 # Lint code
 npm run lint
@@ -163,8 +163,8 @@ subgraph/
 
 **Core directories** (created during initial setup):
 - `src/lib/` - Core utilities (currently contains `constants.ts`)
-- `src/hooks/` - Custom React hooks (ready for implementation)
-- `src/services/` - External API clients (ready for implementation)
+- `src/hooks/` - Custom React hooks (empty - add as needed)
+- `src/services/` - External API clients (implemented: blockscout, fourbyte, subgraph)
 - `src/types/` - TypeScript type definitions (`abi.ts`, `operation.ts`, `role.ts`)
 - `src/app/` - Empty directory (project uses Pages Router, not App Router)
 
@@ -295,10 +295,10 @@ All blockchain interactions should use:
 - **viem** for low-level utilities (ABI encoding, address validation, etc.)
 - **TanStack Query** is already configured and wraps wagmi hooks automatically
 
-**Data sources** (planned):
-1. **Primary**: The Graph subgraphs for indexed TimelockController events
-2. **Fallback**: Blockscout API for contract ABIs and verification
-3. **Utility**: 4byte.directory for function signature lookup
+**Data sources** (implemented):
+1. **Primary**: The Graph subgraphs for indexed TimelockController events (`src/services/subgraph/`)
+2. **Fallback**: Blockscout API for contract ABIs and verification (`src/services/blockscout/`)
+3. **Utility**: 4byte.directory for function signature lookup (`src/services/fourbyte/`)
 
 ### Component Architecture
 

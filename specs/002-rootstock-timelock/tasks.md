@@ -75,10 +75,10 @@ description: 'Task list for Rootstock Timelock Management App - Blockchain Integ
 
 ### Contract ABIs and Validation
 
-- [ ] T024 Copy TimelockController ABI to src/lib/abis/TimelockController.json from specs/002-rootstock-timelock/contracts/
-- [ ] T025 [P] Copy AccessControl ABI to src/lib/abis/AccessControl.json from specs/002-rootstock-timelock/contracts/
-- [ ] T026 [P] Copy IAccessManager ABI to src/lib/abis/IAccessManager.json from specs/002-rootstock-timelock/contracts/
-- [ ] T027 Create Zod validation schemas in src/lib/validation.ts for Solidity types (address, uint, bytes, arrays, tuples) from research.md Section 4
+- [X] T024 Copy TimelockController ABI to src/lib/abis/TimelockController.json from specs/002-rootstock-timelock/contracts/
+- [X] T025 [P] Copy AccessControl ABI to src/lib/abis/AccessControl.json from specs/002-rootstock-timelock/contracts/
+- [X] T026 [P] Copy IAccessManager ABI to src/lib/abis/IAccessManager.json from specs/002-rootstock-timelock/contracts/
+- [X] T027 Create Zod validation schemas in src/lib/validation.ts for Solidity types (address, uint, bytes, arrays, tuples) from research.md Section 4
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
