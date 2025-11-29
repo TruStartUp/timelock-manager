@@ -49,10 +49,10 @@ This phase involves converting each static HTML design into a functional React p
 - [x] T024 [P] [US1] Connect the `PermissionsView` component to relevant data hooks and services.
 
 ### Settings View
-- [ ] T025 [P] [US1] Create the page file for the Settings view at `src/pages/settings.tsx`.
-- [ ] T026 [P] [US1] Implement the main `SettingsView` component in `src/components/settings/SettingsView.tsx` based on `ui-design-files/settings/code.html`.
-- [ ] T027 [P] [US1] Write unit tests for the `SettingsView` component in `tests/components/settings/SettingsView.test.tsx`.
-- [ ] T028 [P] [US1] Connect the `SettingsView` component to relevant data hooks and services.
+- [x] T025 [P] [US1] Create the page file for the Settings view at `src/pages/settings.tsx`.
+- [x] T026 [P] [US1] Implement the main `SettingsView` component in `src/components/settings/SettingsView.tsx` based on `ui-design-files/settings/code.html`.
+- [x] T027 [P] [US1] Write unit tests for the `SettingsView` component in `tests/components/settings/SettingsView.test.tsx`.
+- [x] T028 [P] [US1] Connect the `SettingsView` component to relevant data hooks and services.
 
 ## Phase 4: Polish & Integration
 
