@@ -1,0 +1,37 @@
+specVersion: 0.0.5
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum/contract
+    name: TimelockController
+    network: rootstock-testnet
+    source:
+      address: '0x09a3fa8b0706829ad2b66719b851793a7b20d08a'
+      abi: TimelockController
+      startBlock: 5151351
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - TimelockController
+        - Operation
+        - Call
+        - Role
+        - RoleAssignment
+      abis:
+        - name: TimelockController
+          file: ./abis/TimelockController.json
+      eventHandlers:
+        - event: CallScheduled(indexed bytes32,indexed uint256,address,uint256,bytes,bytes32,uint256)
+          handler: handleCallScheduled
+        - event: CallExecuted(indexed bytes32,indexed uint256,address,uint256,bytes)
+          handler: handleCallExecuted
+        - event: Cancelled(indexed bytes32)
+          handler: handleCancelled
+        - event: RoleGranted(indexed bytes32,indexed address,indexed address)
+          handler: handleRoleGranted
+        - event: RoleRevoked(indexed bytes32,indexed address,indexed address)
+          handler: handleRoleRevoked
+      file: ./src/mapping.ts
+
