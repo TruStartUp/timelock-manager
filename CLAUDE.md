@@ -152,13 +152,21 @@ specs/
   ├─ memory/
   │   └─ constitution.md      # Project principles and governance
   └─ templates/               # Spec templates
+
+subgraph/
+  └─ rootstock-timelock-testnet/  # The Graph subgraph for event indexing
+      ├─ schema.graphql           # GraphQL schema (entities)
+      ├─ subgraph.yaml            # Subgraph manifest
+      ├─ src/                     # Event handlers
+      └─ abis/                    # Contract ABIs
 ```
 
-**Planned directories** (not yet created - see [specs/002-rootstock-timelock/quickstart.md](specs/002-rootstock-timelock/quickstart.md)):
-- `src/lib/` - Core utilities (wagmi config, constants, ABIs)
-- `src/hooks/` - Custom React hooks (useOperations, useRoles, etc.)
-- `src/services/` - External API clients (subgraph, Blockscout, 4byte)
-- `src/types/` - TypeScript type definitions
+**Core directories** (created during initial setup):
+- `src/lib/` - Core utilities (currently contains `constants.ts`)
+- `src/hooks/` - Custom React hooks (ready for implementation)
+- `src/services/` - External API clients (ready for implementation)
+- `src/types/` - TypeScript type definitions (`abi.ts`, `operation.ts`, `role.ts`)
+- `src/app/` - Empty directory (project uses Pages Router, not App Router)
 
 ## Development Workflow
 
@@ -174,6 +182,56 @@ This project follows a **constitution-based, spec-driven workflow**. Read [.spec
 5. **Deploy**: Merge to main triggers automated deployment
 
 **Breaking changes** (ABI updates, contract changes) require migration guides.
+
+### Subgraph Development
+
+The project includes a **Graph Protocol subgraph** for indexing TimelockController events on Rootstock networks. The subgraph provides efficient querying of historical operations, role changes, and governance events.
+
+**Location**: `subgraph/rootstock-timelock-testnet/`
+
+**Available commands**:
+```bash
+# Generate TypeScript types from GraphQL schema
+npm run subgraph:codegen
+
+# Build the subgraph
+npm run subgraph:build
+
+# Deploy to The Graph Studio (requires authentication)
+npm run subgraph:deploy
+
+# Check if Graph CLI is installed
+npm run subgraph:check
+```
+
+**Key files**:
+- `schema.graphql` - GraphQL schema defining entities (CallScheduled, CallExecuted, Cancelled, RoleGranted, RoleRevoked, etc.)
+- `subgraph.yaml` - Subgraph manifest with data sources, event handlers, and network configuration
+- `src/timelock-controller.ts` - Event handler implementations that process blockchain events
+- `networks.json` - Network-specific contract addresses for deployment
+- `abis/TimelockController.json` - Contract ABI for event decoding
+
+**Indexed entities**:
+- CallScheduled, CallExecuted, CallSalt, Cancelled
+- RoleGranted, RoleRevoked, RoleAdminChanged
+- MinDelayChange
+
+**Prerequisites**:
+- Graph CLI must be installed globally:
+  ```bash
+  npm install -g @graphprotocol/graph-cli
+  ```
+- Authenticate with The Graph Studio before deploying:
+  ```bash
+  graph auth --studio <deploy-key>
+  ```
+
+**Deployment workflow**:
+1. Update `networks.json` with the TimelockController contract address
+2. Run `npm run subgraph:codegen` to generate types
+3. Run `npm run subgraph:build` to compile the subgraph
+4. Run `npm run subgraph:deploy` to deploy to The Graph Studio
+5. Copy the subgraph query URL to `.env.local` as `NEXT_PUBLIC_RSK_TESTNET_SUBGRAPH_URL`
 
 ### TypeScript Strict Mode
 

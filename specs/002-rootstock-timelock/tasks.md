@@ -66,12 +66,12 @@ description: 'Task list for Rootstock Timelock Management App - Blockchain Integ
 
 ### Core Service Layer
 
-- [ ] T018 Create GraphQL client in src/services/subgraph/client.ts using urql with Rootstock testnet endpoint
-- [ ] T019 [P] Create operation queries in src/services/subgraph/operations.ts (fetchOperations, fetchOperationById) matching schema
-- [ ] T020 [P] Create role queries in src/services/subgraph/roles.ts (fetchRoles, fetchRoleAssignments) matching schema
-- [ ] T021 Create Blockscout API client in src/services/blockscout/client.ts with rate limiting (10 RPS) from research.md Section 3
-- [ ] T022 Implement getContractABI function in src/services/blockscout/abi.ts with caching and exponential backoff
-- [ ] T023 [P] Create 4byte directory client in src/services/fourbyte/client.ts for function signature lookup from research.md
+- [X] T018 Create GraphQL client in src/services/subgraph/client.ts using urql with Rootstock testnet endpoint
+- [X] T019 [P] Create operation queries in src/services/subgraph/operations.ts (fetchOperations, fetchOperationById) matching schema
+- [X] T020 [P] Create role queries in src/services/subgraph/roles.ts (fetchRoles, fetchRoleAssignments) matching schema
+- [X] T021 Create Blockscout API client in src/services/blockscout/client.ts with rate limiting (10 RPS) from research.md Section 3
+- [X] T022 Implement getContractABI function in src/services/blockscout/abi.ts with caching and exponential backoff
+- [X] T023 [P] Create 4byte directory client in src/services/fourbyte/client.ts for function signature lookup from research.md
 
 ### Contract ABIs and Validation
 
