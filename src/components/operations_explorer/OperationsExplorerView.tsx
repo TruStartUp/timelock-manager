@@ -1,4 +1,7 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
+import { type Address, formatEther } from 'viem'
+import { useOperations } from '@/hooks/useOperations'
+import { type Operation as SubgraphOperation, type OperationStatus as SubgraphOperationStatus } from '@/types/operation'
 
 type OperationStatus = 'All' | 'Pending' | 'Ready' | 'Executed' | 'Canceled'
 
@@ -26,73 +29,128 @@ interface Operation {
 const OperationsExplorerView: React.FC = () => {
   const [selectedFilter, setSelectedFilter] = useState<OperationStatus>('All')
   const [searchQuery, setSearchQuery] = useState('')
-  const [expandedRowId, setExpandedRowId] = useState<string | null>(
-    '0xab...c456'
+  const [expandedRowId, setExpandedRowId] = useState<string | null>(null)
+
+  // State for selected timelock contract address
+  // Using the actual deployed TimelockController on Rootstock Testnet
+  const [timelockAddress] = useState<Address | undefined>(
+    '0x09a3fa8b0706829ad2b66719b851793a7b20d08a' as Address // Real testnet contract
   )
 
-  // Example operations data - will be replaced with actual data from hooks/services
-  const operations: Operation[] = [
-    {
-      id: '0xab...c456',
-      status: 'Ready',
-      calls: 3,
-      targets: ['0x12...a7b8', '0x45...b8c9', '0x78...c9d0'],
-      eta: {
-        relative: 'in 12 hours',
-        absolute: '2023-10-27 15:00 UTC',
-      },
-      proposer: '0xd4...e8f9',
-      details: {
-        fullId: '0xabc123def456...',
-        fullProposer: '0xd4e56789f0...',
-        scheduled: '2023-10-26 03:00',
-        callsDetails: [
-          { target: '0x123...a7b8', value: '0' },
-          { target: '0x456...b8c9', value: '0' },
-          { target: '0x789...c9d0', value: '1.5 ETH' },
-        ],
-      },
-    },
-    {
-      id: '0x2d...a1b2',
-      status: 'Pending',
-      calls: 1,
-      targets: ['0xef...d5c6'],
-      eta: {
-        relative: 'in 2 days',
-        absolute: '2023-10-29 18:30 UTC',
-      },
-      proposer: '0x98...b3a4',
-    },
-    {
-      id: '0x7f...e3d4',
-      status: 'Executed',
-      calls: 5,
-      targets: [
-        '0x5a...b6c7',
-        '0x1a...c7d8',
-        '0x2b...d8e9',
-        '0x3c...e9f0',
-        '0x4d...f0a1',
-      ],
-      eta: {
-        relative: '-',
-        absolute: '2023-10-25 10:00 UTC',
-      },
-      proposer: '0x3c...d8e9',
-    },
-    {
-      id: '0x9c...b5d6',
-      status: 'Canceled',
-      calls: 2,
-      targets: ['0x8e...f1a2', '0x9f...a2b3'],
-      eta: {
-        relative: '-',
-        absolute: '2023-10-24 12:00 UTC',
-      },
-      proposer: '0x7a...b3c4',
-    },
-  ]
+  // Map UI filter to subgraph status filter
+  const statusFilter: SubgraphOperationStatus | undefined = useMemo(() => {
+    if (selectedFilter === 'All') return undefined
+    // Map UI status to subgraph status
+    const statusMap: Record<Exclude<OperationStatus, 'All'>, SubgraphOperationStatus> = {
+      'Pending': 'PENDING',
+      'Ready': 'READY',
+      'Executed': 'EXECUTED',
+      'Canceled': 'CANCELLED',
+    }
+    return statusMap[selectedFilter]
+  }, [selectedFilter])
+
+  // Fetch operations from subgraph with filters
+  const { data: subgraphOperations, isLoading, isError } = useOperations({
+    timelockController: timelockAddress,
+    status: statusFilter,
+  })
+
+  // Helper functions for formatting
+  const shortenAddress = (address: string): string => {
+    if (address.length < 10) return address
+    return `${address.slice(0, 6)}...${address.slice(-4)}`
+  }
+
+  const formatRelativeTime = (timestamp: bigint): string => {
+    const now = BigInt(Math.floor(Date.now() / 1000))
+    const diff = timestamp - now
+
+    if (diff <= BigInt(0)) return '-'
+
+    const seconds = Number(diff)
+    const minutes = Math.floor(seconds / 60)
+    const hours = Math.floor(minutes / 60)
+    const days = Math.floor(hours / 24)
+
+    if (days > 0) return `in ${days} day${days > 1 ? 's' : ''}`
+    if (hours > 0) return `in ${hours} hour${hours > 1 ? 's' : ''}`
+    if (minutes > 0) return `in ${minutes} minute${minutes > 1 ? 's' : ''}`
+    return 'in < 1 minute'
+  }
+
+  const formatAbsoluteTime = (timestamp: bigint): string => {
+    const date = new Date(Number(timestamp) * 1000)
+    return date.toLocaleString('en-US', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'UTC',
+      timeZoneName: 'short'
+    })
+  }
+
+  const mapSubgraphStatus = (status: SubgraphOperationStatus): Exclude<OperationStatus, 'All'> => {
+    const statusMap: Record<SubgraphOperationStatus, Exclude<OperationStatus, 'All'>> = {
+      'PENDING': 'Pending',
+      'READY': 'Ready',
+      'EXECUTED': 'Executed',
+      'CANCELLED': 'Canceled',
+    }
+    return statusMap[status]
+  }
+
+  // Transform subgraph operations to UI operations format
+  const operations: Operation[] = useMemo(() => {
+    if (!subgraphOperations) return []
+
+    return subgraphOperations.map((op: SubgraphOperation) => {
+      // Determine targets - either from calls array or single target
+      const targets: string[] = op.target ? [op.target] : []
+      const callsCount = op.target ? 1 : 0 // Will be updated when calls relationship is available
+
+      // Format operation for UI
+      const uiOperation: Operation = {
+        id: shortenAddress(op.id),
+        status: mapSubgraphStatus(op.status),
+        calls: callsCount,
+        targets: targets.map(shortenAddress),
+        eta: {
+          relative: op.status === 'EXECUTED' || op.status === 'CANCELLED'
+            ? '-'
+            : formatRelativeTime(op.timestamp),
+          absolute: formatAbsoluteTime(op.timestamp),
+        },
+        proposer: shortenAddress(op.scheduledBy),
+        details: {
+          fullId: op.id,
+          fullProposer: op.scheduledBy,
+          scheduled: formatAbsoluteTime(op.scheduledAt),
+          callsDetails: op.target && op.value !== null ? [{
+            target: op.target,
+            value: op.value > BigInt(0) ? `${formatEther(op.value)} RBTC` : '0',
+          }] : [],
+        },
+      }
+
+      return uiOperation
+    })
+  }, [subgraphOperations])
+
+  // Filter operations by search query (client-side)
+  const filteredOperations = useMemo(() => {
+    if (!searchQuery.trim()) return operations
+
+    const query = searchQuery.toLowerCase()
+    return operations.filter((op) =>
+      op.id.toLowerCase().includes(query) ||
+      op.proposer.toLowerCase().includes(query) ||
+      op.details?.fullId.toLowerCase().includes(query) ||
+      op.details?.fullProposer.toLowerCase().includes(query)
+    )
+  }, [operations, searchQuery])
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -230,9 +288,41 @@ const OperationsExplorerView: React.FC = () => {
           </div>
         </div>
 
+        {/* Error State */}
+        {isError && (
+          <div className="rounded border border-red-500/50 bg-red-500/10 p-4">
+            <p className="text-red-500 text-sm">
+              Failed to load operations data. Please check your connection and try again.
+            </p>
+          </div>
+        )}
+
+        {/* Loading State */}
+        {isLoading && (
+          <div className="flex items-center justify-center py-12">
+            <div className="flex flex-col items-center gap-4">
+              <div className="h-12 w-12 animate-spin rounded-full border-4 border-border-dark border-t-primary"></div>
+              <p className="text-text-dark-secondary">Loading operations...</p>
+            </div>
+          </div>
+        )}
+
+        {/* Empty State */}
+        {!isLoading && !isError && filteredOperations.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <p className="text-text-dark-primary text-lg font-medium">No operations found</p>
+            <p className="text-text-dark-secondary text-sm mt-2">
+              {searchQuery
+                ? 'Try adjusting your search or filters'
+                : 'No operations have been scheduled yet'}
+            </p>
+          </div>
+        )}
+
         {/* Operations Table */}
-        <div className="w-full overflow-x-auto rounded-lg bg-surface-dark">
-          <table className="w-full min-w-[1024px] text-left text-sm">
+        {!isLoading && !isError && filteredOperations.length > 0 && (
+          <div className="w-full overflow-x-auto rounded-lg bg-surface-dark">
+            <table className="w-full min-w-[1024px] text-left text-sm">
             <thead className="border-b border-border-dark text-xs uppercase text-text-dark-secondary">
               <tr>
                 <th className="px-6 py-4" scope="col">
@@ -279,7 +369,7 @@ const OperationsExplorerView: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {operations.map((operation) => (
+              {filteredOperations.map((operation) => (
                 <React.Fragment key={operation.id}>
                   {/* Main Row */}
                   <tr
@@ -430,6 +520,7 @@ const OperationsExplorerView: React.FC = () => {
             </tbody>
           </table>
         </div>
+        )}
       </main>
     </>
   )
