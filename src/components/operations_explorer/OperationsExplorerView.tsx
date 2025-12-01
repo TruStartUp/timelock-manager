@@ -52,7 +52,7 @@ const OperationsExplorerView: React.FC = () => {
   }, [selectedFilter])
 
   // Fetch operations from subgraph with filters
-  const { data: subgraphOperations, isLoading, isError } = useOperations({
+  const { data: subgraphOperations, isLoading, isError, refetch } = useOperations({
     timelockController: timelockAddress,
     status: statusFilter,
   })
@@ -270,12 +270,47 @@ const OperationsExplorerView: React.FC = () => {
           </div>
         </div>
 
-        {/* Error State */}
+        {/* Error State - Subgraph Unavailable */}
         {isError && (
-          <div className="rounded border border-red-500/50 bg-red-500/10 p-4">
-            <p className="text-red-500 text-sm">
-              Failed to load operations data. Please check your connection and try again.
-            </p>
+          <div className="rounded-lg border border-yellow-500/50 bg-yellow-500/10 p-6">
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0">
+                <span className="material-symbols-outlined text-yellow-500 text-3xl">
+                  warning
+                </span>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-yellow-500 font-bold text-lg mb-2">
+                  Subgraph Unavailable
+                </h3>
+                <p className="text-text-dark-primary text-sm mb-4">
+                  The Graph subgraph is currently unavailable. This may be due to network issues,
+                  subgraph indexing delays, or maintenance.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <button
+                    onClick={() => refetch()}
+                    className="flex items-center justify-center gap-2 rounded-md px-4 py-2 bg-yellow-500/20 text-yellow-500 text-sm font-medium hover:bg-yellow-500/30 transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-base">
+                      refresh
+                    </span>
+                    Try Again
+                  </button>
+                  <a
+                    href="https://thegraph.com/studio/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 rounded-md px-4 py-2 bg-border-dark text-text-dark-secondary text-sm font-medium hover:bg-white/10 transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-base">
+                      open_in_new
+                    </span>
+                    The Graph Studio
+                  </a>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 

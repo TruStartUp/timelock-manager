@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { WagmiProvider } from 'wagmi'
 import { config } from '@/wagmi'
 import React from 'react'
+import * as useOperationsModule from '@/hooks/useOperations'
 
 // Mock the useOperationsSummary hook
 vi.mock('@/hooks/useOperations', () => ({
@@ -76,5 +77,85 @@ describe('DashboardView', () => {
     expect(screen.getByRole('table')).toBeInTheDocument()
     expect(screen.getByText(/PROPOSER_ROLE/i)).toBeInTheDocument()
     expect(screen.getByText(/EXECUTOR_ROLE/i)).toBeInTheDocument()
+  })
+
+  test('displays loading skeletons when operations are fetching', () => {
+    // Mock loading state
+    vi.spyOn(useOperationsModule, 'useOperationsSummary').mockReturnValue({
+      data: undefined,
+      isLoading: true,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    } as any)
+
+    render(
+      <WagmiProvider config={config}>
+        <QueryClientProvider client={queryClient}>
+          <DashboardView />
+        </QueryClientProvider>
+      </WagmiProvider>
+    )
+
+    // Check that loading skeletons are displayed (should have animate-pulse class)
+    const skeletons = document.querySelectorAll('.animate-pulse')
+    expect(skeletons.length).toBeGreaterThan(0)
+
+    // Verify that operation cards still render but with loading state
+    expect(screen.getByText(/Pending Operations/i)).toBeInTheDocument()
+    expect(screen.getByText(/Ready for Execution/i)).toBeInTheDocument()
+    expect(screen.getByText(/Executed Operations/i)).toBeInTheDocument()
+  })
+
+  test('displays error message when operations fetch fails', () => {
+    // Mock error state
+    vi.spyOn(useOperationsModule, 'useOperationsSummary').mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      error: new Error('Failed to fetch operations'),
+      refetch: vi.fn(),
+    } as any)
+
+    render(
+      <WagmiProvider config={config}>
+        <QueryClientProvider client={queryClient}>
+          <DashboardView />
+        </QueryClientProvider>
+      </WagmiProvider>
+    )
+
+    // Check that error message is displayed
+    expect(screen.getByText(/Failed to load operations data/i)).toBeInTheDocument()
+    expect(screen.getByText(/Please check your connection and try again/i)).toBeInTheDocument()
+  })
+
+  test('displays zero counts when no data is available', () => {
+    // Mock no data state (but not loading or error)
+    vi.spyOn(useOperationsModule, 'useOperationsSummary').mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    } as any)
+
+    render(
+      <WagmiProvider config={config}>
+        <QueryClientProvider client={queryClient}>
+          <DashboardView />
+        </QueryClientProvider>
+      </WagmiProvider>
+    )
+
+    // Should display 0 for all counts
+    const pendingSection = screen.getByText(/Pending Operations/i).parentElement
+    expect(pendingSection).toHaveTextContent('0')
+
+    const readySection = screen.getByText(/Ready for Execution/i).parentElement
+    expect(readySection).toHaveTextContent('0')
+
+    const executedSection = screen.getByText(/Executed Operations/i).parentElement
+    expect(executedSection).toHaveTextContent('0')
   })
 })

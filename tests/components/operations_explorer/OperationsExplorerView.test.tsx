@@ -422,4 +422,77 @@ describe('OperationsExplorerView', () => {
     expect(screen.getByText(/0x5a56\.\.\.b6c7/i)).toBeInTheDocument()
     expect(screen.getByText(/0x8e56\.\.\.f1a2/i)).toBeInTheDocument()
   })
+
+  test('displays error message when subgraph is unavailable', () => {
+    // Mock useOperations to return error state
+    vi.spyOn(useOperationsModule, 'useOperations').mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      error: new Error('Subgraph query failed'),
+      refetch: vi.fn(),
+      dataUpdatedAt: Date.now(),
+      errorUpdatedAt: Date.now(),
+      failureCount: 1,
+      failureReason: new Error('Subgraph query failed'),
+      errorUpdateCount: 1,
+      isLoadingError: true,
+      isPaused: false,
+      isPlaceholderData: false,
+      isRefetchError: false,
+      isRefetching: false,
+      isStale: false,
+      isSuccess: false,
+      status: 'error',
+      fetchStatus: 'idle',
+      isFetched: true,
+      isFetchedAfterMount: true,
+      isFetching: false,
+    } as any)
+
+    render(<OperationsExplorerView />, { wrapper: TestWrapper })
+
+    // Check for error message
+    expect(screen.getByText(/Subgraph Unavailable/i)).toBeInTheDocument()
+    expect(screen.getByText(/The Graph subgraph is currently unavailable/i)).toBeInTheDocument()
+  })
+
+  test('displays retry button when subgraph is unavailable', () => {
+    const mockRefetch = vi.fn()
+
+    // Mock useOperations to return error state with refetch function
+    vi.spyOn(useOperationsModule, 'useOperations').mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      error: new Error('Subgraph query failed'),
+      refetch: mockRefetch,
+      dataUpdatedAt: Date.now(),
+      errorUpdatedAt: Date.now(),
+      failureCount: 1,
+      failureReason: new Error('Subgraph query failed'),
+      errorUpdateCount: 1,
+      isLoadingError: true,
+      isPaused: false,
+      isPlaceholderData: false,
+      isRefetchError: false,
+      isRefetching: false,
+      isStale: false,
+      isSuccess: false,
+      status: 'error',
+      fetchStatus: 'idle',
+      isFetched: true,
+      isFetchedAfterMount: true,
+      isFetching: false,
+    } as any)
+
+    render(<OperationsExplorerView />, { wrapper: TestWrapper })
+
+    // Find and click retry button
+    const retryButton = screen.getByRole('button', { name: /Try Again/i })
+    expect(retryButton).toBeInTheDocument()
+
+    fireEvent.click(retryButton)
+    expect(mockRefetch).toHaveBeenCalledTimes(1)
+  })
 })
