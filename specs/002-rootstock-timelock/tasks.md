@@ -110,7 +110,7 @@ description: 'Task list for Rootstock Timelock Management App - Blockchain Integ
 - [X] T031 [P] [US1] Create useOperationStatus hook in src/hooks/useOperationStatus.ts with real-time countdown timer and contract state checks (getTimestamp, isOperationReady, isOperationDone)
 - [X] T032 [US1] Integrate useOperations in src/components/dashboard/DashboardView.tsx to replace mock operation counts (Pending: X, Ready: Y, Executed: Z)
 - [X] T033 [US1] Integrate useOperations in src/components/operations_explorer/OperationsExplorerView.tsx to replace mockOperations array
-- [ ] T034 [US1] Integrate useOperationStatus in src/components/operations_explorer/OperationsExplorerView.tsx for each operation row to show live countdown and status
+- [X] T034 [US1] Integrate useOperationStatus in src/components/operations_explorer/OperationsExplorerView.tsx for each operation row to show live countdown and status
 - [ ] T035 [US1] Add error handling in OperationsExplorerView for subgraph unavailable scenario with "Using fallback data source" notice
 - [ ] T036 [US1] Add loading states in DashboardView and OperationsExplorerView while operations fetch
 

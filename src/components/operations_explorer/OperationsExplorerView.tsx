@@ -2,19 +2,20 @@ import React, { useState, useMemo } from 'react'
 import { type Address, formatEther } from 'viem'
 import { useOperations } from '@/hooks/useOperations'
 import { type Operation as SubgraphOperation, type OperationStatus as SubgraphOperationStatus } from '@/types/operation'
+import { OperationRow } from './OperationRow'
 
 type OperationStatus = 'All' | 'Pending' | 'Ready' | 'Executed' | 'Canceled'
 
 interface Operation {
   id: string
+  fullId: `0x${string}`
   status: Exclude<OperationStatus, 'All'>
   calls: number
   targets: string[]
-  eta: {
-    relative: string
-    absolute: string
-  }
   proposer: string
+  timelockAddress: Address
+  cancelledAt: bigint | null
+  executedAt: bigint | null
   details?: {
     fullId: string
     fullProposer: string
@@ -62,23 +63,6 @@ const OperationsExplorerView: React.FC = () => {
     return `${address.slice(0, 6)}...${address.slice(-4)}`
   }
 
-  const formatRelativeTime = (timestamp: bigint): string => {
-    const now = BigInt(Math.floor(Date.now() / 1000))
-    const diff = timestamp - now
-
-    if (diff <= BigInt(0)) return '-'
-
-    const seconds = Number(diff)
-    const minutes = Math.floor(seconds / 60)
-    const hours = Math.floor(minutes / 60)
-    const days = Math.floor(hours / 24)
-
-    if (days > 0) return `in ${days} day${days > 1 ? 's' : ''}`
-    if (hours > 0) return `in ${hours} hour${hours > 1 ? 's' : ''}`
-    if (minutes > 0) return `in ${minutes} minute${minutes > 1 ? 's' : ''}`
-    return 'in < 1 minute'
-  }
-
   const formatAbsoluteTime = (timestamp: bigint): string => {
     const date = new Date(Number(timestamp) * 1000)
     return date.toLocaleString('en-US', {
@@ -114,16 +98,14 @@ const OperationsExplorerView: React.FC = () => {
       // Format operation for UI
       const uiOperation: Operation = {
         id: shortenAddress(op.id),
+        fullId: op.id,
         status: mapSubgraphStatus(op.status),
         calls: callsCount,
         targets: targets.map(shortenAddress),
-        eta: {
-          relative: op.status === 'EXECUTED' || op.status === 'CANCELLED'
-            ? '-'
-            : formatRelativeTime(op.timestamp),
-          absolute: formatAbsoluteTime(op.timestamp),
-        },
         proposer: shortenAddress(op.scheduledBy),
+        timelockAddress: timelockAddress!,
+        cancelledAt: op.cancelledAt,
+        executedAt: op.executedAt,
         details: {
           fullId: op.id,
           fullProposer: op.scheduledBy,
@@ -137,7 +119,7 @@ const OperationsExplorerView: React.FC = () => {
 
       return uiOperation
     })
-  }, [subgraphOperations])
+  }, [subgraphOperations, timelockAddress])
 
   // Filter operations by search query (client-side)
   const filteredOperations = useMemo(() => {
@@ -370,152 +352,18 @@ const OperationsExplorerView: React.FC = () => {
             </thead>
             <tbody>
               {filteredOperations.map((operation) => (
-                <React.Fragment key={operation.id}>
-                  {/* Main Row */}
-                  <tr
-                    className={`border-b border-border-dark transition-colors cursor-pointer ${
-                      expandedRowId === operation.id
-                        ? 'bg-primary/10 hover:bg-primary/20'
-                        : 'hover:bg-white/5'
-                    }`}
-                    onClick={() => handleRowClick(operation.id)}
-                  >
-                    <td className="px-6 py-4 font-mono text-text-dark-primary">
-                      {operation.id}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <div
-                          className={`h-2.5 w-2.5 rounded-full ${getStatusColor(operation.status)}`}
-                        ></div>
-                        <span
-                          className={`font-medium ${getStatusTextColor(operation.status)}`}
-                        >
-                          {operation.status}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-center font-medium text-text-dark-primary">
-                      {operation.calls}
-                    </td>
-                    <td className="px-6 py-4 font-mono text-text-dark-secondary">
-                      {formatTargets(operation.targets)}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex flex-col">
-                        <span className="font-medium text-text-dark-primary">
-                          {operation.eta.relative}
-                        </span>
-                        <span className="text-xs text-text-dark-secondary">
-                          {operation.eta.absolute}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 font-mono text-text-dark-secondary">
-                      {operation.proposer}
-                    </td>
-                    <td
-                      className="px-6 py-4"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <div className="flex justify-end gap-2">
-                        {operation.status === 'Ready' && (
-                          <>
-                            <button
-                              className="flex items-center justify-center rounded-md h-9 px-3 bg-status-ready/20 text-status-ready text-xs font-bold hover:bg-status-ready/30 transition-colors"
-                              onClick={() => handleExecute(operation.id)}
-                            >
-                              EXECUTE
-                            </button>
-                            <button
-                              className="flex items-center justify-center rounded-md h-9 px-3 bg-status-canceled/20 text-status-canceled text-xs font-bold hover:bg-status-canceled/30 transition-colors"
-                              onClick={() => handleCancel(operation.id)}
-                            >
-                              CANCEL
-                            </button>
-                          </>
-                        )}
-                        {operation.status === 'Pending' && (
-                          <button
-                            className="flex items-center justify-center rounded-md h-9 px-3 bg-status-canceled/20 text-status-canceled text-xs font-bold hover:bg-status-canceled/30 transition-colors"
-                            onClick={() => handleCancel(operation.id)}
-                          >
-                            CANCEL
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-
-                  {/* Expanded Details Row */}
-                  {expandedRowId === operation.id && operation.details && (
-                    <tr className="bg-primary/5">
-                      <td className="p-0" colSpan={7}>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-6 border-b border-border-dark">
-                          <div>
-                            <h4 className="text-xs font-bold uppercase text-text-dark-secondary mb-2">
-                              Operation Details
-                            </h4>
-                            <div className="flex flex-col gap-1 text-sm font-mono">
-                              <p>
-                                <span className="text-text-dark-secondary">
-                                  ID:
-                                </span>{' '}
-                                <span className="text-text-dark-primary">
-                                  {operation.details.fullId}
-                                </span>
-                              </p>
-                              <p>
-                                <span className="text-text-dark-secondary">
-                                  Proposer:
-                                </span>{' '}
-                                <span className="text-text-dark-primary">
-                                  {operation.details.fullProposer}
-                                </span>
-                              </p>
-                              <p>
-                                <span className="text-text-dark-secondary">
-                                  Scheduled:
-                                </span>{' '}
-                                <span className="text-text-dark-primary">
-                                  {operation.details.scheduled}
-                                </span>
-                              </p>
-                            </div>
-                          </div>
-                          <div className="md:col-span-2">
-                            <h4 className="text-xs font-bold uppercase text-text-dark-secondary mb-2">
-                              Calls ({operation.details.callsDetails.length})
-                            </h4>
-                            <div className="flex flex-col gap-2 text-sm font-mono bg-background-dark p-3 rounded-md">
-                              {operation.details.callsDetails.map(
-                                (call, index) => (
-                                  <p key={index}>
-                                    <span className="text-primary">
-                                      {index + 1}.
-                                    </span>{' '}
-                                    <span className="text-text-dark-secondary">
-                                      Target:
-                                    </span>{' '}
-                                    <span className="text-text-dark-primary">
-                                      {call.target}
-                                    </span>{' '}
-                                    <span className="text-text-dark-secondary">
-                                      Value:
-                                    </span>{' '}
-                                    <span className="text-text-dark-primary">
-                                      {call.value}
-                                    </span>
-                                  </p>
-                                )
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </React.Fragment>
+                <OperationRow
+                  key={operation.id}
+                  operation={operation}
+                  isExpanded={expandedRowId === operation.id}
+                  onRowClick={handleRowClick}
+                  onExecute={handleExecute}
+                  onCancel={handleCancel}
+                  getStatusColor={getStatusColor}
+                  getStatusTextColor={getStatusTextColor}
+                  formatTargets={formatTargets}
+                  formatAbsoluteTime={formatAbsoluteTime}
+                />
               ))}
             </tbody>
           </table>

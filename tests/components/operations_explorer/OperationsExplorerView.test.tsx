@@ -6,6 +6,7 @@ import { WagmiProvider } from 'wagmi'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { config } from '@/wagmi'
 import * as useOperationsModule from '@/hooks/useOperations'
+import * as useOperationStatusModule from '@/hooks/useOperationStatus'
 import { type Operation } from '@/types/operation'
 
 // Mock data matching the original component's mock data
@@ -144,6 +145,41 @@ describe('OperationsExplorerView', () => {
       isFetchedAfterMount: true,
       isFetching: false,
     } as any)
+
+    // Mock useOperationStatus hook for each operation
+    vi.spyOn(useOperationStatusModule, 'useOperationStatus').mockImplementation((timelockAddress, operationId) => {
+      // Find the matching operation from mock data
+      const operation = mockOperations.find(op => op.id === operationId)
+
+      if (!operation) {
+        return {
+          status: 'PENDING',
+          timestamp: BigInt(0),
+          isReady: false,
+          isDone: false,
+          isPending: true,
+          secondsUntilReady: null,
+          timeUntilReady: null,
+          isLoading: false,
+          error: null,
+          refetch: vi.fn(),
+        }
+      }
+
+      // Return appropriate status based on operation
+      return {
+        status: operation.status,
+        timestamp: operation.timestamp,
+        isReady: operation.status === 'READY',
+        isDone: operation.status === 'EXECUTED' || operation.status === 'CANCELLED',
+        isPending: operation.status === 'PENDING',
+        secondsUntilReady: operation.status === 'PENDING' ? 43200 : null, // 12 hours for pending
+        timeUntilReady: operation.status === 'PENDING' ? '12h' : null,
+        isLoading: false,
+        error: null,
+        refetch: vi.fn(),
+      }
+    })
   })
 
   test('renders top navigation bar correctly', () => {
@@ -361,9 +397,11 @@ describe('OperationsExplorerView', () => {
   test('displays relative ETA for operations', () => {
     render(<OperationsExplorerView />, { wrapper: TestWrapper })
 
-    // Check for relative time formatting (values will be "in X hours/days" for future operations)
-    expect(screen.getByText(/in \d+ hour/i)).toBeInTheDocument()
-    expect(screen.getByText(/in \d+ day/i)).toBeInTheDocument()
+    // Check for relative time formatting from live countdown
+    // Pending operations show countdown (e.g., "in 12h")
+    expect(screen.getByText(/in 12h/i)).toBeInTheDocument()
+    // Ready operations show "Ready now"
+    expect(screen.getByText(/Ready now/i)).toBeInTheDocument()
   })
 
   test('displays absolute ETA timestamps', () => {
