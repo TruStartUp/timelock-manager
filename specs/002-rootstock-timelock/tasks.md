@@ -197,8 +197,8 @@ description: 'Task list for Rootstock Timelock Management App - Blockchain Integ
 
 ### Tests for User Story 4
 
-- [ ] T054 [P] [US4] Unit test for ABI resolution priority in tests/unit/abi-resolver.test.ts (Manual → Blockscout → Known registry → 4byte)
-- [ ] T055 [P] [US4] Unit test for Zod validators in tests/unit/validation.test.ts (address checksum, uint ranges, bytes hex format)
+- [X] T054 [P] [US4] Unit test for ABI resolution priority in tests/unit/abi-resolver.test.ts (Manual → Blockscout → Known registry → 4byte)
+- [X] T055 [P] [US4] Unit test for Zod validators in tests/unit/validation.test.ts (address checksum, uint ranges, bytes hex format)
 
 ### Implementation for User Story 4
 
