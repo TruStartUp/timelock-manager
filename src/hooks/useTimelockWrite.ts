@@ -7,6 +7,8 @@
 
 import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import TimelockControllerABI from '@/lib/abis/TimelockController.json'
+import { TIMELOCK_ROLES } from '@/lib/constants'
+import { useHasRole } from '@/hooks/useHasRole'
 import { type Address } from 'viem'
 
 export interface UseTimelockWriteParams {
@@ -14,6 +16,12 @@ export interface UseTimelockWriteParams {
    * TimelockController contract address
    */
   timelockController: Address
+
+  /**
+   * Connected wallet address (required for permission checks)
+   * If undefined, execute operations will be blocked
+   */
+  account?: Address
 }
 
 export interface ExecuteOperationParams {
@@ -74,6 +82,7 @@ export interface UseTimelockWriteResult {
   /**
    * Execute a ready operation (single or batch)
    * Automatically detects batch operations based on params
+   * Blocked if account lacks EXECUTOR_ROLE
    */
   execute: (params: ExecuteOperationParams | ExecuteBatchParams) => void
 
@@ -103,6 +112,17 @@ export interface UseTimelockWriteResult {
   error: Error | null
 
   /**
+   * Whether the connected account has EXECUTOR_ROLE
+   * Used for UI to enable/disable execute button
+   */
+  hasExecutorRole: boolean
+
+  /**
+   * Whether the role check is loading
+   */
+  isCheckingRole: boolean
+
+  /**
    * Reset the mutation state
    */
   reset: () => void
@@ -124,15 +144,17 @@ function isBatchParams(
  * - Automatic detection of single vs batch operations
  * - Transaction state management (pending/success/error)
  * - Type-safe with viem and wagmi
- * - Pre-flight permission checks (use with useHasRole)
+ * - Pre-flight permission checks using EXECUTOR_ROLE
  *
  * @example
  * ```tsx
- * const { execute, isPending, isSuccess } = useTimelockWrite({
+ * const { execute, isPending, isSuccess, hasExecutorRole } = useTimelockWrite({
  *   timelockController: '0x123...',
+ *   account: address, // from useAccount
  * })
  *
  * const handleExecute = () => {
+ *   // execute() will only proceed if hasExecutorRole is true
  *   execute({
  *     target: '0xTarget...',
  *     value: 0n,
@@ -142,14 +164,25 @@ function isBatchParams(
  *   })
  * }
  *
- * <button onClick={handleExecute} disabled={isPending}>
+ * <button onClick={handleExecute} disabled={isPending || !hasExecutorRole}>
  *   {isPending ? 'Executing...' : 'Execute'}
  * </button>
  * ```
  */
 export function useTimelockWrite({
   timelockController,
+  account,
 }: UseTimelockWriteParams): UseTimelockWriteResult {
+  // Check if account has EXECUTOR_ROLE for pre-flight permission check
+  const {
+    hasRole: hasExecutorRole,
+    isLoading: isCheckingRole,
+  } = useHasRole({
+    timelockController,
+    role: TIMELOCK_ROLES.EXECUTOR_ROLE,
+    account,
+  })
+
   const {
     writeContract,
     data: txHash,
@@ -170,8 +203,14 @@ export function useTimelockWrite({
   /**
    * Execute a ready operation
    * Automatically detects single vs batch based on parameters
+   * Pre-flight check: blocks execution if account lacks EXECUTOR_ROLE
    */
   const execute = (params: ExecuteOperationParams | ExecuteBatchParams) => {
+    // Pre-flight permission check (FR-040)
+    if (!hasExecutorRole) {
+      console.warn('Execute blocked: Account lacks EXECUTOR_ROLE')
+      return
+    }
     if (isBatchParams(params)) {
       // Execute batch operation
       writeContract({
@@ -211,6 +250,8 @@ export function useTimelockWrite({
     isSuccess: isWriteSuccess && isConfirmed,
     isError: isWriteError,
     error: writeError as Error | null,
+    hasExecutorRole,
+    isCheckingRole,
     reset,
   }
 }

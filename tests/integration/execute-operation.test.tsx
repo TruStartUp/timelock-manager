@@ -75,6 +75,17 @@ describe('useTimelockWrite Hook - Execute Operations', () => {
 
   describe('Execute mutation setup', () => {
     it('should initialize with idle state', () => {
+      // Mock role check (required by useTimelockWrite)
+      vi.mocked(useReadContract).mockReturnValue({
+        data: true,
+        error: null,
+        isLoading: false,
+        isSuccess: true,
+        isError: false,
+        status: 'success',
+        refetch: vi.fn(),
+      } as any)
+
       // Mock wagmi hooks
       vi.mocked(useWriteContract).mockReturnValue({
         writeContract: vi.fn(),
@@ -105,13 +116,15 @@ describe('useTimelockWrite Hook - Execute Operations', () => {
 
       const { result } = renderHook(
         () => useTimelockWrite({
-          timelockController: '0xTimelock000000000000000000000000000000000' as `0x${string}`
+          timelockController: '0xTimelock000000000000000000000000000000000' as `0x${string}`,
+          account: '0xExecutor00000000000000000000000000000000' as `0x${string}`,
         }),
         { wrapper: createWrapper(queryClient) }
       )
 
       expect(result.current.execute).toBeDefined()
       expect(typeof result.current.execute).toBe('function')
+      expect(result.current.hasExecutorRole).toBe(true)
     })
   })
 
@@ -119,6 +132,17 @@ describe('useTimelockWrite Hook - Execute Operations', () => {
     it('should execute a ready operation successfully', async () => {
       const mockWriteContract = vi.fn()
       const mockTxHash = '0xexecute123000000000000000000000000000000000000000000000000' as `0x${string}`
+
+      // Mock role check (account has EXECUTOR_ROLE)
+      vi.mocked(useReadContract).mockReturnValue({
+        data: true,
+        error: null,
+        isLoading: false,
+        isSuccess: true,
+        isError: false,
+        status: 'success',
+        refetch: vi.fn(),
+      } as any)
 
       // Mock successful write
       vi.mocked(useWriteContract).mockReturnValue({
@@ -154,7 +178,8 @@ describe('useTimelockWrite Hook - Execute Operations', () => {
 
       const { result } = renderHook(
         () => useTimelockWrite({
-          timelockController: '0xTimelock000000000000000000000000000000000' as `0x${string}`
+          timelockController: '0xTimelock000000000000000000000000000000000' as `0x${string}`,
+          account: '0xExecutor00000000000000000000000000000000' as `0x${string}`,
         }),
         { wrapper: createWrapper(queryClient) }
       )
@@ -181,6 +206,17 @@ describe('useTimelockWrite Hook - Execute Operations', () => {
     it('should execute a batch operation successfully', async () => {
       const mockWriteContract = vi.fn()
       const mockTxHash = '0xbatch123000000000000000000000000000000000000000000000000000' as `0x${string}`
+
+      // Mock role check (account has EXECUTOR_ROLE)
+      vi.mocked(useReadContract).mockReturnValue({
+        data: true,
+        error: null,
+        isLoading: false,
+        isSuccess: true,
+        isError: false,
+        status: 'success',
+        refetch: vi.fn(),
+      } as any)
 
       // Mock successful write
       vi.mocked(useWriteContract).mockReturnValue({
@@ -215,7 +251,8 @@ describe('useTimelockWrite Hook - Execute Operations', () => {
 
       const { result } = renderHook(
         () => useTimelockWrite({
-          timelockController: '0xTimelock000000000000000000000000000000000' as `0x${string}`
+          timelockController: '0xTimelock000000000000000000000000000000000' as `0x${string}`,
+          account: '0xExecutor00000000000000000000000000000000' as `0x${string}`,
         }),
         { wrapper: createWrapper(queryClient) }
       )
@@ -245,8 +282,6 @@ describe('useTimelockWrite Hook - Execute Operations', () => {
 
   describe('Permission checks', () => {
     it('should check EXECUTOR_ROLE before enabling execute', async () => {
-      const mockHasRole = vi.fn().mockReturnValue(true)
-
       // Mock hasRole check
       vi.mocked(useReadContract).mockReturnValue({
         data: true,
@@ -370,6 +405,17 @@ describe('useTimelockWrite Hook - Execute Operations', () => {
     it('should show pending state during execution', async () => {
       const mockWriteContract = vi.fn()
 
+      // Mock role check (account has EXECUTOR_ROLE)
+      vi.mocked(useReadContract).mockReturnValue({
+        data: true,
+        error: null,
+        isLoading: false,
+        isSuccess: true,
+        isError: false,
+        status: 'success',
+        refetch: vi.fn(),
+      } as any)
+
       // Mock pending write
       vi.mocked(useWriteContract).mockReturnValue({
         writeContract: mockWriteContract,
@@ -400,7 +446,8 @@ describe('useTimelockWrite Hook - Execute Operations', () => {
 
       const { result } = renderHook(
         () => useTimelockWrite({
-          timelockController: '0xTimelock000000000000000000000000000000000' as `0x${string}`
+          timelockController: '0xTimelock000000000000000000000000000000000' as `0x${string}`,
+          account: '0xExecutor00000000000000000000000000000000' as `0x${string}`,
         }),
         { wrapper: createWrapper(queryClient) }
       )
@@ -411,6 +458,17 @@ describe('useTimelockWrite Hook - Execute Operations', () => {
 
     it('should handle transaction errors gracefully', async () => {
       const mockError = new Error('Transaction reverted: TimelockUnauthorizedCaller')
+
+      // Mock role check (account has EXECUTOR_ROLE)
+      vi.mocked(useReadContract).mockReturnValue({
+        data: true,
+        error: null,
+        isLoading: false,
+        isSuccess: true,
+        isError: false,
+        status: 'success',
+        refetch: vi.fn(),
+      } as any)
 
       // Mock failed write
       vi.mocked(useWriteContract).mockReturnValue({
@@ -442,7 +500,8 @@ describe('useTimelockWrite Hook - Execute Operations', () => {
 
       const { result } = renderHook(
         () => useTimelockWrite({
-          timelockController: '0xTimelock000000000000000000000000000000000' as `0x${string}`
+          timelockController: '0xTimelock000000000000000000000000000000000' as `0x${string}`,
+          account: '0xExecutor00000000000000000000000000000000' as `0x${string}`,
         }),
         { wrapper: createWrapper(queryClient) }
       )
@@ -455,6 +514,17 @@ describe('useTimelockWrite Hook - Execute Operations', () => {
   describe('Cache invalidation', () => {
     it('should support automatic operation list refresh after successful execution', async () => {
       const mockTxHash = '0xsuccess123000000000000000000000000000000000000000000000000' as `0x${string}`
+
+      // Mock role check (account has EXECUTOR_ROLE)
+      vi.mocked(useReadContract).mockReturnValue({
+        data: true,
+        error: null,
+        isLoading: false,
+        isSuccess: true,
+        isError: false,
+        status: 'success',
+        refetch: vi.fn(),
+      } as any)
 
       // Mock successful execution
       vi.mocked(useWriteContract).mockReturnValue({
@@ -489,7 +559,8 @@ describe('useTimelockWrite Hook - Execute Operations', () => {
 
       const { result } = renderHook(
         () => useTimelockWrite({
-          timelockController: '0xTimelock000000000000000000000000000000000' as `0x${string}`
+          timelockController: '0xTimelock000000000000000000000000000000000' as `0x${string}`,
+          account: '0xExecutor00000000000000000000000000000000' as `0x${string}`,
         }),
         { wrapper: createWrapper(queryClient) }
       )

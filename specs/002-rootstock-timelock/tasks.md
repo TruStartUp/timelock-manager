@@ -138,7 +138,7 @@ description: 'Task list for Rootstock Timelock Management App - Blockchain Integ
 
 - [X] T038 [P] [US2] Create useHasRole hook in src/hooks/useHasRole.ts using wagmi useReadContract with 5-minute staleTime from research.md Section 6
 - [X] T039 [US2] Create useTimelockWrite hook in src/hooks/useTimelockWrite.ts with execute mutation using wagmi useWriteContract
-- [ ] T040 [US2] Implement pre-flight permission check in useTimelockWrite.execute using useHasRole(EXECUTOR_ROLE)
+- [X] T040 [US2] Implement pre-flight permission check in useTimelockWrite.execute using useHasRole(EXECUTOR_ROLE)
 - [ ] T041 [US2] Integrate useHasRole in src/components/operations_explorer/OperationsExplorerView.tsx to enable/disable Execute button based on connected wallet role
 - [ ] T042 [US2] Connect Execute button in OperationsExplorerView to useTimelockWrite.execute with operation parameters (targets, values, calldata, predecessor, salt)
 - [ ] T043 [US2] Add transaction pending/success/error states to Execute button using TanStack Query mutation states
