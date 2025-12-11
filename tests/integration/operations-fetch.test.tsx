@@ -194,7 +194,7 @@ describe('useOperations Hook', () => {
       const { result, rerender } = renderHook(
         () => useOperations(
           { timelockController: '0xTimelock000000000000000000000000000000000' as `0x${string}` },
-          { staleTime: 60000, refetchInterval: false } // Disable refetch interval and set high staleTime
+          { staleTime: 60000, refetchInterval: 0 } // Disable refetch interval and set high staleTime
         ),
         { wrapper: createWrapper(queryClient) }
       )

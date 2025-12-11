@@ -1,6 +1,7 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { type Address, formatEther } from 'viem'
-import { useAccount } from 'wagmi'
+import { useAccount, useChainId } from 'wagmi'
+import { useQueryClient } from '@tanstack/react-query'
 import { useOperations } from '@/hooks/useOperations'
 import { useHasRole } from '@/hooks/useHasRole'
 import { useTimelockWrite } from '@/hooks/useTimelockWrite'
@@ -51,6 +52,12 @@ const OperationsExplorerView: React.FC = () => {
   // Get connected wallet address
   const { address: connectedAccount } = useAccount()
 
+  // Get current chain ID for query invalidation
+  const chainId = useChainId()
+
+  // Get query client for invalidating queries after execution
+  const queryClient = useQueryClient()
+
   // Check if connected wallet has EXECUTOR_ROLE (only if timelockAddress is set)
   const { hasRole: hasExecutorRole, isLoading: isCheckingExecutorRole } = useHasRole({
     timelockController: timelockAddress ?? ('0x0000000000000000000000000000000000000000' as Address),
@@ -89,6 +96,17 @@ const OperationsExplorerView: React.FC = () => {
     timelockController: timelockAddress,
     status: statusFilter,
   })
+
+  // Automatically refresh operations list after successful execution (T044)
+  useEffect(() => {
+    if (isExecuteSuccess) {
+      // Invalidate all operations queries to trigger refetch
+      queryClient.invalidateQueries({ queryKey: ['operations', chainId] })
+
+      // Also invalidate operations summary for dashboard updates
+      queryClient.invalidateQueries({ queryKey: ['operations-summary', chainId] })
+    }
+  }, [isExecuteSuccess, chainId, queryClient])
 
   // Helper functions for formatting
   const shortenAddress = (address: string): string => {

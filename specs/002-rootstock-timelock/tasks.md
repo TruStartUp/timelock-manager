@@ -118,7 +118,7 @@ description: 'Task list for Rootstock Timelock Management App - Blockchain Integ
 
 ---
 
-## Phase 4: User Story 2 - Execute Ready Timelock Operations (Priority: P2)
+## Phase 4: User Story 2 - Execute Ready Timelock Operations (Priority: P2)i
 
 **Goal**: Users with EXECUTOR_ROLE can execute operations that have passed their delay, with transaction confirmation and status updates
 
@@ -142,8 +142,8 @@ description: 'Task list for Rootstock Timelock Management App - Blockchain Integ
 - [X] T041 [US2] Integrate useHasRole in src/components/operations_explorer/OperationsExplorerView.tsx to enable/disable Execute button based on connected wallet role
 - [X] T042 [US2] Connect Execute button in OperationsExplorerView to useTimelockWrite.execute with operation parameters (targets, values, calldata, predecessor, salt)
 - [X] T043 [US2] Add transaction pending/success/error states to Execute button using TanStack Query mutation states
-- [ ] T044 [US2] Implement automatic operation list refresh after successful execution using queryClient.invalidateQueries
-- [ ] T045 [US2] Add tooltip to disabled Execute button showing "Your wallet does not have the EXECUTOR_ROLE" when role check fails
+- [X] T044 [US2] Implement automatic operation list refresh after successful execution using queryClient.invalidateQueries
+- [X] T045 [US2] Add tooltip to disabled Execute button showing "Your wallet does not have the EXECUTOR_ROLE" when role check fails
 
 **Checkpoint**: At this point, User Stories 1 AND 2 should both work - users can view operations and execute ready ones if they have permission
 

@@ -7,6 +7,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { config } from '@/wagmi'
 import * as useOperationsModule from '@/hooks/useOperations'
 import * as useOperationStatusModule from '@/hooks/useOperationStatus'
+import * as useHasRoleModule from '@/hooks/useHasRole'
+import * as useTimelockWriteModule from '@/hooks/useTimelockWrite'
 import { type Operation } from '@/types/operation'
 
 // Mock data matching the original component's mock data
@@ -119,7 +121,14 @@ const TestWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 )
 
 describe('OperationsExplorerView', () => {
+  // Create a mock execute function that we can spy on
+  const mockExecute = vi.fn()
+  const mockReset = vi.fn()
+
   beforeEach(() => {
+    // Clear all mocks before each test
+    vi.clearAllMocks()
+
     // Mock useOperations hook to return mock data
     vi.spyOn(useOperationsModule, 'useOperations').mockReturnValue({
       data: mockOperations,
@@ -144,6 +153,27 @@ describe('OperationsExplorerView', () => {
       isFetched: true,
       isFetchedAfterMount: true,
       isFetching: false,
+    } as any)
+
+    // Mock useHasRole hook - by default, user has executor role
+    vi.spyOn(useHasRoleModule, 'useHasRole').mockReturnValue({
+      hasRole: true,
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    } as any)
+
+    // Mock useTimelockWrite hook
+    vi.spyOn(useTimelockWriteModule, 'useTimelockWrite').mockReturnValue({
+      execute: mockExecute,
+      txHash: undefined,
+      isPending: false,
+      isSuccess: false,
+      isError: false,
+      error: null,
+      hasExecutorRole: true,
+      isCheckingRole: false,
+      reset: mockReset,
     } as any)
 
     // Mock useOperationStatus hook for each operation
@@ -354,19 +384,23 @@ describe('OperationsExplorerView', () => {
     expect(screen.getByText(/1\.5 RBTC/i)).toBeInTheDocument()
   })
 
-  test('EXECUTE button is clickable', () => {
+  test('EXECUTE button is clickable and calls execute function', () => {
     render(<OperationsExplorerView />, { wrapper: TestWrapper })
-
-    // Mock console.log before clicking
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
     const executeButtons = screen.getAllByRole('button', { name: /^EXECUTE$/i })
     // The actual EXECUTE action button should be the last one (after the "Executed" filter)
     const executeButton = executeButtons[executeButtons.length - 1]
     fireEvent.click(executeButton)
 
-    expect(consoleSpy).toHaveBeenCalledWith('Execute operation:', '0xab12...c456')
-    consoleSpy.mockRestore()
+    // Verify that the execute function was called with the correct parameters
+    expect(mockExecute).toHaveBeenCalledTimes(1)
+    expect(mockExecute).toHaveBeenCalledWith({
+      target: '0x1234567890abcdef1234567890abcdef1234a7b8',
+      value: BigInt('1500000000000000000'),
+      data: '0x',
+      predecessor: '0x0000000000000000000000000000000000000000000000000000000000000000',
+      salt: '0x0000000000000000000000000000000000000000000000000000000000000001',
+    })
   })
 
   test('CANCEL button is clickable', () => {
@@ -494,5 +528,156 @@ describe('OperationsExplorerView', () => {
 
     fireEvent.click(retryButton)
     expect(mockRefetch).toHaveBeenCalledTimes(1)
+  })
+
+  // T044: Test automatic operation list refresh after successful execution
+  test('T044: invalidates queries after successful execution', () => {
+    // Spy on queryClient.invalidateQueries
+    const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries')
+
+    // Mock useTimelockWrite to simulate successful execution
+    vi.spyOn(useTimelockWriteModule, 'useTimelockWrite').mockReturnValue({
+      execute: mockExecute,
+      txHash: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef' as `0x${string}`,
+      isPending: false,
+      isSuccess: true, // Successful execution
+      isError: false,
+      error: null,
+      hasExecutorRole: true,
+      isCheckingRole: false,
+      reset: mockReset,
+    } as any)
+
+    render(<OperationsExplorerView />, { wrapper: TestWrapper })
+
+    // Verify queryClient.invalidateQueries was called with correct query keys
+    expect(invalidateQueriesSpy).toHaveBeenCalled()
+
+    // Check that it was called with operations query key
+    const calls = invalidateQueriesSpy.mock.calls
+    const operationsCall = calls.find(call =>
+      call[0]?.queryKey &&
+      Array.isArray(call[0].queryKey) &&
+      call[0].queryKey[0] === 'operations'
+    )
+    expect(operationsCall).toBeDefined()
+
+    // Check that it was called with operations-summary query key
+    const summaryCall = calls.find(call =>
+      call[0]?.queryKey &&
+      Array.isArray(call[0].queryKey) &&
+      call[0].queryKey[0] === 'operations-summary'
+    )
+    expect(summaryCall).toBeDefined()
+
+    invalidateQueriesSpy.mockRestore()
+  })
+
+  // T045: Test tooltip on disabled Execute button when lacking EXECUTOR_ROLE
+  test('T045: displays tooltip when Execute button is disabled due to missing EXECUTOR_ROLE', () => {
+    // Mock useHasRole to return false (user doesn't have executor role)
+    vi.spyOn(useHasRoleModule, 'useHasRole').mockReturnValue({
+      hasRole: false, // No executor role
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    } as any)
+
+    // Mock useTimelockWrite to reflect lack of executor role
+    vi.spyOn(useTimelockWriteModule, 'useTimelockWrite').mockReturnValue({
+      execute: mockExecute,
+      txHash: undefined,
+      isPending: false,
+      isSuccess: false,
+      isError: false,
+      error: null,
+      hasExecutorRole: false, // No executor role
+      isCheckingRole: false,
+      reset: mockReset,
+    } as any)
+
+    render(<OperationsExplorerView />, { wrapper: TestWrapper })
+
+    // Find the EXECUTE button
+    const executeButtons = screen.getAllByRole('button', { name: /^EXECUTE$/i })
+    const executeButton = executeButtons[executeButtons.length - 1]
+
+    // Verify button is disabled
+    expect(executeButton).toBeDisabled()
+
+    // Verify tooltip contains the expected message
+    expect(executeButton).toHaveAttribute('title', 'Your wallet does not have the EXECUTOR_ROLE')
+  })
+
+  // T045: Test that Execute button is enabled with correct tooltip when user has EXECUTOR_ROLE
+  test('T045: displays correct tooltip when Execute button is enabled with EXECUTOR_ROLE', () => {
+    // Mock useHasRole to return true (user has executor role)
+    vi.spyOn(useHasRoleModule, 'useHasRole').mockReturnValue({
+      hasRole: true, // Has executor role
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    } as any)
+
+    // Mock useTimelockWrite to reflect executor role
+    vi.spyOn(useTimelockWriteModule, 'useTimelockWrite').mockReturnValue({
+      execute: mockExecute,
+      txHash: undefined,
+      isPending: false,
+      isSuccess: false,
+      isError: false,
+      error: null,
+      hasExecutorRole: true, // Has executor role
+      isCheckingRole: false,
+      reset: mockReset,
+    } as any)
+
+    render(<OperationsExplorerView />, { wrapper: TestWrapper })
+
+    // Find the EXECUTE button
+    const executeButtons = screen.getAllByRole('button', { name: /^EXECUTE$/i })
+    const executeButton = executeButtons[executeButtons.length - 1]
+
+    // Verify button is enabled
+    expect(executeButton).not.toBeDisabled()
+
+    // Verify tooltip contains the expected message
+    expect(executeButton).toHaveAttribute('title', 'Execute this operation')
+  })
+
+  // T045: Test tooltip when role check is loading
+  test('T045: displays correct tooltip when checking permissions', () => {
+    // Mock useHasRole to return loading state
+    vi.spyOn(useHasRoleModule, 'useHasRole').mockReturnValue({
+      hasRole: false,
+      isLoading: true, // Checking role
+      error: null,
+      refetch: vi.fn(),
+    } as any)
+
+    // Mock useTimelockWrite to reflect checking state
+    vi.spyOn(useTimelockWriteModule, 'useTimelockWrite').mockReturnValue({
+      execute: mockExecute,
+      txHash: undefined,
+      isPending: false,
+      isSuccess: false,
+      isError: false,
+      error: null,
+      hasExecutorRole: false,
+      isCheckingRole: true, // Checking role
+      reset: mockReset,
+    } as any)
+
+    render(<OperationsExplorerView />, { wrapper: TestWrapper })
+
+    // Find the EXECUTE button (should show CHECKING...)
+    const checkingButtons = screen.getAllByRole('button', { name: /CHECKING/i })
+    const checkingButton = checkingButtons[checkingButtons.length - 1]
+
+    // Verify button is disabled
+    expect(checkingButton).toBeDisabled()
+
+    // Verify tooltip contains the expected message
+    expect(checkingButton).toHaveAttribute('title', 'Checking permissions...')
   })
 })
