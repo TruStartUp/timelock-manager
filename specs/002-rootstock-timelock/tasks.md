@@ -164,7 +164,7 @@ description: 'Task list for Rootstock Timelock Management App - Blockchain Integ
 
 ### Tests for User Story 3
 
-- [ ] T046 [P] [US3] Integration test for useRoles hook in tests/integration/role-checks.test.tsx with mock RPC and subgraph responses
+- [X] T046 [P] [US3] Integration test for useRoles hook in tests/integration/role-checks.test.tsx with mock RPC and subgraph responses
 
 ### Implementation for User Story 3
 
