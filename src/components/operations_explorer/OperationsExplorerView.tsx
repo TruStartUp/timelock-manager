@@ -1,6 +1,9 @@
 import React, { useState, useMemo } from 'react'
 import { type Address, formatEther } from 'viem'
+import { useAccount } from 'wagmi'
 import { useOperations } from '@/hooks/useOperations'
+import { useHasRole } from '@/hooks/useHasRole'
+import { TIMELOCK_ROLES } from '@/lib/constants'
 import { type Operation as SubgraphOperation, type OperationStatus as SubgraphOperationStatus } from '@/types/operation'
 import { OperationRow } from './OperationRow'
 
@@ -37,6 +40,16 @@ const OperationsExplorerView: React.FC = () => {
   const [timelockAddress] = useState<Address | undefined>(
     '0x09a3fa8b0706829ad2b66719b851793a7b20d08a' as Address // Real testnet contract
   )
+
+  // Get connected wallet address
+  const { address: connectedAccount } = useAccount()
+
+  // Check if connected wallet has EXECUTOR_ROLE (only if timelockAddress is set)
+  const { hasRole: hasExecutorRole, isLoading: isCheckingExecutorRole } = useHasRole({
+    timelockController: timelockAddress ?? ('0x0000000000000000000000000000000000000000' as Address),
+    role: TIMELOCK_ROLES.EXECUTOR_ROLE,
+    account: connectedAccount,
+  })
 
   // Map UI filter to subgraph status filter
   const statusFilter: SubgraphOperationStatus | undefined = useMemo(() => {
@@ -394,6 +407,8 @@ const OperationsExplorerView: React.FC = () => {
                   onRowClick={handleRowClick}
                   onExecute={handleExecute}
                   onCancel={handleCancel}
+                  hasExecutorRole={hasExecutorRole}
+                  isCheckingExecutorRole={isCheckingExecutorRole}
                   getStatusColor={getStatusColor}
                   getStatusTextColor={getStatusTextColor}
                   formatTargets={formatTargets}

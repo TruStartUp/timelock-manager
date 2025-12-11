@@ -36,6 +36,8 @@ interface OperationRowProps {
   onRowClick: (id: string) => void
   onExecute: (id: string) => void
   onCancel: (id: string) => void
+  hasExecutorRole: boolean
+  isCheckingExecutorRole: boolean
   getStatusColor: (status: string) => string
   getStatusTextColor: (status: string) => string
   formatTargets: (targets: string[]) => string
@@ -48,6 +50,8 @@ export const OperationRow: React.FC<OperationRowProps> = ({
   onRowClick,
   onExecute,
   onCancel,
+  hasExecutorRole,
+  isCheckingExecutorRole,
   getStatusColor,
   getStatusTextColor,
   formatTargets,
@@ -158,10 +162,22 @@ export const OperationRow: React.FC<OperationRowProps> = ({
             {displayStatus === 'Ready' && (
               <>
                 <button
-                  className="flex items-center justify-center rounded-md h-9 px-3 bg-status-ready/20 text-status-ready text-xs font-bold hover:bg-status-ready/30 transition-colors"
-                  onClick={() => onExecute(operation.id)}
+                  className={`flex items-center justify-center rounded-md h-9 px-3 text-xs font-bold transition-colors ${
+                    hasExecutorRole
+                      ? 'bg-status-ready/20 text-status-ready hover:bg-status-ready/30'
+                      : 'bg-border-dark text-text-dark-secondary cursor-not-allowed opacity-50'
+                  }`}
+                  onClick={() => hasExecutorRole && onExecute(operation.id)}
+                  disabled={!hasExecutorRole || isCheckingExecutorRole}
+                  title={
+                    isCheckingExecutorRole
+                      ? 'Checking permissions...'
+                      : !hasExecutorRole
+                      ? 'Your wallet does not have the EXECUTOR_ROLE'
+                      : 'Execute this operation'
+                  }
                 >
-                  EXECUTE
+                  {isCheckingExecutorRole ? 'CHECKING...' : 'EXECUTE'}
                 </button>
                 <button
                   className="flex items-center justify-center rounded-md h-9 px-3 bg-status-canceled/20 text-status-canceled text-xs font-bold hover:bg-status-canceled/30 transition-colors"
