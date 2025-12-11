@@ -1,6 +1,7 @@
 import React from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
+import { ConnectButton } from '@rainbow-me/rainbowkit'
 
 interface LayoutProps {
   children: React.ReactNode
@@ -9,15 +10,34 @@ interface LayoutProps {
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const router = useRouter()
 
+  const routeTitleMap: Record<string, string> = {
+    '/': 'Dashboard',
+    '/operations_explorer': 'Operations Explorer',
+    '/new_proposal': 'New Proposal',
+    '/permissions': 'Roles',
+    '/decoder': 'Decoder',
+    '/settings': 'Settings',
+  }
+
   const isActive = (href: string) => {
     if (href === '/') return router.pathname === '/'
     return router.pathname.startsWith(href)
   }
 
+  const getCurrentViewTitle = () => {
+    const direct = routeTitleMap[router.pathname]
+    if (direct) return direct
+
+    const slug = router.pathname.replace(/^\//, '').replace(/_/g, ' ').trim()
+    if (!slug) return 'Dashboard'
+
+    return slug.replace(/\b\w/g, (c) => c.toUpperCase())
+  }
+
   return (
     <div className="flex min-h-screen">
       {/* SideNavBar */}
-      <aside className="flex w-64 flex-col bg-[#231a0f] p-4">
+      <aside className="flex w-64 flex-col bg-surface-dark p-4">
         <div className="flex flex-col gap-4">
           <div className="flex items-center gap-3">
             <div
@@ -122,8 +142,21 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           </a>
         </div>
       </aside>
-      {/* Main Content */}
-      <main className="flex flex-1 flex-col p-6 lg:p-8">{children}</main>
+      <div className="flex flex-col flex-1 h-screen overflow-hidden">
+        <header className="h-16 bg-surface-dark/50 backdrop-blur-md border-b border-white/5 flex items-center justify-between px-6 lg:px-8 z-10 sticky top-0">
+          <div className="flex items-center gap-2 text-text-dark text-sm">
+            <span className="material-symbols-outlined text-base">home</span>
+            <span>/</span>
+            <span className="text-text-light font-medium">
+              {getCurrentViewTitle()}
+            </span>
+          </div>
+          <div className="flex items-center gap-4">
+            <ConnectButton showBalance />
+          </div>
+        </header>
+        <main className="flex-1 overflow-y-auto p-6 lg:p-8">{children}</main>
+      </div>
     </div>
   )
 }

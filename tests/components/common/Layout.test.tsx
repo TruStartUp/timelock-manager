@@ -1,7 +1,17 @@
 import { render, screen } from '@testing-library/react'
-import { expect, test, describe } from 'vitest'
+import { expect, test, describe, vi } from 'vitest'
 import Layout from '@/components/common/Layout'
 import React from 'react'
+
+vi.mock('next/router', () => ({
+  useRouter: () => ({
+    pathname: '/',
+  }),
+}))
+
+vi.mock('@rainbow-me/rainbowkit', () => ({
+  ConnectButton: () => <div>Connect</div>,
+}))
 
 describe('Layout', () => {
   test('renders header, footer and children correctly', () => {
