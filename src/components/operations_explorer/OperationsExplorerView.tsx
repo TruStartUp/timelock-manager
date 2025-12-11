@@ -3,6 +3,7 @@ import { type Address, formatEther } from 'viem'
 import { useAccount } from 'wagmi'
 import { useOperations } from '@/hooks/useOperations'
 import { useHasRole } from '@/hooks/useHasRole'
+import { useTimelockWrite } from '@/hooks/useTimelockWrite'
 import { TIMELOCK_ROLES } from '@/lib/constants'
 import { type Operation as SubgraphOperation, type OperationStatus as SubgraphOperationStatus } from '@/types/operation'
 import { OperationRow } from './OperationRow'
@@ -19,6 +20,12 @@ interface Operation {
   timelockAddress: Address
   cancelledAt: bigint | null
   executedAt: bigint | null
+  // Execution parameters (from subgraph)
+  target: `0x${string}` | null
+  value: bigint | null
+  data: `0x${string}` | null
+  predecessor: `0x${string}`
+  salt: `0x${string}`
   details?: {
     fullId: string
     fullProposer: string
@@ -48,6 +55,19 @@ const OperationsExplorerView: React.FC = () => {
   const { hasRole: hasExecutorRole, isLoading: isCheckingExecutorRole } = useHasRole({
     timelockController: timelockAddress ?? ('0x0000000000000000000000000000000000000000' as Address),
     role: TIMELOCK_ROLES.EXECUTOR_ROLE,
+    account: connectedAccount,
+  })
+
+  // Initialize useTimelockWrite for executing operations
+  const {
+    execute,
+    isPending: isExecuting,
+    isSuccess: isExecuteSuccess,
+    isError: isExecuteError,
+    error: executeError,
+    txHash: executeTxHash,
+  } = useTimelockWrite({
+    timelockController: timelockAddress ?? ('0x0000000000000000000000000000000000000000' as Address),
     account: connectedAccount,
   })
 
@@ -119,6 +139,12 @@ const OperationsExplorerView: React.FC = () => {
         timelockAddress: timelockAddress!,
         cancelledAt: op.cancelledAt,
         executedAt: op.executedAt,
+        // Execution parameters for useTimelockWrite
+        target: op.target,
+        value: op.value,
+        data: op.data,
+        predecessor: op.predecessor,
+        salt: op.salt,
         details: {
           fullId: op.id,
           fullProposer: op.scheduledBy,
@@ -182,8 +208,27 @@ const OperationsExplorerView: React.FC = () => {
   }
 
   const handleExecute = (id: string) => {
-    // TODO: Implement execute logic with data hooks/services
-    console.log('Execute operation:', id)
+    // Find the operation by shortened ID
+    const operation = operations.find((op) => op.id === id)
+    if (!operation) {
+      console.error('Operation not found:', id)
+      return
+    }
+
+    // Validate operation has required parameters
+    if (!operation.target || operation.value === null || !operation.data) {
+      console.error('Operation missing required parameters for execution:', operation)
+      return
+    }
+
+    // Execute the operation using useTimelockWrite
+    execute({
+      target: operation.target,
+      value: operation.value,
+      data: operation.data,
+      predecessor: operation.predecessor,
+      salt: operation.salt,
+    })
   }
 
   const handleCancel = (id: string) => {
