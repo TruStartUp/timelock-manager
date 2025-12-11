@@ -202,8 +202,8 @@ description: 'Task list for Rootstock Timelock Management App - Blockchain Integ
 
 ### Implementation for User Story 4
 
-- [ ] T056 [P] [US4] Create useContractABI hook in src/hooks/useContractABI.ts implementing priority: Session cache → Blockscout verified → Known registry → 4byte from research.md Section 3
-- [ ] T057 [US4] Implement proxy detection in useContractABI using evm-proxy-detection library for EIP-1967/EIP-1822/EIP-1167 from research.md Section 2
+- [X] T056 [P] [US4] Create useContractABI hook in src/hooks/useContractABI.ts implementing priority: Session cache → Blockscout verified → Known registry → 4byte from research.md Section 3
+- [X] T057 [US4] Implement proxy detection in useContractABI using evm-proxy-detection library for EIP-1967/EIP-1822/EIP-1167 from research.md Section 2
 - [ ] T058 [US4] Add schedule mutation to useTimelockWrite hook in src/hooks/useTimelockWrite.ts using wagmi useWriteContract for schedule() and scheduleBatch()
 - [ ] T059 [US4] Implement pre-flight permission check in useTimelockWrite.schedule using useHasRole(PROPOSER_ROLE)
 - [ ] T060 [US4] Implement pre-flight delay validation in useTimelockWrite.schedule comparing user delay with getMinDelay() result

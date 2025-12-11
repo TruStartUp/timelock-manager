@@ -31,6 +31,14 @@ vi.mock('@/services/blockscout/client', () => {
   }
 })
 
+// Mock evm-proxy-detection - create mock function inside factory
+const mockDetectProxy = vi.fn()
+vi.mock('evm-proxy-detection', () => {
+  return {
+    default: (...args: unknown[]) => mockDetectProxy(...args),
+  }
+})
+
 // Test addresses
 const TEST_ADDRESS = '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb' as Address
 const TEST_PROXY_ADDRESS = '0xProxy0000000000000000000000000000000000' as Address
@@ -94,16 +102,20 @@ describe('ABI Resolution Priority', () => {
     // Mock PublicClient for proxy detection
     mockPublicClient = {
       getStorageAt: vi.fn(),
+      request: vi.fn(), // Required for evm-proxy-detection
     } as unknown as PublicClient
 
     // Reset all mocks and set default return value
     vi.clearAllMocks()
     mockBlockscoutInstance.getContractABI.mockClear()
+    mockDetectProxy.mockClear()
     // Default mock: return empty result (not verified)
     mockBlockscoutInstance.getContractABI.mockResolvedValue({
       abi: null,
       verified: false,
     })
+    // Default mock: no proxy detected
+    mockDetectProxy.mockResolvedValue(null)
   })
 
   afterEach(() => {
@@ -252,7 +264,7 @@ describe('ABI Resolution Priority', () => {
       expect(result.source).toBe(ABISource.BLOCKSCOUT)
       expect(result.confidence).toBe(ABIConfidence.HIGH)
       expect(mockBlockscoutInstance.getContractABI).toHaveBeenCalledWith(
-        TEST_ADDRESS
+        expect.stringMatching(new RegExp(TEST_ADDRESS.slice(2), 'i'))
       )
     })
 
@@ -308,13 +320,11 @@ describe('ABI Resolution Priority', () => {
 
   describe('4. Proxy Detection & Resolution', () => {
     it('should detect EIP-1967 proxy via storage slot read', async () => {
-      // Arrange: Mock storage slot with implementation address
-      const implementationSlot =
-        '0x000000000000000000000000' +
-        TEST_IMPLEMENTATION_ADDRESS.slice(2).toLowerCase()
-      ;(mockPublicClient.getStorageAt as ReturnType<typeof vi.fn>).mockResolvedValue(
-        implementationSlot as `0x${string}`
-      )
+      // Arrange: Mock evm-proxy-detection to return proxy info
+      mockDetectProxy.mockResolvedValue({
+        target: TEST_IMPLEMENTATION_ADDRESS,
+        type: 'EIP-1967',
+      })
 
       // Mock Blockscout to return ABI for implementation
       mockBlockscoutInstance.getContractABI.mockResolvedValue({
@@ -330,9 +340,13 @@ describe('ABI Resolution Priority', () => {
       )
 
       // Assert
-      expect(mockPublicClient.getStorageAt).toHaveBeenCalled()
+      expect(mockDetectProxy).toHaveBeenCalled()
+      const callArgs = mockDetectProxy.mock.calls[0]
+      expect(String(callArgs[0]).toLowerCase()).toBe(TEST_PROXY_ADDRESS.toLowerCase())
+      expect(callArgs.length).toBe(2) // address and jsonRpcRequest function
+      expect(typeof callArgs[1]).toBe('function') // jsonRpcRequest wrapper
       expect(result.isProxy).toBe(true)
-      // Address extracted from storage slot is lowercase
+      // Address extracted from proxy detection
       expect(result.implementationAddress?.toLowerCase()).toBe(
         TEST_IMPLEMENTATION_ADDRESS.toLowerCase()
       )
@@ -343,13 +357,11 @@ describe('ABI Resolution Priority', () => {
     })
 
     it('should fetch implementation ABI instead of proxy ABI', async () => {
-      // Arrange
-      const implementationSlot =
-        '0x000000000000000000000000' +
-        TEST_IMPLEMENTATION_ADDRESS.slice(2).toLowerCase()
-      ;(mockPublicClient.getStorageAt as ReturnType<typeof vi.fn>).mockResolvedValue(
-        implementationSlot as `0x${string}`
-      )
+      // Arrange: Mock evm-proxy-detection to return proxy info
+      mockDetectProxy.mockResolvedValue({
+        target: TEST_IMPLEMENTATION_ADDRESS,
+        type: 'EIP-1967',
+      })
       mockBlockscoutInstance.getContractABI.mockResolvedValue({
         abi: MOCK_ABI,
         verified: true,
@@ -374,13 +386,11 @@ describe('ABI Resolution Priority', () => {
     })
 
     it('should include proxy info (isProxy: true, implementationAddress)', async () => {
-      // Arrange
-      const implementationSlot =
-        '0x000000000000000000000000' +
-        TEST_IMPLEMENTATION_ADDRESS.slice(2).toLowerCase()
-      ;(mockPublicClient.getStorageAt as ReturnType<typeof vi.fn>).mockResolvedValue(
-        implementationSlot as `0x${string}`
-      )
+      // Arrange: Mock evm-proxy-detection to return proxy info
+      mockDetectProxy.mockResolvedValue({
+        target: TEST_IMPLEMENTATION_ADDRESS,
+        type: 'EIP-1967',
+      })
       mockBlockscoutInstance.getContractABI.mockResolvedValue({
         abi: MOCK_ABI,
         verified: true,

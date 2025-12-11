@@ -18,6 +18,7 @@
  */
 
 import { type Address, type PublicClient } from 'viem'
+import detectProxyLib from 'evm-proxy-detection'
 import { BlockscoutClient, type BlockscoutNetwork } from './client'
 
 /**
@@ -61,22 +62,12 @@ interface ProxyInfo {
 }
 
 /**
- * EIP-1967 storage slots
- */
-const EIP1967_SLOTS = {
-  // keccak256('eip1967.proxy.implementation') - 1
-  IMPLEMENTATION:
-    '0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc',
-  // keccak256('eip1967.proxy.beacon') - 1
-  BEACON:
-    '0xa3f0ad74e5423aebfd80d3ef4346578335a9a72aeaee59ff6cb3582b35133d50',
-} as const
-
-/**
  * Detect if address is a proxy contract
  *
- * Checks EIP-1967 storage slots for implementation address.
- * Falls back to Blockscout detection if direct storage reads fail.
+ * Uses evm-proxy-detection library to support multiple proxy patterns:
+ * - EIP-1967 (Transparent Proxy)
+ * - EIP-1822 (UUPS)
+ * - EIP-1167 (Minimal Proxy/Clone)
  */
 async function detectProxy(
   address: Address,
@@ -87,38 +78,32 @@ async function detectProxy(
   }
 
   try {
-    // Check EIP-1967 implementation slot
-    const implementationSlot = await publicClient.getStorageAt({
-      address,
-      slot: EIP1967_SLOTS.IMPLEMENTATION as `0x${string}`,
-    })
+    const normalizedProxyAddress = address.toLowerCase() as `0x${string}`
 
-    if (
-      implementationSlot &&
-      implementationSlot !== `0x${'0'.repeat(64)}`
-    ) {
-      // Extract address from storage slot (last 20 bytes)
-      const implementation = `0x${implementationSlot.slice(-40)}` as Address
-      return {
-        isProxy: true,
-        implementation,
-        proxyType: 'EIP-1967',
-      }
+    // Create a wrapper function to adapt viem's request to EIP1193 format
+    const jsonRpcRequest = async (args: {
+      method: string
+      params?: unknown[]
+    }): Promise<unknown> => {
+      return publicClient.request({
+        method: args.method as any,
+        params: args.params as any,
+      } as any)
     }
 
-    // Check EIP-1967 beacon slot
-    const beaconSlot = await publicClient.getStorageAt({
-      address,
-      slot: EIP1967_SLOTS.BEACON as `0x${string}`,
-    })
+    // Use evm-proxy-detection library
+    const result = await detectProxyLib(normalizedProxyAddress, jsonRpcRequest)
 
-    if (beaconSlot && beaconSlot !== `0x${'0'.repeat(64)}`) {
-      const beacon = `0x${beaconSlot.slice(-40)}` as Address
-      // For beacon proxies, we'd need to call the beacon to get the implementation
-      // For now, return that it's a proxy but without implementation
+    if (result) {
+      // Handle both single result and diamond result types
+      const target = Array.isArray(result.target)
+        ? result.target[0]
+        : result.target
+
       return {
         isProxy: true,
-        proxyType: 'EIP-1967 Beacon',
+        implementation: target as Address,
+        proxyType: result.type, // e.g., "Eip1967Direct", "Eip1822", "Eip1167"
       }
     }
 
@@ -142,8 +127,10 @@ export async function getContractABI(
   network: BlockscoutNetwork,
   publicClient?: PublicClient
 ): Promise<ABIResolution> {
+  const normalizedAddress = address.toLowerCase() as Address
+
   // Step 1: Check manual ABI from sessionStorage
-  const manualABI = getManualABI(address)
+  const manualABI = getManualABI(normalizedAddress)
   if (manualABI) {
     return {
       abi: manualABI,
@@ -154,19 +141,19 @@ export async function getContractABI(
   }
 
   // Step 2: Check session cache
-  const cachedABI = getSessionCachedABI(address)
+  const cachedABI = getSessionCachedABI(normalizedAddress)
   if (cachedABI) {
     return cachedABI
   }
 
   // Step 3: Detect proxy
-  let targetAddress = address
+  let targetAddress = normalizedAddress
   let proxyInfo: ProxyInfo = { isProxy: false }
 
   if (publicClient) {
-    proxyInfo = await detectProxy(address, publicClient)
+    proxyInfo = await detectProxy(normalizedAddress, publicClient)
     if (proxyInfo.isProxy && proxyInfo.implementation) {
-      targetAddress = proxyInfo.implementation
+      targetAddress = proxyInfo.implementation.toLowerCase() as Address
     }
   }
 
@@ -187,15 +174,15 @@ export async function getContractABI(
       }
 
       // Cache the result
-      setSessionCachedABI(address, result)
+      setSessionCachedABI(normalizedAddress, result)
       return result
     }
   } catch (error) {
-    console.warn('Blockscout ABI fetch failed:', error)
+    // Don't throw - fall through to next resolution step
   }
 
   // Step 5: Try known registry (standard contracts)
-  const knownABI = getKnownABI(address)
+  const knownABI = getKnownABI(normalizedAddress)
   if (knownABI) {
     const result: ABIResolution = {
       abi: knownABI,
@@ -205,7 +192,7 @@ export async function getContractABI(
       implementationAddress: proxyInfo.implementation,
     }
 
-    setSessionCachedABI(address, result)
+    setSessionCachedABI(normalizedAddress, result)
     return result
   }
 

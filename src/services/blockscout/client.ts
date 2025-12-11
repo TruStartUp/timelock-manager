@@ -34,17 +34,37 @@ const BLOCKSCOUT_V2_API_BASE = {
   testnet: 'https://rootstock-testnet.blockscout.com/api/v2',
 } as const
 
+function isLikelyBlockscoutV2Url(url: string): boolean {
+  const lower = url.toLowerCase()
+  return (
+    lower.includes('blockscout') &&
+    (lower.includes('/api/v2') || lower.endsWith('/api/v2'))
+  )
+}
+
 /**
  * Get Blockscout API base URL (v2)
  */
 function getBlockscoutApiUrl(network: BlockscoutNetwork): string {
-  // Allow environment variable override, but default to v2 API
+  // In the browser, always proxy via our Next.js API route to avoid CORS.
+  // This also ensures we always hit the Blockscout v2 API (not other explorers).
+  if (typeof window !== 'undefined') {
+    return `/api/blockscout/${network}`
+  }
+
+  // Server-side (SSR / API routes): allow env override, but default to v2 API.
+  // Guard against misconfiguration (e.g. explorer.testnet.rsk.co) by only accepting
+  // URLs that look like Blockscout v2.
   const envVar =
     network === 'mainnet'
       ? process.env.NEXT_PUBLIC_RSK_MAINNET_BLOCKSCOUT_URL
       : process.env.NEXT_PUBLIC_RSK_TESTNET_BLOCKSCOUT_URL
 
-  return envVar || BLOCKSCOUT_V2_API_BASE[network]
+  if (envVar && isLikelyBlockscoutV2Url(envVar)) {
+    return envVar
+  }
+
+  return BLOCKSCOUT_V2_API_BASE[network]
 }
 
 /**
@@ -192,7 +212,12 @@ export class BlockscoutClient {
             )
           }
 
-          const url = `${this.baseUrl}${endpoint}`
+          // Ensure endpoint starts with / if baseUrl doesn't end with /
+          const normalizedEndpoint = endpoint.startsWith('/')
+            ? endpoint
+            : `/${endpoint}`
+          const url = `${this.baseUrl}${normalizedEndpoint}`
+          
           const response = await fetch(url, {
             ...options,
             headers: {
@@ -204,11 +229,12 @@ export class BlockscoutClient {
           this.lastRequestTime = Date.now()
 
           if (!response.ok) {
+            const errorText = await response.text().catch(() => response.statusText)
             if (response.status === 429) {
               throw new BlockscoutError('Rate limit exceeded', 429, true)
             }
             throw new BlockscoutError(
-              `HTTP ${response.status}: ${response.statusText}`,
+              `HTTP ${response.status}: ${errorText || response.statusText}`,
               response.status
             )
           }

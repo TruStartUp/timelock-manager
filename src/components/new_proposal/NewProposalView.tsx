@@ -1,10 +1,14 @@
-import React, { useState } from 'react'
+import React, { useMemo, useState, useEffect } from 'react'
+import { isAddress, type Address } from 'viem'
+import { useContractABI } from '@/hooks/useContractABI'
 
 const NewProposalView: React.FC = () => {
   // State for wizard steps
   const [currentStep, setCurrentStep] = useState(1)
   const [contractAddress, setContractAddress] = useState('')
-  const [abiFetched, setAbiFetched] = useState(false)
+  const [addressToFetch, setAddressToFetch] = useState<Address | undefined>()
+  const [fetchError, setFetchError] = useState<string | null>(null)
+  const [hasAttemptedFetch, setHasAttemptedFetch] = useState(false)
   const [selectedFunction, setSelectedFunction] = useState(
     'transfer(address to, uint256 amount)'
   )
@@ -13,11 +17,51 @@ const NewProposalView: React.FC = () => {
     amount: '',
   })
 
+  const {
+    abi,
+    isProxy,
+    implementationAddress,
+    source,
+    confidence,
+    isLoading: isAbiLoading,
+    isError: isAbiError,
+    error: abiError,
+    refetch: refetchABI,
+  } = useContractABI(addressToFetch, {
+    enabled: !!addressToFetch,
+  })
+
+  // Trigger refetch when addressToFetch changes (user clicked Fetch ABI)
+  useEffect(() => {
+    if (addressToFetch && hasAttemptedFetch) {
+      refetchABI()
+    }
+  }, [addressToFetch, hasAttemptedFetch, refetchABI])
+
+  const functionCount = useMemo(() => {
+    if (!abi || abi.length === 0) return 0
+    return abi.filter((item: any) => item?.type === 'function').length
+  }, [abi])
+
   // Handler for Fetch ABI button
   const handleFetchAbi = () => {
-    // TODO: Implement actual ABI fetching logic when data hooks/services are available
-    console.log('Fetching ABI for contract:', contractAddress)
-    setAbiFetched(true)
+    setFetchError(null)
+    setHasAttemptedFetch(true)
+
+    if (
+      !contractAddress ||
+      !isAddress(contractAddress, {
+        // Rootstock in-the-wild addresses are often not checksummed; accept and normalize.
+        strict: false,
+      })
+    ) {
+      setFetchError('Please enter a valid contract address (0x...)')
+      setAddressToFetch(undefined)
+      return
+    }
+
+    const normalized = contractAddress.trim().replace(/^0X/, '0x').toLowerCase()
+    setAddressToFetch(normalized as Address)
   }
 
   // Handler for Back button
@@ -200,20 +244,62 @@ const NewProposalView: React.FC = () => {
                 </label>
                 <div className="flex items-center gap-4">
                   <button
-                    className="flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-12 px-6 bg-primary text-black text-sm font-bold leading-normal tracking-[0.015em] hover:bg-primary/90 transition-colors"
+                    className="flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-12 px-6 bg-primary text-black text-sm font-bold leading-normal tracking-[0.015em] hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     onClick={handleFetchAbi}
+                    disabled={isAbiLoading}
                   >
                     <span className="truncate">Fetch ABI</span>
                   </button>
-                  {abiFetched && (
-                    <div className="flex items-center gap-2 text-sm text-success">
-                      <span className="material-symbols-outlined text-base">
-                        task_alt
+                  {isAbiLoading && (
+                    <div className="flex items-center gap-2 text-sm text-text-secondary">
+                      <span className="material-symbols-outlined text-base animate-spin">
+                        progress_activity
                       </span>
-                      <p>ABI fetched successfully!</p>
+                      <p>Fetching ABI…</p>
                     </div>
                   )}
+                  {!isAbiLoading &&
+                    !isAbiError &&
+                    hasAttemptedFetch &&
+                    addressToFetch &&
+                    abi.length > 0 && (
+                      <div className="flex items-center gap-2 text-sm text-green-500">
+                        <span className="material-symbols-outlined text-base">
+                          task_alt
+                        </span>
+                        <p>
+                          ABI loaded ({functionCount} functions) • {source} •{' '}
+                          {confidence}
+                          {isProxy && implementationAddress
+                            ? ` • Proxy → ${implementationAddress.slice(0, 10)}...${implementationAddress.slice(-8)}`
+                            : ''}
+                        </p>
+                      </div>
+                    )}
+                  {!isAbiLoading &&
+                    !isAbiError &&
+                    hasAttemptedFetch &&
+                    addressToFetch &&
+                    abi.length === 0 && (
+                      <div className="flex items-center gap-2 text-sm text-yellow-500">
+                        <span className="material-symbols-outlined text-base">
+                          warning
+                        </span>
+                        <p>
+                          No ABI found. Contract may be unverified. You can
+                          manually enter the ABI.
+                        </p>
+                      </div>
+                    )}
                 </div>
+                {(fetchError || (isAbiError && abiError)) && (
+                  <div className="text-sm text-red-400 flex items-center gap-2">
+                    <span className="material-symbols-outlined text-base">
+                      error
+                    </span>
+                    <p>{fetchError || abiError || 'Failed to fetch ABI'}</p>
+                  </div>
+                )}
               </div>
             </div>
           )}
