@@ -6,6 +6,7 @@ import { WagmiProvider } from 'wagmi'
 import { config } from '@/wagmi'
 import React from 'react'
 import * as useOperationsModule from '@/hooks/useOperations'
+import * as useRolesModule from '@/hooks/useRoles'
 
 // Mock the useOperationsSummary hook
 vi.mock('@/hooks/useOperations', () => ({
@@ -19,6 +20,31 @@ vi.mock('@/hooks/useOperations', () => ({
     },
     isLoading: false,
     isError: false,
+  })),
+}))
+
+// Mock the useRoles hook
+vi.mock('@/hooks/useRoles', () => ({
+  useRoles: vi.fn(() => ({
+    roles: [
+      {
+        roleHash: '0xb09aa5aeb3702cfd50b6b62bc4532604938f21248a27a1d5ca736082b6819cc1',
+        roleName: 'PROPOSER',
+        currentMembers: [],
+        memberCount: 2,
+      },
+      {
+        roleHash: '0xd8aa0f3194971a2a116679f7c2090f6939c8d4e01a2a8d7e41d55e5351469e63',
+        roleName: 'EXECUTOR',
+        currentMembers: [],
+        memberCount: 1,
+      },
+    ],
+    roleHistory: [],
+    isLoading: false,
+    isError: false,
+    error: null,
+    refetch: vi.fn(),
   })),
 }))
 
@@ -75,8 +101,11 @@ describe('DashboardView', () => {
       screen.getByRole('heading', { name: /Access Manager Roles/i })
     ).toBeInTheDocument()
     expect(screen.getByRole('table')).toBeInTheDocument()
-    expect(screen.getByText(/PROPOSER_ROLE/i)).toBeInTheDocument()
-    expect(screen.getByText(/EXECUTOR_ROLE/i)).toBeInTheDocument()
+    // Role names are now displayed from ROLE_NAMES (Proposer, Executor, etc.)
+    await waitFor(() => {
+      expect(screen.getByText(/Proposer/i)).toBeInTheDocument()
+      expect(screen.getByText(/Executor/i)).toBeInTheDocument()
+    })
   })
 
   test('displays loading skeletons when operations are fetching', () => {

@@ -30,8 +30,7 @@ import {
  */
 interface RolesQueryResponse {
   roles: Array<{
-    id: string
-    roleHash: string
+    id: string // id is the roleHash (bytes32)
     timelockController: string
     adminRole: string | null
     memberCount: number
@@ -58,16 +57,22 @@ interface RoleAssignmentsQueryResponse {
  * Response from single role query
  */
 interface RoleQueryResponse {
-  role: RolesQueryResponse['roles'][0] | null
+  role: {
+    id: string
+    timelockController: string
+    adminRole: string | null
+    memberCount: number
+  } | null
 }
 
 /**
  * Transform subgraph response to typed Role
+ * Note: In the deployed subgraph, `id` is the roleHash (bytes32)
  */
 function transformRole(raw: RolesQueryResponse['roles'][0]): Role {
   return {
     id: raw.id as `0x${string}`,
-    roleHash: raw.roleHash as `0x${string}`,
+    roleHash: raw.id as `0x${string}`, // id is the roleHash in deployed subgraph
     timelockController: raw.timelockController as `0x${string}`,
     adminRole: raw.adminRole as `0x${string}` | null,
     memberCount: raw.memberCount,
@@ -107,11 +112,10 @@ export async function fetchRoles(
     query GetRoles($timelockController: Bytes!) {
       roles(
         where: { timelockController: $timelockController }
-        orderBy: roleHash
+        orderBy: id
         orderDirection: asc
       ) {
         id
-        roleHash
         timelockController
         adminRole
         memberCount
@@ -149,7 +153,6 @@ export async function fetchRoleByHash(
     query GetRole($id: Bytes!) {
       role(id: $id) {
         id
-        roleHash
         timelockController
         adminRole
         memberCount
@@ -157,11 +160,9 @@ export async function fetchRoleByHash(
     }
   `
 
-  // Role ID is typically roleHash-timelockController
-  const roleId = `${roleHash.toLowerCase()}-${timelockController.toLowerCase()}`
-
+  // Role ID is just the role hash (bytes32), not a composite
   const variables = {
-    id: roleId,
+    id: roleHash.toLowerCase(),
   }
 
   const response = await executeGraphQLQueryWithRetry<RoleQueryResponse>(
@@ -191,9 +192,11 @@ export async function fetchRoleAssignments(
   const { first = DEFAULT_PAGE_SIZE, skip = 0 } = pagination
 
   const query = `
-    query GetRoleAssignments($roleHash: Bytes!, $first: Int!, $skip: Int!) {
+    query GetRoleAssignments($roleHash: Bytes!, $timelockController: Bytes!, $first: Int!, $skip: Int!) {
       roleAssignments(
-        where: { role_: { roleHash: $roleHash, timelockController: $timelockController } }
+        where: { 
+          role_: { id: $roleHash, timelockController: $timelockController }
+        }
         first: $first
         skip: $skip
         orderBy: timestamp
@@ -252,7 +255,10 @@ export async function fetchRoleAssignmentsByAccount(
         orderDirection: desc
       ) {
         id
-        role
+        role {
+          id
+          timelockController
+        }
         account
         granted
         timestamp
@@ -292,11 +298,12 @@ export async function getCurrentRoleMembers(
   chainId: ChainId
 ): Promise<Address[]> {
   // Fetch all assignments for this role
+  // Role ID is just the role hash (bytes32)
   const query = `
     query GetAllRoleAssignments($roleHash: Bytes!, $timelockController: Bytes!) {
       roleAssignments(
-        where: {
-          role_: { roleHash: $roleHash, timelockController: $timelockController }
+        where: { 
+          role_: { id: $roleHash, timelockController: $timelockController }
         }
         orderBy: blockNumber
         orderDirection: asc
@@ -355,33 +362,119 @@ export async function getRolesSummary(
     members: Address[]
   }>
 > {
-  const roles = await fetchRoles(timelockController, chainId)
+  // Always ensure we have the 4 standard roles, even if subgraph hasn't indexed them yet
+  const standardRoles: Array<{ roleHash: `0x${string}`; roleName: string }> = [
+    { roleHash: TIMELOCK_ROLES.ADMIN, roleName: 'DEFAULT_ADMIN' },
+    { roleHash: TIMELOCK_ROLES.PROPOSER, roleName: 'PROPOSER' },
+    { roleHash: TIMELOCK_ROLES.EXECUTOR, roleName: 'EXECUTOR' },
+    { roleHash: TIMELOCK_ROLES.CANCELLER, roleName: 'CANCELLER' },
+  ]
 
-  // Map standard role hashes to names
-  const roleNames: Record<string, string> = {
-    [TIMELOCK_ROLES.ADMIN.toLowerCase()]: 'DEFAULT_ADMIN',
-    [TIMELOCK_ROLES.PROPOSER.toLowerCase()]: 'PROPOSER',
-    [TIMELOCK_ROLES.EXECUTOR.toLowerCase()]: 'EXECUTOR',
-    [TIMELOCK_ROLES.CANCELLER.toLowerCase()]: 'CANCELLER',
+  // Try to fetch roles from subgraph, but don't fail if none exist yet
+  let roles: Role[] = []
+  try {
+    roles = await fetchRoles(timelockController, chainId)
+  } catch (error) {
+    // If fetchRoles fails (e.g., no roles indexed yet), continue with empty array
+    // We'll still return the standard roles with empty members
+    console.warn('Failed to fetch roles from subgraph, using standard roles:', error)
   }
 
-  const summary = await Promise.all(
-    roles.map(async (role) => {
-      const members = await getCurrentRoleMembers(
-        role.roleHash,
-        timelockController,
-        chainId
-      )
+  // Create a map of found roles for quick lookup
+  const foundRolesMap = new Map<string, Role>()
+  for (const role of roles) {
+    foundRolesMap.set(role.roleHash.toLowerCase(), role)
+  }
+
+  // Build summary for all standard roles, using subgraph data if available
+  // Use Promise.allSettled to ensure one failure doesn't break all roles
+  const summaryResults = await Promise.allSettled(
+    standardRoles.map(async ({ roleHash, roleName }) => {
+      // Try to get members from subgraph (even if role entity doesn't exist yet)
+      let members: Address[] = []
+      try {
+        members = await getCurrentRoleMembers(
+          roleHash,
+          timelockController,
+          chainId
+        )
+      } catch (error) {
+        // If getCurrentRoleMembers fails, just use empty array
+        // This can happen if no RoleGranted events have been indexed yet
+        if (process.env.NODE_ENV !== 'test') {
+          console.warn(
+            `Failed to fetch members for role ${roleName}, using empty array:`,
+            error
+          )
+        }
+      }
+
       return {
-        roleHash: role.roleHash,
-        roleName:
-          roleNames[role.roleHash.toLowerCase()] ||
-          `CUSTOM_${role.roleHash.slice(0, 10)}`,
+        roleHash,
+        roleName,
         memberCount: members.length,
         members,
       }
     })
   )
+
+  // Extract successful results, use empty array for failed ones
+  const summary = summaryResults.map((result, index) => {
+    if (result.status === 'fulfilled') {
+      return result.value
+    } else {
+      // If a role fetch failed, return it with empty members
+      const { roleHash, roleName } = standardRoles[index]
+      if (process.env.NODE_ENV !== 'test') {
+        console.warn(
+          `Failed to process role ${roleName}, using empty members:`,
+          result.reason
+        )
+      }
+      return {
+        roleHash,
+        roleName,
+        memberCount: 0,
+        members: [],
+      }
+    }
+  })
+
+  // Add any custom roles found in subgraph that aren't in the standard list
+  // Also filter out the old incorrect CANCELLER hash if it exists
+  const oldCancellerHash = '0xfd643c72710c63c0180259aba6b2d05451e3591a24e58b6223913e945f67199f'
+  
+  for (const role of roles) {
+    const isStandard = standardRoles.some(
+      (sr) => sr.roleHash.toLowerCase() === role.roleHash.toLowerCase()
+    )
+    const isOldCanceller = role.roleHash.toLowerCase() === oldCancellerHash.toLowerCase()
+    
+    // Skip if it's a standard role OR if it's the old incorrect CANCELLER hash
+    if (!isStandard && !isOldCanceller) {
+      let members: Address[] = []
+      try {
+        members = await getCurrentRoleMembers(
+          role.roleHash,
+          timelockController,
+          chainId
+        )
+      } catch (error) {
+        if (process.env.NODE_ENV !== 'test') {
+          console.warn(
+            `Failed to fetch members for custom role ${role.roleHash}:`,
+            error
+          )
+        }
+      }
+      summary.push({
+        roleHash: role.roleHash,
+        roleName: `CUSTOM_${role.roleHash.slice(0, 10)}`,
+        memberCount: members.length,
+        members,
+      })
+    }
+  }
 
   return summary
 }

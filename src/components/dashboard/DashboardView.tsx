@@ -3,6 +3,8 @@ import { type Address } from 'viem'
 import { useChainId } from 'wagmi'
 import { rootstock, rootstockTestnet } from 'wagmi/chains'
 import { useOperationsSummary } from '@/hooks/useOperations'
+import { useRoles } from '@/hooks/useRoles'
+import { ROLE_NAMES } from '@/lib/constants'
 
 const DashboardView: React.FC = () => {
   const chainId = useChainId()
@@ -15,6 +17,11 @@ const DashboardView: React.FC = () => {
 
   // Fetch operations summary from subgraph
   const { data: summary, isLoading, isError } = useOperationsSummary(timelockAddress)
+  
+  // Fetch roles summary from subgraph
+  const { roles, isLoading: rolesLoading, isError: rolesError } = useRoles({
+    timelockController: timelockAddress,
+  })
   
   // Get network name
   const networkName = chainId === rootstock.id 
@@ -122,6 +129,13 @@ const DashboardView: React.FC = () => {
           Access Manager Roles
         </h2>
         {/* Roles Summary Table */}
+        {rolesError && (
+          <div className="rounded border border-red-500/50 bg-red-500/10 p-4">
+            <p className="text-red-500 text-sm">
+              Failed to load roles data. Please check your connection and try again.
+            </p>
+          </div>
+        )}
         <div className="overflow-x-auto rounded border border-border-color bg-surface">
           <table className="w-full min-w-[640px] text-left text-sm">
             <thead className="border-b border-border-color text-text-secondary">
@@ -138,50 +152,51 @@ const DashboardView: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-border-color">
-              <tr>
-                <td className="whitespace-nowrap px-6 py-4 font-medium text-text-primary">
-                  PROPOSER_ROLE
-                </td>
-                <td className="whitespace-nowrap px-6 py-4 text-text-secondary">
-                  0xb09...e41d
-                </td>
-                <td className="whitespace-nowrap px-6 py-4 text-right text-text-primary">
-                  2
-                </td>
-              </tr>
-              <tr>
-                <td className="whitespace-nowrap px-6 py-4 font-medium text-text-primary">
-                  EXECUTOR_ROLE
-                </td>
-                <td className="whitespace-nowrap px-6 py-4 text-text-secondary">
-                  0xd8a...3411
-                </td>
-                <td className="whitespace-nowrap px-6 py-4 text-right text-text-primary">
-                  1
-                </td>
-              </tr>
-              <tr>
-                <td className="whitespace-nowrap px-6 py-4 font-medium text-text-primary">
-                  CANCELLER_ROLE
-                </td>
-                <td className="whitespace-nowrap px-6 py-4 text-text-secondary">
-                  0x146...3d62
-                </td>
-                <td className="whitespace-nowrap px-6 py-4 text-right text-text-primary">
-                  3
-                </td>
-              </tr>
-              <tr>
-                <td className="whitespace-nowrap px-6 py-4 font-medium text-text-primary">
-                  TIMELOCK_ADMIN_ROLE
-                </td>
-                <td className="whitespace-nowrap px-6 py-4 text-text-secondary">
-                  0x5f5...f788
-                </td>
-                <td className="whitespace-nowrap px-6 py-4 text-right text-text-primary">
-                  1
-                </td>
-              </tr>
+              {rolesLoading ? (
+                // Loading skeleton rows
+                Array.from({ length: 4 }).map((_, index) => (
+                  <tr key={`loading-${index}`}>
+                    <td className="whitespace-nowrap px-6 py-4">
+                      <div className="h-5 w-32 animate-pulse bg-border-color rounded"></div>
+                    </td>
+                    <td className="whitespace-nowrap px-6 py-4">
+                      <div className="h-5 w-24 animate-pulse bg-border-color rounded"></div>
+                    </td>
+                    <td className="whitespace-nowrap px-6 py-4 text-right">
+                      <div className="h-5 w-8 animate-pulse bg-border-color rounded ml-auto"></div>
+                    </td>
+                  </tr>
+                ))
+              ) : roles && roles.length > 0 ? (
+                // Dynamic role rows
+                roles.map((role) => {
+                  // Truncate role hash for display (first 4 + last 4 chars)
+                  const roleHashDisplay = `${role.roleHash.slice(0, 6)}...${role.roleHash.slice(-4)}`
+                  // Get role name from ROLE_NAMES or use roleName from hook
+                  const displayName = ROLE_NAMES[role.roleHash] || role.roleName || 'Unknown Role'
+                  
+                  return (
+                    <tr key={role.roleHash}>
+                      <td className="whitespace-nowrap px-6 py-4 font-medium text-text-primary">
+                        {displayName}
+                      </td>
+                      <td className="whitespace-nowrap px-6 py-4 text-text-secondary font-mono text-xs">
+                        {roleHashDisplay}
+                      </td>
+                      <td className="whitespace-nowrap px-6 py-4 text-right text-text-primary">
+                        {role.memberCount}
+                      </td>
+                    </tr>
+                  )
+                })
+              ) : (
+                // Empty state
+                <tr>
+                  <td colSpan={3} className="px-6 py-4 text-center text-text-secondary">
+                    No roles found
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

@@ -168,9 +168,9 @@ description: 'Task list for Rootstock Timelock Management App - Blockchain Integ
 
 ### Implementation for User Story 3
 
-- [ ] T047 [P] [US3] Create useRoles hook in src/hooks/useRoles.ts to fetch role members and history from subgraph, with event-sourcing logic to compute current members from RoleGranted/RoleRevoked
-- [ ] T048 [US3] Integrate useRoles in src/components/dashboard/DashboardView.tsx to replace mock role summary table with live member counts
-- [ ] T049 [US3] Integrate useRoles in src/components/permissions/PermissionsView.tsx to replace mockRoles with live data for all 4 standard roles
+- [X] T047 [P] [US3] Create useRoles hook in src/hooks/useRoles.ts to fetch role members and history from subgraph, with event-sourcing logic to compute current members from RoleGranted/RoleRevoked
+- [X] T048 [US3] Integrate useRoles in src/components/dashboard/DashboardView.tsx to replace mock role summary table with live member counts
+- [X] T049 [US3] Integrate useRoles in src/components/permissions/PermissionsView.tsx to replace mockRoles with live data for all 4 standard roles
 - [ ] T050 [US3] Integrate useHasRole in PermissionsView to detect and highlight roles held by connected wallet
 - [ ] T051 [US3] Implement AccessManager detection in PermissionsView - check if DEFAULT_ADMIN_ROLE holder implements IAccessManager interface and display link
 - [ ] T052 [US3] Add copy-to-clipboard functionality for role member addresses in PermissionsView role holders list

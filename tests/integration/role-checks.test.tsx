@@ -18,6 +18,16 @@ import { TIMELOCK_ROLES } from '@/lib/constants'
 import { type Address } from 'viem'
 import React from 'react'
 
+// Mock the subgraph roles module
+vi.mock('@/services/subgraph/roles', () => ({
+  getRolesSummary: vi.fn(),
+  fetchRoleAssignments: vi.fn(),
+  getCurrentRoleMembers: vi.fn(),
+}))
+
+// Import mocked functions
+import * as rolesService from '@/services/subgraph/roles'
+
 // Mock role assignment data from subgraph
 interface MockRoleAssignment {
   id: string
@@ -60,53 +70,108 @@ const CANCELLER_1 = '0x4444444444444444444444444444444444444444' as Address
 const ADMIN_1 = '0x5555555555555555555555555555555555555555' as Address
 const SENDER = '0x6666666666666666666666666666666666666666' as Address
 
+// Helper to create default empty mocks
+const createDefaultMocks = () => {
+  vi.mocked(rolesService.getRolesSummary).mockResolvedValue([
+    {
+      roleHash: TIMELOCK_ROLES.PROPOSER_ROLE,
+      roleName: 'PROPOSER',
+      memberCount: 0,
+      members: [],
+    },
+    {
+      roleHash: TIMELOCK_ROLES.EXECUTOR_ROLE,
+      roleName: 'EXECUTOR',
+      memberCount: 0,
+      members: [],
+    },
+    {
+      roleHash: TIMELOCK_ROLES.CANCELLER_ROLE,
+      roleName: 'CANCELLER',
+      memberCount: 0,
+      members: [],
+    },
+    {
+      roleHash: TIMELOCK_ROLES.DEFAULT_ADMIN_ROLE,
+      roleName: 'DEFAULT_ADMIN',
+      memberCount: 0,
+      members: [],
+    },
+  ])
+  vi.mocked(rolesService.fetchRoleAssignments).mockResolvedValue([])
+}
+
 describe('useRoles', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    createDefaultMocks()
   })
 
   test('T046: fetches and computes current role members using event-sourcing', async () => {
     const queryClient = createTestQueryClient()
 
-    // Mock subgraph response with RoleGranted and RoleRevoked events
-    const mockRoleAssignments: MockRoleAssignment[] = [
-      // PROPOSER granted to address 1
+    // Mock roles summary response
+    vi.mocked(rolesService.getRolesSummary).mockResolvedValue([
       {
-        id: '0x1-1',
-        role: TIMELOCK_ROLES.PROPOSER_ROLE,
-        account: PROPOSER_1,
-        sender: SENDER,
-        granted: true,
-        blockNumber: BigInt(1000),
-        blockTimestamp: BigInt(1698105600),
-        transactionHash: '0xabc1' as `0x${string}`,
+        roleHash: TIMELOCK_ROLES.PROPOSER_ROLE,
+        roleName: 'PROPOSER',
+        memberCount: 1,
+        members: [PROPOSER_1], // After event-sourcing, only PROPOSER_1 remains
       },
-      // PROPOSER granted to address 2
       {
-        id: '0x1-2',
-        role: TIMELOCK_ROLES.PROPOSER_ROLE,
-        account: PROPOSER_2,
-        sender: SENDER,
-        granted: true,
-        blockNumber: BigInt(1001),
-        blockTimestamp: BigInt(1698105700),
-        transactionHash: '0xabc2' as `0x${string}`,
+        roleHash: TIMELOCK_ROLES.EXECUTOR_ROLE,
+        roleName: 'EXECUTOR',
+        memberCount: 0,
+        members: [],
       },
-      // PROPOSER revoked from address 2 (should not be in current members)
+      {
+        roleHash: TIMELOCK_ROLES.CANCELLER_ROLE,
+        roleName: 'CANCELLER',
+        memberCount: 0,
+        members: [],
+      },
+      {
+        roleHash: TIMELOCK_ROLES.DEFAULT_ADMIN_ROLE,
+        roleName: 'DEFAULT_ADMIN',
+        memberCount: 0,
+        members: [],
+      },
+    ])
+
+    // Mock role assignments history
+    vi.mocked(rolesService.fetchRoleAssignments).mockResolvedValue([
       {
         id: '0x1-3',
         role: TIMELOCK_ROLES.PROPOSER_ROLE,
         account: PROPOSER_2,
         sender: SENDER,
         granted: false,
+        timestamp: BigInt(1698105800),
         blockNumber: BigInt(1002),
-        blockTimestamp: BigInt(1698105800),
-        transactionHash: '0xabc3' as `0x${string}`,
+        txHash: '0xabc3' as `0x${string}`,
       },
-    ]
+      {
+        id: '0x1-2',
+        role: TIMELOCK_ROLES.PROPOSER_ROLE,
+        account: PROPOSER_2,
+        sender: SENDER,
+        granted: true,
+        timestamp: BigInt(1698105700),
+        blockNumber: BigInt(1001),
+        txHash: '0xabc2' as `0x${string}`,
+      },
+      {
+        id: '0x1-1',
+        role: TIMELOCK_ROLES.PROPOSER_ROLE,
+        account: PROPOSER_1,
+        sender: SENDER,
+        granted: true,
+        timestamp: BigInt(1698105600),
+        blockNumber: BigInt(1000),
+        txHash: '0xabc1' as `0x${string}`,
+      },
+    ])
 
-    // Mock the subgraph query - we'll need to mock the actual implementation
-    // For now, we'll test the hook structure
     const { result } = renderHook(
       () => useRoles({ timelockController: TIMELOCK_ADDRESS }),
       { wrapper: createWrapper(queryClient) }
@@ -115,7 +180,7 @@ describe('useRoles', () => {
     // Initially loading
     expect(result.current.isLoading).toBe(true)
 
-    // Wait for hook to complete (this will fail until T047 implements the hook)
+    // Wait for hook to complete
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false)
     }, { timeout: 3000 })
@@ -135,6 +200,30 @@ describe('useRoles', () => {
 
   test('T046: returns role history with all grant and revoke events', async () => {
     const queryClient = createTestQueryClient()
+
+    // Mock history with grant and revoke events
+    vi.mocked(rolesService.fetchRoleAssignments).mockResolvedValue([
+      {
+        id: '0x1-2',
+        role: TIMELOCK_ROLES.PROPOSER_ROLE,
+        account: PROPOSER_1,
+        sender: SENDER,
+        granted: true,
+        timestamp: BigInt(1698105700),
+        blockNumber: BigInt(1001),
+        txHash: '0xabc2' as `0x${string}`,
+      },
+      {
+        id: '0x1-1',
+        role: TIMELOCK_ROLES.PROPOSER_ROLE,
+        account: PROPOSER_1,
+        sender: SENDER,
+        granted: false,
+        timestamp: BigInt(1698105600),
+        blockNumber: BigInt(1000),
+        txHash: '0xabc1' as `0x${string}`,
+      },
+    ])
 
     const { result } = renderHook(
       () => useRoles({ timelockController: TIMELOCK_ADDRESS }),
@@ -164,6 +253,34 @@ describe('useRoles', () => {
   test('T046: handles multiple members for the same role', async () => {
     const queryClient = createTestQueryClient()
 
+    // Mock multiple EXECUTOR members
+    vi.mocked(rolesService.getRolesSummary).mockResolvedValue([
+      {
+        roleHash: TIMELOCK_ROLES.EXECUTOR_ROLE,
+        roleName: 'EXECUTOR',
+        memberCount: 2,
+        members: [EXECUTOR_1, PROPOSER_1], // Multiple members
+      },
+      {
+        roleHash: TIMELOCK_ROLES.PROPOSER_ROLE,
+        roleName: 'PROPOSER',
+        memberCount: 0,
+        members: [],
+      },
+      {
+        roleHash: TIMELOCK_ROLES.CANCELLER_ROLE,
+        roleName: 'CANCELLER',
+        memberCount: 0,
+        members: [],
+      },
+      {
+        roleHash: TIMELOCK_ROLES.DEFAULT_ADMIN_ROLE,
+        roleName: 'DEFAULT_ADMIN',
+        memberCount: 0,
+        members: [],
+      },
+    ])
+
     const { result } = renderHook(
       () => useRoles({ timelockController: TIMELOCK_ADDRESS }),
       { wrapper: createWrapper(queryClient) }
@@ -178,17 +295,18 @@ describe('useRoles', () => {
       (r) => r.roleHash === TIMELOCK_ROLES.EXECUTOR_ROLE
     )
 
-    if (executorRole && executorRole.currentMembers.length > 0) {
-      expect(Array.isArray(executorRole.currentMembers)).toBe(true)
-      // All members should be unique addresses
-      const uniqueMembers = new Set(executorRole.currentMembers)
-      expect(uniqueMembers.size).toBe(executorRole.currentMembers.length)
-    }
+    expect(executorRole).toBeDefined()
+    expect(executorRole?.currentMembers.length).toBeGreaterThan(0)
+    expect(Array.isArray(executorRole?.currentMembers)).toBe(true)
+    // All members should be unique addresses
+    const uniqueMembers = new Set(executorRole?.currentMembers)
+    expect(uniqueMembers.size).toBe(executorRole?.currentMembers.length)
   })
 
   test('T046: fetches all 4 standard timelock roles', async () => {
     const queryClient = createTestQueryClient()
 
+    // Default mocks already include all 4 roles
     const { result } = renderHook(
       () => useRoles({ timelockController: TIMELOCK_ADDRESS }),
       { wrapper: createWrapper(queryClient) }
@@ -232,7 +350,14 @@ describe('useRoles', () => {
   test('T046: handles error when subgraph is unavailable', async () => {
     const queryClient = createTestQueryClient()
 
-    // Mock subgraph error - will be implemented with actual mock in T047
+    // Mock subgraph error
+    vi.mocked(rolesService.getRolesSummary).mockRejectedValue(
+      new Error('Subgraph unavailable')
+    )
+    vi.mocked(rolesService.fetchRoleAssignments).mockRejectedValue(
+      new Error('Subgraph unavailable')
+    )
+
     const { result } = renderHook(
       () => useRoles({ timelockController: TIMELOCK_ADDRESS }),
       { wrapper: createWrapper(queryClient) }
@@ -243,10 +368,8 @@ describe('useRoles', () => {
     }, { timeout: 3000 })
 
     // Hook should handle errors gracefully
-    if (result.current.isError) {
-      expect(result.current.error).toBeDefined()
-      expect(result.current.roles).toBeUndefined()
-    }
+    expect(result.current.isError).toBe(true)
+    expect(result.current.error).toBeDefined()
   })
 
   test('T046: returns empty arrays when no roles are granted', async () => {
@@ -292,6 +415,20 @@ describe('useRoles', () => {
   test('T046: includes transaction details in role history', async () => {
     const queryClient = createTestQueryClient()
 
+    // Mock history with transaction details
+    vi.mocked(rolesService.fetchRoleAssignments).mockResolvedValue([
+      {
+        id: '0x1-1',
+        role: TIMELOCK_ROLES.PROPOSER_ROLE,
+        account: PROPOSER_1,
+        sender: SENDER,
+        granted: true,
+        timestamp: BigInt(1698105600),
+        blockNumber: BigInt(1000),
+        txHash: '0xabc1' as `0x${string}`,
+      },
+    ])
+
     const { result } = renderHook(
       () => useRoles({ timelockController: TIMELOCK_ADDRESS }),
       { wrapper: createWrapper(queryClient) }
@@ -302,6 +439,7 @@ describe('useRoles', () => {
     }, { timeout: 3000 })
 
     // Each history event should include transaction details
+    expect(result.current.roleHistory).toBeDefined()
     result.current.roleHistory?.forEach((event) => {
       expect(event.transactionHash).toBeDefined()
       expect(event.blockTimestamp).toBeDefined()
@@ -314,6 +452,30 @@ describe('useRoles', () => {
   test('T046: correctly identifies granted vs revoked events', async () => {
     const queryClient = createTestQueryClient()
 
+    // Mock history with both grant and revoke
+    vi.mocked(rolesService.fetchRoleAssignments).mockResolvedValue([
+      {
+        id: '0x1-1',
+        role: TIMELOCK_ROLES.PROPOSER_ROLE,
+        account: PROPOSER_1,
+        sender: SENDER,
+        granted: true,
+        timestamp: BigInt(1698105700),
+        blockNumber: BigInt(1001),
+        txHash: '0xabc2' as `0x${string}`,
+      },
+      {
+        id: '0x1-2',
+        role: TIMELOCK_ROLES.PROPOSER_ROLE,
+        account: PROPOSER_1,
+        sender: SENDER,
+        granted: false,
+        timestamp: BigInt(1698105600),
+        blockNumber: BigInt(1000),
+        txHash: '0xabc1' as `0x${string}`,
+      },
+    ])
+
     const { result } = renderHook(
       () => useRoles({ timelockController: TIMELOCK_ADDRESS }),
       { wrapper: createWrapper(queryClient) }
@@ -324,16 +486,17 @@ describe('useRoles', () => {
     }, { timeout: 3000 })
 
     // History should distinguish between grants and revokes
+    expect(result.current.roleHistory).toBeDefined()
+    expect(result.current.roleHistory?.length).toBeGreaterThan(0)
     result.current.roleHistory?.forEach((event) => {
       expect(event.granted).toBeDefined()
-      if (event.granted) {
-        // Granted event
-        expect(event.granted).toBe(true)
-      } else {
-        // Revoked event
-        expect(event.granted).toBe(false)
-      }
+      expect(typeof event.granted).toBe('boolean')
     })
+    // Should have both types
+    const hasGrant = result.current.roleHistory?.some((e) => e.granted === true)
+    const hasRevoke = result.current.roleHistory?.some((e) => e.granted === false)
+    expect(hasGrant).toBe(true)
+    expect(hasRevoke).toBe(true)
   })
 
   test('T046: handles timelock address change via refetch', async () => {
@@ -368,6 +531,34 @@ describe('useRoles', () => {
   test('T046: computes correct member count per role', async () => {
     const queryClient = createTestQueryClient()
 
+    // Mock roles with different member counts
+    vi.mocked(rolesService.getRolesSummary).mockResolvedValue([
+      {
+        roleHash: TIMELOCK_ROLES.PROPOSER_ROLE,
+        roleName: 'PROPOSER',
+        memberCount: 2,
+        members: [PROPOSER_1, PROPOSER_2],
+      },
+      {
+        roleHash: TIMELOCK_ROLES.EXECUTOR_ROLE,
+        roleName: 'EXECUTOR',
+        memberCount: 1,
+        members: [EXECUTOR_1],
+      },
+      {
+        roleHash: TIMELOCK_ROLES.CANCELLER_ROLE,
+        roleName: 'CANCELLER',
+        memberCount: 0,
+        members: [],
+      },
+      {
+        roleHash: TIMELOCK_ROLES.DEFAULT_ADMIN_ROLE,
+        roleName: 'DEFAULT_ADMIN',
+        memberCount: 1,
+        members: [ADMIN_1],
+      },
+    ])
+
     const { result } = renderHook(
       () => useRoles({ timelockController: TIMELOCK_ADDRESS }),
       { wrapper: createWrapper(queryClient) }
@@ -378,6 +569,7 @@ describe('useRoles', () => {
     }, { timeout: 3000 })
 
     // Each role should report correct member count
+    expect(result.current.roles).toBeDefined()
     result.current.roles?.forEach((role) => {
       expect(role.currentMembers).toBeDefined()
       expect(role.memberCount).toBe(role.currentMembers.length)

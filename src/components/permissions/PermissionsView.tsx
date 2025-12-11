@@ -1,7 +1,104 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
+import { type Address } from 'viem'
+import { useAccount } from 'wagmi'
+import { useRoles } from '@/hooks/useRoles'
+import { useHasRole } from '@/hooks/useHasRole'
+import { TIMELOCK_ROLES, ROLE_NAMES } from '@/lib/constants'
+import { getAddress } from 'viem'
+
+// Helper to format timestamp
+const formatTimestamp = (timestamp: bigint): string => {
+  const date = new Date(Number(timestamp) * 1000)
+  return date.toLocaleString('en-US', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZoneName: 'short',
+  })
+}
+
+// Helper to truncate address
+const truncateAddress = (address: Address): string => {
+  return `${address.slice(0, 6)}...${address.slice(-4)}`
+}
+
+// Helper to copy to clipboard
+const copyToClipboard = async (text: string): Promise<void> => {
+  try {
+    await navigator.clipboard.writeText(text)
+  } catch (err) {
+    console.error('Failed to copy:', err)
+  }
+}
 
 const PermissionsView = () => {
   const [searchValue, setSearchValue] = useState('')
+  const { address: connectedAddress } = useAccount()
+  
+  // State for selected timelock contract address
+  // Using the actual deployed TimelockController on Rootstock Testnet
+  const [timelockAddress] = useState<Address | undefined>(
+    '0x09a3fa8b0706829ad2b66719b851793a7b20d08a' as Address
+  )
+  
+  // Fetch roles and history
+  const { roles, roleHistory, isLoading, isError } = useRoles({
+    timelockController: timelockAddress,
+  })
+  
+  // Filter roles by search
+  const filteredRoles = useMemo(() => {
+    if (!roles) return []
+    if (!searchValue.trim()) return roles
+    const searchLower = searchValue.toLowerCase()
+    return roles.filter(
+      (role) =>
+        role.roleName.toLowerCase().includes(searchLower) ||
+        role.roleHash.toLowerCase().includes(searchLower)
+    )
+  }, [roles, searchValue])
+  
+  // State for selected role
+  const [selectedRoleHash, setSelectedRoleHash] = useState<`0x${string}` | null>(
+    null
+  )
+  
+  // Get selected role data
+  const selectedRole = useMemo(() => {
+    if (!selectedRoleHash || !roles) return null
+    return roles.find((r) => r.roleHash === selectedRoleHash)
+  }, [selectedRoleHash, roles])
+  
+  // Get history for selected role
+  const selectedRoleHistory = useMemo(() => {
+    if (!selectedRoleHash || !roleHistory) return []
+    return roleHistory.filter((event) => {
+      // event.role can be a string (role hash) or Role object
+      const roleHash =
+        typeof event.role === 'string'
+          ? event.role
+          : typeof event.role === 'object' && event.role !== null && 'roleHash' in event.role
+          ? event.role.roleHash
+          : null
+      return roleHash && roleHash.toLowerCase() === selectedRoleHash.toLowerCase()
+    })
+  }, [selectedRoleHash, roleHistory])
+  
+  // Auto-select first role if none selected
+  useMemo(() => {
+    if (!selectedRoleHash && filteredRoles.length > 0) {
+      setSelectedRoleHash(filteredRoles[0].roleHash)
+    }
+  }, [selectedRoleHash, filteredRoles])
+  
+  // Check if connected wallet has selected role
+  const hasSelectedRole = useHasRole({
+    account: connectedAddress,
+    role: selectedRoleHash || TIMELOCK_ROLES.DEFAULT_ADMIN_ROLE,
+    timelockController: timelockAddress || '0x0000000000000000000000000000000000000000',
+  })
   return (
     <main className="flex flex-1 p-6 lg:p-8">
       <div className="grid grid-cols-12 gap-6 w-full">
@@ -23,202 +120,246 @@ const PermissionsView = () => {
             </label>
           </div>
           <div className="flex flex-col gap-2 overflow-y-auto">
-            <div className="flex items-center gap-4 bg-primary/20 p-3 justify-between rounded-lg cursor-pointer">
-              <div className="flex items-center gap-4">
-                <div className="text-primary flex items-center justify-center rounded-md bg-surface-dark shrink-0 size-10">
-                  <span className="material-symbols-outlined">shield</span>
+            {isLoading ? (
+              // Loading skeleton
+              Array.from({ length: 4 }).map((_, index) => (
+                <div
+                  key={`loading-${index}`}
+                  className="flex items-center gap-4 p-3 rounded-lg animate-pulse bg-surface-dark"
+                >
+                  <div className="size-10 bg-border-color rounded-md"></div>
+                  <div className="h-5 w-32 bg-border-color rounded flex-1"></div>
                 </div>
-                <p className="text-primary text-base font-medium leading-normal flex-1 truncate">
-                  TIMELOCK_ADMIN_ROLE
-                </p>
+              ))
+            ) : isError ? (
+              <div className="p-3 text-red-500 text-sm">
+                Failed to load roles
               </div>
-              <div className="shrink-0">
-                <div className="text-primary flex size-7 items-center justify-center">
-                  <span className="material-symbols-outlined">
-                    chevron_right
-                  </span>
-                </div>
+            ) : filteredRoles.length === 0 ? (
+              <div className="p-3 text-text-secondary text-sm">
+                No roles found
               </div>
-            </div>
-            <div className="flex items-center gap-4 hover:bg-surface-dark p-3 justify-between rounded-lg cursor-pointer">
-              <div className="flex items-center gap-4">
-                <div className="text-text-light flex items-center justify-center rounded-md bg-surface-dark shrink-0 size-10">
-                  <span className="material-symbols-outlined">post_add</span>
-                </div>
-                <p className="text-text-light text-base font-normal leading-normal flex-1 truncate">
-                  PROPOSER_ROLE
-                </p>
-              </div>
-              <div className="shrink-0">
-                <div className="text-text-dark flex size-7 items-center justify-center">
-                  <span className="material-symbols-outlined">
-                    chevron_right
-                  </span>
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-4 hover:bg-surface-dark p-3 justify-between rounded-lg cursor-pointer">
-              <div className="flex items-center gap-4">
-                <div className="text-text-light flex items-center justify-center rounded-md bg-surface-dark shrink-0 size-10">
-                  <span className="material-symbols-outlined">play_arrow</span>
-                </div>
-                <p className="text-text-light text-base font-normal leading-normal flex-1 truncate">
-                  EXECUTOR_ROLE
-                </p>
-              </div>
-              <div className="shrink-0">
-                <div className="text-text-dark flex size-7 items-center justify-center">
-                  <span className="material-symbols-outlined">
-                    chevron_right
-                  </span>
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-4 hover:bg-surface-dark p-3 justify-between rounded-lg cursor-pointer">
-              <div className="flex items-center gap-4">
-                <div className="text-text-light flex items-center justify-center rounded-md bg-surface-dark shrink-0 size-10">
-                  <span className="material-symbols-outlined">cancel</span>
-                </div>
-                <p className="text-text-light text-base font-normal leading-normal flex-1 truncate">
-                  CANCELLER_ROLE
-                </p>
-              </div>
-              <div className="shrink-0">
-                <div className="text-text-dark flex size-7 items-center justify-center">
-                  <span className="material-symbols-outlined">
-                    chevron_right
-                  </span>
-                </div>
-              </div>
-            </div>
+            ) : (
+              filteredRoles.map((role) => {
+                const isSelected = selectedRoleHash === role.roleHash
+                const displayName = ROLE_NAMES[role.roleHash] || role.roleName
+                
+                // Get icon based on role name
+                const getRoleIcon = (name: string) => {
+                  if (name.includes('ADMIN')) return 'shield'
+                  if (name.includes('PROPOSER')) return 'post_add'
+                  if (name.includes('EXECUTOR')) return 'play_arrow'
+                  if (name.includes('CANCELLER')) return 'cancel'
+                  return 'person'
+                }
+                
+                return (
+                  <div
+                    key={role.roleHash}
+                    onClick={() => setSelectedRoleHash(role.roleHash)}
+                    className={`flex items-center gap-4 p-3 justify-between rounded-lg cursor-pointer transition-colors ${
+                      isSelected
+                        ? 'bg-primary/20'
+                        : 'hover:bg-surface-dark'
+                    }`}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div
+                        className={`${
+                          isSelected ? 'text-primary' : 'text-text-light'
+                        } flex items-center justify-center rounded-md bg-surface-dark shrink-0 size-10`}
+                      >
+                        <span className="material-symbols-outlined">
+                          {getRoleIcon(displayName)}
+                        </span>
+                      </div>
+                      <p
+                        className={`${
+                          isSelected
+                            ? 'text-primary font-medium'
+                            : 'text-text-light font-normal'
+                        } text-base leading-normal flex-1 truncate`}
+                      >
+                        {displayName}
+                      </p>
+                    </div>
+                    <div className="shrink-0">
+                      <div
+                        className={`${
+                          isSelected ? 'text-primary' : 'text-text-dark'
+                        } flex size-7 items-center justify-center`}
+                      >
+                        <span className="material-symbols-outlined">
+                          chevron_right
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })
+            )}
           </div>
         </div>
         <div className="col-span-12 lg:col-span-8 xl:col-span-9 flex flex-col gap-6">
-          <div className="bg-surface-dark rounded-xl p-6">
-            <div className="pb-4 border-b border-white/10">
-              <h3 className="text-2xl font-semibold text-white">
-                TIMELOCK_ADMIN_ROLE
-              </h3>
-              <p className="text-text-dark mt-1">
-                Grants permission to modify Timelock settings and manage other
-                roles.
-              </p>
-            </div>
-            <div className="mt-6">
-              <h4 className="text-lg font-semibold text-white">
-                Current Holders (2)
-              </h4>
-              <div className="flex flex-col gap-3 mt-4">
-                <div className="flex items-center justify-between p-3 bg-background-dark rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <span
-                      className="text-accent-yellow material-symbols-outlined text-xl"
-                      title="This address holds multiple significant roles."
-                    >
-                      warning
-                    </span>
-                    <span className="font-mono text-sm bg-white/10 px-3 py-1 rounded-full text-text-light">
-                      0x1A2b...c3D4
-                    </span>
-                  </div>
-                  <button className="text-text-dark hover:text-white">
-                    <span className="material-symbols-outlined text-xl">
-                      content_copy
-                    </span>
-                  </button>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-background-dark rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <span className="text-transparent material-symbols-outlined text-xl"></span>{' '}
-                    {/* Spacer */}
-                    <span className="font-mono text-sm bg-white/10 px-3 py-1 rounded-full text-text-light">
-                      0x5E6f...g7H8
-                    </span>
-                  </div>
-                  <button className="text-text-dark hover:text-white">
-                    <span className="material-symbols-outlined text-xl">
-                      content_copy
-                    </span>
-                  </button>
+          {isLoading ? (
+            <div className="bg-surface-dark rounded-xl p-6">
+              <div className="animate-pulse space-y-4">
+                <div className="h-8 w-48 bg-border-color rounded"></div>
+                <div className="h-4 w-96 bg-border-color rounded"></div>
+                <div className="h-6 w-32 bg-border-color rounded mt-6"></div>
+                <div className="space-y-3 mt-4">
+                  <div className="h-16 bg-border-color rounded"></div>
+                  <div className="h-16 bg-border-color rounded"></div>
                 </div>
               </div>
             </div>
-          </div>
+          ) : isError ? (
+            <div className="bg-surface-dark rounded-xl p-6">
+              <div className="rounded border border-red-500/50 bg-red-500/10 p-4">
+                <p className="text-red-500 text-sm">
+                  Failed to load roles data. Please check your connection and try again.
+                </p>
+              </div>
+            </div>
+          ) : selectedRole ? (
+            <div className="bg-surface-dark rounded-xl p-6">
+              <div className="pb-4 border-b border-white/10">
+                <h3 className="text-2xl font-semibold text-white">
+                  {ROLE_NAMES[selectedRole.roleHash] || selectedRole.roleName}
+                </h3>
+                <p className="text-text-dark mt-1">
+                  {selectedRole.roleHash === TIMELOCK_ROLES.DEFAULT_ADMIN_ROLE
+                    ? 'Grants permission to modify Timelock settings and manage other roles.'
+                    : selectedRole.roleHash === TIMELOCK_ROLES.PROPOSER_ROLE
+                    ? 'Grants permission to schedule new timelock operations.'
+                    : selectedRole.roleHash === TIMELOCK_ROLES.EXECUTOR_ROLE
+                    ? 'Grants permission to execute ready timelock operations.'
+                    : selectedRole.roleHash === TIMELOCK_ROLES.CANCELLER_ROLE
+                    ? 'Grants permission to cancel pending timelock operations.'
+                    : 'Custom role with specific permissions.'}
+                </p>
+              </div>
+              <div className="mt-6">
+                <h4 className="text-lg font-semibold text-white">
+                  Current Holders ({selectedRole.memberCount})
+                </h4>
+                {selectedRole.currentMembers.length === 0 ? (
+                  <p className="text-text-secondary mt-4">No current holders</p>
+                ) : (
+                  <div className="flex flex-col gap-3 mt-4">
+                    {selectedRole.currentMembers.map((member) => {
+                      const isConnectedWallet =
+                        connectedAddress &&
+                        getAddress(member) === getAddress(connectedAddress)
+                      const hasMultipleRoles = false // Could be enhanced to check other roles
+                      
+                      return (
+                        <div
+                          key={member}
+                          className="flex items-center justify-between p-3 bg-background-dark rounded-lg"
+                        >
+                          <div className="flex items-center gap-3">
+                            {hasMultipleRoles && (
+                              <span
+                                className="text-accent-yellow material-symbols-outlined text-xl"
+                                title="This address holds multiple significant roles."
+                              >
+                                warning
+                              </span>
+                            )}
+                            {!hasMultipleRoles && (
+                              <span className="text-transparent material-symbols-outlined text-xl"></span>
+                            )}
+                            <span
+                              className={`font-mono text-sm bg-white/10 px-3 py-1 rounded-full ${
+                                isConnectedWallet
+                                  ? 'text-primary border border-primary/50'
+                                  : 'text-text-light'
+                              }`}
+                            >
+                              {truncateAddress(member)}
+                            </span>
+                            {isConnectedWallet && (
+                              <span className="text-xs text-primary">(You)</span>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => copyToClipboard(member)}
+                            className="text-text-dark hover:text-white transition-colors"
+                            title="Copy address"
+                          >
+                            <span className="material-symbols-outlined text-xl">
+                              content_copy
+                            </span>
+                          </button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="bg-surface-dark rounded-xl p-6">
+              <p className="text-text-secondary">Select a role to view details</p>
+            </div>
+          )}
           <div className="bg-surface-dark rounded-xl p-6">
             <h4 className="text-lg font-semibold text-white mb-4">
               Role History
             </h4>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead className="text-text-dark border-b border-white/10">
-                  <tr>
-                    <th className="p-3 font-medium">Action</th>
-                    <th className="p-3 font-medium">Target Address</th>
-                    <th className="p-3 font-medium">Transaction Hash</th>
-                    <th className="p-3 font-medium text-right">Timestamp</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr className="border-b border-white/10">
-                    <td className="p-3">
-                      <span className="inline-flex items-center gap-2 text-accent-green bg-accent-green/10 px-2 py-1 rounded-full text-xs font-medium">
-                        <span className="material-symbols-outlined text-base">
-                          add_circle
-                        </span>
-                        Grant
-                      </span>
-                    </td>
-                    <td className="p-3 font-mono text-text-light">
-                      0x5E6f...g7H8
-                    </td>
-                    <td className="p-3 font-mono text-primary hover:underline cursor-pointer">
-                      0xabcd...1234
-                    </td>
-                    <td className="p-3 text-text-dark text-right">
-                      2023-10-26 14:30 UTC
-                    </td>
-                  </tr>
-                  <tr className="border-b border-white/10">
-                    <td className="p-3">
-                      <span className="inline-flex items-center gap-2 text-accent-red bg-accent-red/10 px-2 py-1 rounded-full text-xs font-medium">
-                        <span className="material-symbols-outlined text-base">
-                          remove_circle
-                        </span>
-                        Revoke
-                      </span>
-                    </td>
-                    <td className="p-3 font-mono text-text-light">
-                      0x9J0k...l1M2
-                    </td>
-                    <td className="p-3 font-mono text-primary hover:underline cursor-pointer">
-                      0xefgh...5678
-                    </td>
-                    <td className="p-3 text-text-dark text-right">
-                      2023-09-15 09:00 UTC
-                    </td>
-                  </tr>
-                  <tr className="border-b border-white/10">
-                    <td className="p-3">
-                      <span className="inline-flex items-center gap-2 text-accent-green bg-accent-green/10 px-2 py-1 rounded-full text-xs font-medium">
-                        <span className="material-symbols-outlined text-base">
-                          add_circle
-                        </span>
-                        Grant
-                      </span>
-                    </td>
-                    <td className="p-3 font-mono text-text-light">
-                      0x1A2b...c3D4
-                    </td>
-                    <td className="p-3 font-mono text-primary hover:underline cursor-pointer">
-                      0xijkl...9012
-                    </td>
-                    <td className="p-3 text-text-dark text-right">
-                      2023-08-01 18:45 UTC
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+            {selectedRoleHistory.length === 0 ? (
+              <p className="text-text-secondary">No history available for this role</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className="text-text-dark border-b border-white/10">
+                    <tr>
+                      <th className="p-3 font-medium">Action</th>
+                      <th className="p-3 font-medium">Target Address</th>
+                      <th className="p-3 font-medium">Transaction Hash</th>
+                      <th className="p-3 font-medium text-right">Timestamp</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedRoleHistory.map((event) => (
+                      <tr key={event.id} className="border-b border-white/10">
+                        <td className="p-3">
+                          <span
+                            className={`inline-flex items-center gap-2 px-2 py-1 rounded-full text-xs font-medium ${
+                              event.granted
+                                ? 'text-accent-green bg-accent-green/10'
+                                : 'text-accent-red bg-accent-red/10'
+                            }`}
+                          >
+                            <span className="material-symbols-outlined text-base">
+                              {event.granted ? 'add_circle' : 'remove_circle'}
+                            </span>
+                            {event.granted ? 'Grant' : 'Revoke'}
+                          </span>
+                        </td>
+                        <td className="p-3 font-mono text-text-light">
+                          {truncateAddress(event.account)}
+                        </td>
+                        <td className="p-3">
+                          <a
+                            href={`https://rootstock-testnet.blockscout.com/tx/${event.transactionHash}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-mono text-primary hover:underline cursor-pointer"
+                          >
+                            {truncateAddress(event.transactionHash)}
+                          </a>
+                        </td>
+                        <td className="p-3 text-text-dark text-right">
+                          {formatTimestamp(event.blockTimestamp)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       </div>
