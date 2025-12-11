@@ -1,11 +1,19 @@
 import React from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/router'
 
 interface LayoutProps {
   children: React.ReactNode
 }
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
+  const router = useRouter()
+
+  const isActive = (href: string) => {
+    if (href === '/') return router.pathname === '/'
+    return router.pathname.startsWith(href)
+  }
+
   return (
     <div className="flex min-h-screen">
       {/* SideNavBar */}
@@ -32,14 +40,22 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           <nav className="flex flex-col gap-2 mt-4">
             <Link
               href="/"
-              className="flex items-center gap-3 px-3 py-2 text-text-light hover:bg-surface-dark rounded-full"
+              className={`flex items-center gap-3 px-3 py-2 rounded-full ${
+                isActive('/')
+                  ? 'bg-primary/20 text-primary'
+                  : 'text-text-light hover:bg-surface-dark'
+              }`}
             >
               <span className="material-symbols-outlined">dashboard</span>
               <p className="text-sm font-medium leading-normal">Dashboard</p>
             </Link>
             <Link
               href="/operations_explorer"
-              className="flex items-center gap-3 px-3 py-2 text-text-light hover:bg-surface-dark rounded-full"
+              className={`flex items-center gap-3 px-3 py-2 rounded-full ${
+                isActive('/operations_explorer')
+                  ? 'bg-primary/20 text-primary'
+                  : 'text-text-light hover:bg-surface-dark'
+              }`}
             >
               <span className="material-symbols-outlined">gavel</span>
               <p className="text-sm font-medium leading-normal">
@@ -48,14 +64,22 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             </Link>
             <Link
               href="/new_proposal"
-              className="flex items-center gap-3 px-3 py-2 text-text-light hover:bg-surface-dark rounded-full"
+              className={`flex items-center gap-3 px-3 py-2 rounded-full ${
+                isActive('/new_proposal')
+                  ? 'bg-primary/20 text-primary'
+                  : 'text-text-light hover:bg-surface-dark'
+              }`}
             >
               <span className="material-symbols-outlined">post_add</span>
               <p className="text-sm font-medium leading-normal">New Proposal</p>
             </Link>
             <Link
               href="/permissions"
-              className="flex items-center gap-3 px-3 py-2 rounded-full bg-primary/20 text-primary"
+              className={`flex items-center gap-3 px-3 py-2 rounded-full ${
+                isActive('/permissions')
+                  ? 'bg-primary/20 text-primary'
+                  : 'text-text-light hover:bg-surface-dark'
+              }`}
             >
               <span className="material-symbols-outlined">
                 admin_panel_settings
@@ -66,14 +90,22 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             </Link>
             <Link
               href="/decoder"
-              className="flex items-center gap-3 px-3 py-2 text-text-light hover:bg-surface-dark rounded-full"
+              className={`flex items-center gap-3 px-3 py-2 rounded-full ${
+                isActive('/decoder')
+                  ? 'bg-primary/20 text-primary'
+                  : 'text-text-light hover:bg-surface-dark'
+              }`}
             >
               <span className="material-symbols-outlined">code</span>
               <p className="text-sm font-medium leading-normal">Decoder</p>
             </Link>
             <Link
               href="/settings"
-              className="flex items-center gap-3 px-3 py-2 text-text-light hover:bg-surface-dark rounded-full"
+              className={`flex items-center gap-3 px-3 py-2 rounded-full ${
+                isActive('/settings')
+                  ? 'bg-primary/20 text-primary'
+                  : 'text-text-light hover:bg-surface-dark'
+              }`}
             >
               <span className="material-symbols-outlined">settings</span>
               <p className="text-sm font-medium leading-normal">Settings</p>
