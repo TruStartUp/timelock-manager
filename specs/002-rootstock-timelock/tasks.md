@@ -172,9 +172,9 @@ description: 'Task list for Rootstock Timelock Management App - Blockchain Integ
 - [X] T048 [US3] Integrate useRoles in src/components/dashboard/DashboardView.tsx to replace mock role summary table with live member counts
 - [X] T049 [US3] Integrate useRoles in src/components/permissions/PermissionsView.tsx to replace mockRoles with live data for all 4 standard roles
 - [ ] T050 [US3] Integrate useHasRole in PermissionsView to detect and highlight roles held by connected wallet
-- [ ] T051 [US3] Implement AccessManager detection in PermissionsView - check if DEFAULT_ADMIN_ROLE holder implements IAccessManager interface and display link
-- [ ] T052 [US3] Add copy-to-clipboard functionality for role member addresses in PermissionsView role holders list
-- [ ] T053 [US3] Display role history table in PermissionsView with columns: Action (Grant/Revoke), Target Address, TX Hash (link to explorer), Timestamp
+- [X] T051 [US3] Implement AccessManager detection in PermissionsView - check if DEFAULT_ADMIN_ROLE holder implements IAccessManager interface and display link
+- [X] T052 [US3] Add copy-to-clipboard functionality for role member addresses in PermissionsView role holders list
+- [X] T053 [US3] Display role history table in PermissionsView with columns: Action (Grant/Revoke), Target Address, TX Hash (link to explorer), Timestamp
 
 **Checkpoint**: All role management features now work with live blockchain data - users can audit access control
 

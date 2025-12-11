@@ -43,7 +43,7 @@ interface RolesQueryResponse {
 interface RoleAssignmentsQueryResponse {
   roleAssignments: Array<{
     id: string
-    role: string
+    role: string | { id: string; timelockController?: string }
     account: string
     granted: boolean
     timestamp: string
@@ -85,9 +85,17 @@ function transformRole(raw: RolesQueryResponse['roles'][0]): Role {
 function transformRoleAssignment(
   raw: RoleAssignmentsQueryResponse['roleAssignments'][0]
 ): RoleAssignment {
+  // Extract role hash from either string or nested object
+  const roleHash =
+    typeof raw.role === 'string'
+      ? raw.role
+      : typeof raw.role === 'object' && raw.role !== null && 'id' in raw.role
+      ? raw.role.id
+      : ''
+
   return {
     id: raw.id,
-    role: raw.role,
+    role: roleHash,
     account: raw.account as `0x${string}`,
     granted: raw.granted,
     timestamp: BigInt(raw.timestamp),
@@ -203,7 +211,9 @@ export async function fetchRoleAssignments(
         orderDirection: desc
       ) {
         id
-        role
+        role {
+          id
+        }
         account
         granted
         timestamp

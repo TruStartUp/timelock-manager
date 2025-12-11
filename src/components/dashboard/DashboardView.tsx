@@ -147,7 +147,7 @@ const DashboardView: React.FC = () => {
                   Role Hash
                 </th>
                 <th className="px-6 py-4 font-medium text-right" scope="col">
-                  Admins
+                  Members
                 </th>
               </tr>
             </thead>

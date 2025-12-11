@@ -1,9 +1,11 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { type Address } from 'viem'
-import { useAccount } from 'wagmi'
+import { useAccount, useChainId } from 'wagmi'
 import { useRoles } from '@/hooks/useRoles'
 import { useHasRole } from '@/hooks/useHasRole'
+import { useIsAccessManager } from '@/hooks/useIsAccessManager'
 import { TIMELOCK_ROLES, ROLE_NAMES } from '@/lib/constants'
+import { getBlockscoutExplorerUrl } from '@/services/blockscout/client'
 import { getAddress } from 'viem'
 
 // Helper to format timestamp
@@ -24,18 +26,123 @@ const truncateAddress = (address: Address): string => {
   return `${address.slice(0, 6)}...${address.slice(-4)}`
 }
 
-// Helper to copy to clipboard
-const copyToClipboard = async (text: string): Promise<void> => {
-  try {
-    await navigator.clipboard.writeText(text)
-  } catch (err) {
-    console.error('Failed to copy:', err)
-  }
+// Component for individual role member row
+interface RoleMemberRowProps {
+  member: Address
+  isDefaultAdmin: boolean
+  connectedAddress: Address | undefined
+  blockscoutUrl: string
+  copiedAddress: Address | null
+  onCopy: (address: Address) => void
+}
+
+const RoleMemberRow = ({ member, isDefaultAdmin, connectedAddress, blockscoutUrl, copiedAddress, onCopy }: RoleMemberRowProps) => {
+  const isConnectedWallet =
+    connectedAddress && getAddress(member) === getAddress(connectedAddress)
+  const hasMultipleRoles = false // Could be enhanced to check other roles
+  
+  // Check if member is AccessManager (only for DEFAULT_ADMIN_ROLE)
+  const { isAccessManager, isLoading: isCheckingAccessManager } = useIsAccessManager({
+    address: isDefaultAdmin ? member : undefined,
+    enabled: isDefaultAdmin,
+  })
+  
+  return (
+    <div className="flex items-center justify-between p-3 bg-background-dark rounded-lg">
+      <div className="flex items-center gap-3 flex-wrap">
+        {hasMultipleRoles && (
+          <span
+            className="text-accent-yellow material-symbols-outlined text-xl"
+            title="This address holds multiple significant roles."
+          >
+            warning
+          </span>
+        )}
+        {!hasMultipleRoles && (
+          <span className="text-transparent material-symbols-outlined text-xl"></span>
+        )}
+        <span
+          className={`font-mono text-sm bg-white/10 px-3 py-1 rounded-full ${
+            isConnectedWallet
+              ? 'text-primary border border-primary/50'
+              : 'text-text-light'
+          }`}
+        >
+          {truncateAddress(member)}
+        </span>
+        {isConnectedWallet && (
+          <span className="text-xs text-primary">(You)</span>
+        )}
+        {isDefaultAdmin && !isCheckingAccessManager && isAccessManager && (
+          <a
+            href={`${blockscoutUrl}/address/${member}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-primary hover:underline flex items-center gap-1"
+            title="Managed by AccessManager"
+          >
+            <span className="material-symbols-outlined text-base">link</span>
+            Managed by AccessManager
+          </a>
+        )}
+      </div>
+      <div className="relative">
+        <button
+          onClick={async () => {
+            try {
+              await navigator.clipboard.writeText(member)
+              onCopy(member)
+            } catch (err) {
+              console.error('Failed to copy:', err)
+            }
+          }}
+          className="text-text-dark hover:text-white transition-colors"
+          title={copiedAddress === member ? 'Copied!' : 'Copy address'}
+        >
+          <span className="material-symbols-outlined text-xl">
+            {copiedAddress === member ? 'check' : 'content_copy'}
+          </span>
+        </button>
+        {copiedAddress === member && (
+          <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-surface-dark text-white text-xs px-2 py-1 rounded shadow-lg whitespace-nowrap z-10">
+            Copied!
+            <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-full">
+              <div className="border-4 border-transparent border-t-surface-dark"></div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
 }
 
 const PermissionsView = () => {
   const [searchValue, setSearchValue] = useState('')
+  const [copiedAddress, setCopiedAddress] = useState<Address | null>(null)
+  const [copiedHistoryAddress, setCopiedHistoryAddress] = useState<string | null>(null)
   const { address: connectedAddress } = useAccount()
+  const chainId = useChainId()
+  const blockscoutUrl = getBlockscoutExplorerUrl(chainId)
+
+  // Clear copied state after 2 seconds
+  useEffect(() => {
+    if (copiedAddress) {
+      const timer = setTimeout(() => {
+        setCopiedAddress(null)
+      }, 2000)
+      return () => clearTimeout(timer)
+    }
+  }, [copiedAddress])
+
+  // Clear copied history address state after 2 seconds
+  useEffect(() => {
+    if (copiedHistoryAddress) {
+      const timer = setTimeout(() => {
+        setCopiedHistoryAddress(null)
+      }, 2000)
+      return () => clearTimeout(timer)
+    }
+  }, [copiedHistoryAddress])
   
   // State for selected timelock contract address
   // Using the actual deployed TimelockController on Rootstock Testnet
@@ -248,51 +355,17 @@ const PermissionsView = () => {
                 ) : (
                   <div className="flex flex-col gap-3 mt-4">
                     {selectedRole.currentMembers.map((member) => {
-                      const isConnectedWallet =
-                        connectedAddress &&
-                        getAddress(member) === getAddress(connectedAddress)
-                      const hasMultipleRoles = false // Could be enhanced to check other roles
-                      
+                      const isDefaultAdmin = selectedRole.roleHash.toLowerCase() === TIMELOCK_ROLES.DEFAULT_ADMIN_ROLE.toLowerCase()
                       return (
-                        <div
+                        <RoleMemberRow
                           key={member}
-                          className="flex items-center justify-between p-3 bg-background-dark rounded-lg"
-                        >
-                          <div className="flex items-center gap-3">
-                            {hasMultipleRoles && (
-                              <span
-                                className="text-accent-yellow material-symbols-outlined text-xl"
-                                title="This address holds multiple significant roles."
-                              >
-                                warning
-                              </span>
-                            )}
-                            {!hasMultipleRoles && (
-                              <span className="text-transparent material-symbols-outlined text-xl"></span>
-                            )}
-                            <span
-                              className={`font-mono text-sm bg-white/10 px-3 py-1 rounded-full ${
-                                isConnectedWallet
-                                  ? 'text-primary border border-primary/50'
-                                  : 'text-text-light'
-                              }`}
-                            >
-                              {truncateAddress(member)}
-                            </span>
-                            {isConnectedWallet && (
-                              <span className="text-xs text-primary">(You)</span>
-                            )}
-                          </div>
-                          <button
-                            onClick={() => copyToClipboard(member)}
-                            className="text-text-dark hover:text-white transition-colors"
-                            title="Copy address"
-                          >
-                            <span className="material-symbols-outlined text-xl">
-                              content_copy
-                            </span>
-                          </button>
-                        </div>
+                          member={member}
+                          isDefaultAdmin={isDefaultAdmin}
+                          connectedAddress={connectedAddress}
+                          blockscoutUrl={blockscoutUrl}
+                          copiedAddress={copiedAddress}
+                          onCopy={setCopiedAddress}
+                        />
                       )
                     })}
                   </div>
@@ -338,12 +411,42 @@ const PermissionsView = () => {
                             {event.granted ? 'Grant' : 'Revoke'}
                           </span>
                         </td>
-                        <td className="p-3 font-mono text-text-light">
-                          {truncateAddress(event.account)}
+                        <td className="p-3">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-text-light">
+                              {truncateAddress(event.account)}
+                            </span>
+                            <div className="relative">
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    await navigator.clipboard.writeText(event.account)
+                                    setCopiedHistoryAddress(event.account)
+                                  } catch (err) {
+                                    console.error('Failed to copy:', err)
+                                  }
+                                }}
+                                className="text-text-dark hover:text-white transition-colors"
+                                title={copiedHistoryAddress === event.account ? 'Copied!' : 'Copy address'}
+                              >
+                                <span className="material-symbols-outlined text-base">
+                                  {copiedHistoryAddress === event.account ? 'check' : 'content_copy'}
+                                </span>
+                              </button>
+                              {copiedHistoryAddress === event.account && (
+                                <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-surface-dark text-white text-xs px-2 py-1 rounded shadow-lg whitespace-nowrap z-10">
+                                  Copied!
+                                  <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-full">
+                                    <div className="border-4 border-transparent border-t-surface-dark"></div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         </td>
                         <td className="p-3">
                           <a
-                            href={`https://rootstock-testnet.blockscout.com/tx/${event.transactionHash}`}
+                            href={`${blockscoutUrl}/tx/${event.transactionHash}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="font-mono text-primary hover:underline cursor-pointer"

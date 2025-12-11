@@ -398,3 +398,23 @@ export function getBlockscoutClientByChainId(
   }
   return createBlockscoutClient(network)
 }
+
+/**
+ * Blockscout explorer base URLs (for UI links, not API)
+ */
+const BLOCKSCOUT_EXPLORER_BASE = {
+  mainnet: 'https://rootstock.blockscout.com',
+  testnet: 'https://rootstock-testnet.blockscout.com',
+} as const
+
+/**
+ * Get Blockscout explorer URL for a specific chain ID
+ * Used for building links to addresses, transactions, etc.
+ */
+export function getBlockscoutExplorerUrl(chainId: number): string {
+  const network = CHAIN_TO_NETWORK[chainId]
+  if (!network) {
+    throw new Error(`Unsupported chain ID: ${chainId}`)
+  }
+  return BLOCKSCOUT_EXPLORER_BASE[network]
+}
