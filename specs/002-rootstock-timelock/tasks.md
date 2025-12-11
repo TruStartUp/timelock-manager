@@ -141,7 +141,7 @@ description: 'Task list for Rootstock Timelock Management App - Blockchain Integ
 - [X] T040 [US2] Implement pre-flight permission check in useTimelockWrite.execute using useHasRole(EXECUTOR_ROLE)
 - [X] T041 [US2] Integrate useHasRole in src/components/operations_explorer/OperationsExplorerView.tsx to enable/disable Execute button based on connected wallet role
 - [X] T042 [US2] Connect Execute button in OperationsExplorerView to useTimelockWrite.execute with operation parameters (targets, values, calldata, predecessor, salt)
-- [ ] T043 [US2] Add transaction pending/success/error states to Execute button using TanStack Query mutation states
+- [X] T043 [US2] Add transaction pending/success/error states to Execute button using TanStack Query mutation states
 - [ ] T044 [US2] Implement automatic operation list refresh after successful execution using queryClient.invalidateQueries
 - [ ] T045 [US2] Add tooltip to disabled Execute button showing "Your wallet does not have the EXECUTOR_ROLE" when role check fails
 

@@ -38,6 +38,9 @@ interface OperationRowProps {
   onCancel: (id: string) => void
   hasExecutorRole: boolean
   isCheckingExecutorRole: boolean
+  isExecuting: boolean
+  isExecuteSuccess: boolean
+  isExecuteError: boolean
   getStatusColor: (status: string) => string
   getStatusTextColor: (status: string) => string
   formatTargets: (targets: string[]) => string
@@ -52,6 +55,9 @@ export const OperationRow: React.FC<OperationRowProps> = ({
   onCancel,
   hasExecutorRole,
   isCheckingExecutorRole,
+  isExecuting,
+  isExecuteSuccess,
+  isExecuteError,
   getStatusColor,
   getStatusTextColor,
   formatTargets,
@@ -162,22 +168,51 @@ export const OperationRow: React.FC<OperationRowProps> = ({
             {displayStatus === 'Ready' && (
               <>
                 <button
-                  className={`flex items-center justify-center rounded-md h-9 px-3 text-xs font-bold transition-colors ${
-                    hasExecutorRole
+                  className={`flex items-center justify-center gap-2 rounded-md h-9 px-3 text-xs font-bold transition-colors ${
+                    isExecuting
+                      ? 'bg-primary/20 text-primary cursor-wait'
+                      : isExecuteSuccess
+                      ? 'bg-green-500/20 text-green-500'
+                      : isExecuteError
+                      ? 'bg-red-500/20 text-red-500'
+                      : hasExecutorRole
                       ? 'bg-status-ready/20 text-status-ready hover:bg-status-ready/30'
                       : 'bg-border-dark text-text-dark-secondary cursor-not-allowed opacity-50'
                   }`}
-                  onClick={() => hasExecutorRole && onExecute(operation.id)}
-                  disabled={!hasExecutorRole || isCheckingExecutorRole}
+                  onClick={() => hasExecutorRole && !isExecuting && onExecute(operation.id)}
+                  disabled={!hasExecutorRole || isCheckingExecutorRole || isExecuting}
                   title={
-                    isCheckingExecutorRole
+                    isExecuting
+                      ? 'Transaction pending...'
+                      : isExecuteSuccess
+                      ? 'Execution successful!'
+                      : isExecuteError
+                      ? 'Execution failed'
+                      : isCheckingExecutorRole
                       ? 'Checking permissions...'
                       : !hasExecutorRole
                       ? 'Your wallet does not have the EXECUTOR_ROLE'
                       : 'Execute this operation'
                   }
                 >
-                  {isCheckingExecutorRole ? 'CHECKING...' : 'EXECUTE'}
+                  {isExecuting && (
+                    <div className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
+                  )}
+                  {isExecuteSuccess && (
+                    <span className="material-symbols-outlined !text-base">check_circle</span>
+                  )}
+                  {isExecuteError && (
+                    <span className="material-symbols-outlined !text-base">error</span>
+                  )}
+                  {isExecuting
+                    ? 'EXECUTING...'
+                    : isExecuteSuccess
+                    ? 'SUCCESS'
+                    : isExecuteError
+                    ? 'FAILED'
+                    : isCheckingExecutorRole
+                    ? 'CHECKING...'
+                    : 'EXECUTE'}
                 </button>
                 <button
                   className="flex items-center justify-center rounded-md h-9 px-3 bg-status-canceled/20 text-status-canceled text-xs font-bold hover:bg-status-canceled/30 transition-colors"

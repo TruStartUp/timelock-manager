@@ -328,6 +328,71 @@ const OperationsExplorerView: React.FC = () => {
           </div>
         </div>
 
+        {/* Error State - Execute Transaction Failed */}
+        {isExecuteError && executeError && (
+          <div className="rounded-lg border border-red-500/50 bg-red-500/10 p-6">
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0">
+                <span className="material-symbols-outlined text-red-500 text-3xl">
+                  error
+                </span>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-red-500 font-bold text-lg mb-2">
+                  Execution Failed
+                </h3>
+                <p className="text-text-dark-primary text-sm mb-2">
+                  The operation execution transaction failed. This could be due to:
+                </p>
+                <ul className="text-text-dark-secondary text-sm list-disc list-inside mb-4 space-y-1">
+                  <li>Insufficient permissions (missing EXECUTOR_ROLE)</li>
+                  <li>Operation not yet ready (ETA not reached)</li>
+                  <li>Network congestion or gas issues</li>
+                  <li>Contract state changed since operation was scheduled</li>
+                </ul>
+                <details className="text-text-dark-secondary text-xs font-mono bg-background-dark p-3 rounded">
+                  <summary className="cursor-pointer font-bold mb-2">Error Details</summary>
+                  <pre className="whitespace-pre-wrap break-words">{executeError.message}</pre>
+                </details>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Success State - Execute Transaction Succeeded */}
+        {isExecuteSuccess && executeTxHash && (
+          <div className="rounded-lg border border-green-500/50 bg-green-500/10 p-6">
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0">
+                <span className="material-symbols-outlined text-green-500 text-3xl">
+                  check_circle
+                </span>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-green-500 font-bold text-lg mb-2">
+                  Execution Successful!
+                </h3>
+                <p className="text-text-dark-primary text-sm mb-4">
+                  The operation has been executed successfully. The transaction has been confirmed on the blockchain.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <a
+                    href={`https://explorer.testnet.rsk.co/tx/${executeTxHash}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 rounded-md px-4 py-2 bg-green-500/20 text-green-500 text-sm font-medium hover:bg-green-500/30 transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-base">
+                      open_in_new
+                    </span>
+                    View Transaction
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Error State - Subgraph Unavailable */}
         {isError && (
           <div className="rounded-lg border border-yellow-500/50 bg-yellow-500/10 p-6">
@@ -454,6 +519,9 @@ const OperationsExplorerView: React.FC = () => {
                   onCancel={handleCancel}
                   hasExecutorRole={hasExecutorRole}
                   isCheckingExecutorRole={isCheckingExecutorRole}
+                  isExecuting={isExecuting}
+                  isExecuteSuccess={isExecuteSuccess}
+                  isExecuteError={isExecuteError}
                   getStatusColor={getStatusColor}
                   getStatusTextColor={getStatusTextColor}
                   formatTargets={formatTargets}
