@@ -1,7 +1,9 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { expect, test, describe, vi } from 'vitest'
+import { expect, test, describe, vi, beforeEach } from 'vitest'
 import NewProposalView from '@/components/new_proposal/NewProposalView'
 import React from 'react'
+
+const mockSchedule = vi.fn()
 
 const MOCK_ABI = [
   {
@@ -28,6 +30,13 @@ const MOCK_ABI = [
     ],
     outputs: [],
   },
+  {
+    type: 'function',
+    name: 'updateDelay',
+    stateMutability: 'nonpayable',
+    inputs: [{ name: 'newDelay', type: 'uint256' }],
+    outputs: [],
+  },
 ]
 
 vi.mock('wagmi', () => ({
@@ -52,19 +61,23 @@ vi.mock('@/hooks/useContractABI', () => ({
 
 vi.mock('@/hooks/useTimelockWrite', () => ({
   useTimelockWrite: () => ({
-    schedule: vi.fn(),
+    schedule: mockSchedule,
     isPending: false,
     isSuccess: false,
     isError: false,
     error: null,
     txHash: undefined,
-    minDelay: 0n,
+    minDelay: BigInt(0),
     hasProposerRole: true,
     reset: vi.fn(),
   }),
 }))
 
 describe('NewProposalView', () => {
+  beforeEach(() => {
+    mockSchedule.mockClear()
+  })
+
   test('renders sidebar navigation correctly', () => {
     render(<NewProposalView />)
 
@@ -217,6 +230,91 @@ describe('NewProposalView', () => {
       /Encoded calldata preview/i
     ) as HTMLTextAreaElement
     expect(calldataBox.value.startsWith('0x')).toBe(true)
+  })
+
+  test('requires CONFIRM for high-risk functions before enabling Submit', async () => {
+    render(<NewProposalView />)
+
+    // Go to Step 2
+    fireEvent.click(screen.getByText(/2\. Function/i))
+    await screen.findByText(/Select Function/i)
+
+    // Select high-risk function and fill inputs
+    fireEvent.change(screen.getByRole('combobox'), {
+      target: { value: 'updateDelay(uint256)' },
+    })
+    fireEvent.change(await screen.findByLabelText(/newDelay \(uint256\)/i), {
+      target: { value: '123' },
+    })
+
+    // Advance to Step 3
+    fireEvent.click(screen.getByRole('button', { name: /Next: Review/i }))
+    await screen.findByText(/Step 3: Review Operation/i)
+
+    // CONFIRM gate visible and Submit disabled
+    expect(screen.getByText(/High-risk function detected/i)).toBeInTheDocument()
+    const submit = screen.getByRole('button', { name: /^Submit$/i })
+    expect(submit).toBeDisabled()
+
+    // Type wrong text -> still disabled
+    fireEvent.change(screen.getByLabelText(/Type CONFIRM to enable Submit/i), {
+      target: { value: 'confirm' },
+    })
+    expect(submit).toBeDisabled()
+
+    // Type exact CONFIRM -> enabled
+    fireEvent.change(screen.getByLabelText(/Type CONFIRM to enable Submit/i), {
+      target: { value: 'CONFIRM' },
+    })
+    expect(submit).toBeDisabled() // still disabled until required fields for scheduling are filled
+  })
+
+  test('submits schedule via useTimelockWrite.schedule with validated params', async () => {
+    render(<NewProposalView />)
+
+    // Step 1: set target contract and fetch ABI (auto-advances to Step 2)
+    fireEvent.change(screen.getByLabelText(/Target Contract Address/i), {
+      target: { value: '0x0000000000000000000000000000000000000002' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Fetch ABI/i }))
+    await screen.findByText(/Select Function/i)
+
+    // Select transfer and fill inputs
+    fireEvent.change(screen.getByRole('combobox'), {
+      target: { value: 'transfer(address,uint256)' },
+    })
+    fireEvent.change(await screen.findByLabelText(/to \(address\)/i), {
+      target: { value: '0x0000000000000000000000000000000000000004' },
+    })
+    fireEvent.change(screen.getByLabelText(/amount \(uint256\)/i), {
+      target: { value: '1' },
+    })
+
+    // Advance to Step 3
+    fireEvent.click(screen.getByRole('button', { name: /Next: Review/i }))
+    await screen.findByText(/Step 3: Review Operation/i)
+
+    // Fill timelock address + delay so Submit is enabled
+    fireEvent.change(screen.getByLabelText(/Timelock Controller Address/i), {
+      target: { value: '0x0000000000000000000000000000000000000009' },
+    })
+    fireEvent.change(screen.getByLabelText(/Delay \(seconds\)/i), {
+      target: { value: '86400' },
+    })
+
+    const submit = screen.getByRole('button', { name: /^Submit$/i })
+    expect(submit).not.toBeDisabled()
+
+    fireEvent.click(submit)
+
+    expect(mockSchedule).toHaveBeenCalledTimes(1)
+    const arg = mockSchedule.mock.calls[0][0]
+    expect(arg.target).toMatch(/^0x/i)
+    expect(arg.value).toBe(BigInt(0))
+    expect(arg.data.startsWith('0x')).toBe(true)
+    expect(arg.predecessor.startsWith('0x')).toBe(true)
+    expect(arg.salt.startsWith('0x')).toBe(true)
+    expect(arg.delay).toBe(BigInt(86400))
   })
 
   test('allows input in contract address field', () => {

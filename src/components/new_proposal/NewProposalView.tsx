@@ -1,5 +1,13 @@
 import React, { useMemo, useState, useEffect } from 'react'
-import { isAddress, type Address, encodeFunctionData, keccak256, toBytes } from 'viem'
+import {
+  BaseError,
+  ContractFunctionRevertedError,
+  isAddress,
+  type Address,
+  encodeFunctionData,
+  keccak256,
+  toBytes,
+} from 'viem'
 import { useAccount } from 'wagmi'
 import { useContractABI } from '@/hooks/useContractABI'
 import { useTimelockWrite } from '@/hooks/useTimelockWrite'
@@ -39,6 +47,8 @@ const NewProposalView: React.FC = () => {
     predecessor: '0x0000000000000000000000000000000000000000000000000000000000000000' as `0x${string}`,
     salt: '' as `0x${string}`, // will generate random
   })
+  // T066: High-risk confirmation gate
+  const [confirmText, setConfirmText] = useState('')
   const [reviewData, setReviewData] = useState<{
     functionName: string
     signature: string
@@ -105,6 +115,8 @@ const NewProposalView: React.FC = () => {
     timelockController: timelockAddress,
     account: connectedAddress,
   })
+
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
   // Trigger refetch when addressToFetch changes (user clicked Fetch ABI)
   useEffect(() => {
@@ -228,6 +240,18 @@ const NewProposalView: React.FC = () => {
     )
   }, [fetchedABIData, selectedFunction])
 
+  const isHighRiskFunction = useMemo(() => {
+    const fromReview = (reviewData?.functionName || '').toString()
+    const fromSelected = selectedFunction ? selectedFunction.split('(')[0] : ''
+    const name = (fromReview || fromSelected).toLowerCase()
+    return (
+      name === 'upgradeto' ||
+      name === 'transferownership' ||
+      name === 'setadmin' ||
+      name === 'updatedelay'
+    )
+  }, [reviewData?.functionName, selectedFunction])
+
   // T063: Generate Zod schema from function inputs
   const functionFormSchema = useMemo(() => {
     if (!selectedFunctionABI || !(selectedFunctionABI as any).inputs) {
@@ -321,6 +345,66 @@ const NewProposalView: React.FC = () => {
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1)
     }
+  }
+
+  const handleSubmitSchedule = () => {
+    setSubmitError(null)
+
+    if (!hasProposerRole) {
+      setSubmitError('Your wallet does not have the PROPOSER_ROLE.')
+      return
+    }
+
+    if (
+      !contractAddress ||
+      !isAddress(contractAddress, {
+        strict: false,
+      })
+    ) {
+      setSubmitError('Enter a valid target contract address (Step 1).')
+      return
+    }
+
+    if (!normalizedTimelockController) {
+      setSubmitError('Enter a valid Timelock Controller address.')
+      return
+    }
+
+    // Wait for minDelay to be fetched so we can validate before submitting.
+    if (typeof minDelay !== 'bigint') {
+      setSubmitError('Fetching contract minDelay… please wait.')
+      return
+    }
+
+    if (!reviewData?.calldata) {
+      setSubmitError('Unable to encode calldata. Please review your inputs.')
+      return
+    }
+
+    let delay: bigint
+    try {
+      delay = BigInt(operationParams.delay)
+    } catch {
+      setSubmitError('Delay must be a valid integer (in seconds).')
+      return
+    }
+
+    if (typeof minDelay === 'bigint' && delay < minDelay) {
+      setSubmitError(
+        `Delay must be at least the contract minimum (${minDelay.toString()}s).`
+      )
+      return
+    }
+
+    // Single-call scheduling (T067)
+    schedule({
+      target: contractAddress.trim().replace(/^0X/, '0x').toLowerCase() as Address,
+      value: BigInt(0),
+      data: reviewData.calldata,
+      predecessor: operationParams.predecessor,
+      salt: operationParams.salt,
+      delay,
+    })
   }
 
   // Handler for Next button
@@ -457,6 +541,44 @@ const NewProposalView: React.FC = () => {
       )
     }
   }
+
+  const friendlyScheduleError = useMemo(() => {
+    if (!scheduleError) return null
+
+    const base = scheduleError as unknown
+    if (!(base instanceof BaseError)) {
+      return scheduleError instanceof Error ? scheduleError.message : String(scheduleError)
+    }
+
+    // Try to decode a contract revert (custom errors are present in TimelockController ABI)
+    const revert = base.walk(
+      (err) => err instanceof ContractFunctionRevertedError
+    ) as ContractFunctionRevertedError | undefined
+
+    if (revert instanceof ContractFunctionRevertedError) {
+      const errorName = (revert.data as any)?.errorName as string | undefined
+      const args = (revert.data as any)?.args as unknown[] | undefined
+
+      if (errorName === 'TimelockInsufficientDelay') {
+        const [delayArg, minDelayArg] = (args ?? []) as [bigint?, bigint?]
+        return `Delay is too small. Provided ${
+          delayArg !== undefined ? delayArg.toString() : '—'
+        }s, but the contract requires at least ${
+          minDelayArg !== undefined ? minDelayArg.toString() : '—'
+        }s.`
+      }
+
+      if (errorName === 'TimelockUnauthorizedCaller') {
+        return 'Unauthorized caller. Your wallet likely does not have PROPOSER_ROLE on this TimelockController.'
+      }
+
+      if (errorName) {
+        return `Transaction reverted: ${errorName}`
+      }
+    }
+
+    return base.shortMessage || base.message
+  }, [scheduleError])
 
   return (
     <div className="flex min-h-screen">
@@ -813,10 +935,36 @@ const NewProposalView: React.FC = () => {
                   <p className="text-text-primary text-base font-medium leading-normal">
                     Summary
                   </p>
-                  <p className="text-text-secondary text-sm leading-normal break-words">
+                  <p className="text-text-secondary text-sm leading-normal wrap-break-word">
                     {contractAddress || '0x…'}.{reviewData?.signature || '…'}
                   </p>
                 </div>
+
+                {/* T066: High-risk confirmation gate */}
+                {isHighRiskFunction && (
+                  <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
+                    <p className="text-yellow-400 text-sm font-medium">
+                      High-risk function detected
+                    </p>
+                    <p className="text-text-secondary text-sm mt-1">
+                      This function is commonly used for upgrades/admin changes.
+                      To proceed, type <span className="font-mono">CONFIRM</span>{' '}
+                      below.
+                    </p>
+                    <label className="flex flex-col mt-4">
+                      <span className="text-text-primary text-sm font-medium pb-2">
+                        Type CONFIRM to enable Submit
+                      </span>
+                      <input
+                        className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded text-text-primary focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-yellow-500/40 bg-background h-14 placeholder:text-text-secondary p-[15px] text-base font-normal leading-normal font-mono"
+                        placeholder="CONFIRM"
+                        type="text"
+                        value={confirmText}
+                        onChange={(e) => setConfirmText(e.target.value)}
+                      />
+                    </label>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                   <label className="flex flex-col w-full">
@@ -865,10 +1013,11 @@ const NewProposalView: React.FC = () => {
                     />
                     <p className="text-text-secondary text-xs mt-2">
                       Contract minDelay:{' '}
-                      {typeof minDelay === 'bigint' &&
-                      normalizedTimelockController
-                        ? `${minDelay.toString()}s`
-                        : '—'}
+                      {!normalizedTimelockController
+                        ? '—'
+                        : typeof minDelay === 'bigint'
+                          ? `${minDelay.toString()}s`
+                          : 'Fetching…'}
                     </p>
                   </label>
 
@@ -909,6 +1058,19 @@ const NewProposalView: React.FC = () => {
                   </label>
                 </div>
 
+                {submitError && (
+                  <div className="bg-red-500/10 border border-red-500/30 rounded p-4">
+                    <p className="text-red-400 text-sm">{submitError}</p>
+                  </div>
+                )}
+                {isScheduleError && scheduleError && (
+                  <div className="bg-red-500/10 border border-red-500/30 rounded p-4">
+                    <p className="text-red-400 text-sm">
+                      {friendlyScheduleError || 'Scheduling failed'}
+                    </p>
+                  </div>
+                )}
+
                 <div className="flex flex-col gap-2">
                   <p className="text-text-primary text-base font-medium leading-normal">
                     Parameters (decoded)
@@ -937,13 +1099,13 @@ const NewProposalView: React.FC = () => {
                               key={`${name}-${index}`}
                               className="grid grid-cols-3 gap-2 px-4 py-3 text-sm"
                             >
-                              <div className="text-text-primary break-words">
+                              <div className="text-text-primary wrap-break-word">
                                 {name}
                               </div>
-                              <div className="text-text-secondary break-words">
+                              <div className="text-text-secondary wrap-break-word">
                                 {type}
                               </div>
-                              <div className="text-text-primary font-mono break-words">
+                              <div className="text-text-primary font-mono wrap-break-word">
                                 {valueStr}
                               </div>
                             </div>
@@ -979,10 +1141,27 @@ const NewProposalView: React.FC = () => {
                   <span className="truncate">Back</span>
                 </button>
                 <button
-                  className="flex min-w-[84px] cursor-not-allowed items-center justify-center overflow-hidden rounded-full h-12 px-6 bg-primary text-black text-sm font-bold leading-normal tracking-[0.015em] opacity-50"
-                  disabled
+                  className={`flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-12 px-6 bg-primary text-black text-sm font-bold leading-normal tracking-[0.015em] ${
+                    isHighRiskFunction && confirmText !== 'CONFIRM'
+                      ? 'opacity-50 cursor-not-allowed'
+                      : 'hover:bg-primary/90 transition-colors'
+                  }`}
+                  disabled={
+                    isPending ||
+                    !reviewData?.calldata ||
+                    !normalizedTimelockController ||
+                    !operationParams.delay ||
+                    !contractAddress ||
+                    !isAddress(contractAddress, { strict: false }) ||
+                    typeof minDelay !== 'bigint' ||
+                    !hasProposerRole ||
+                    (isHighRiskFunction && confirmText !== 'CONFIRM')
+                  }
+                  onClick={handleSubmitSchedule}
                 >
-                  <span className="truncate">Submit</span>
+                  <span className="truncate">
+                    {isPending ? 'Submitting…' : 'Submit'}
+                  </span>
                 </button>
               </div>
             </div>
