@@ -8,9 +8,13 @@
  * Implements T059: PROPOSER_ROLE pre-flight permission check
  */
 
-import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
+import {
+  useWriteContract,
+  useWaitForTransactionReceipt,
+  useReadContract,
+} from 'wagmi'
 import TimelockControllerABI from '@/lib/abis/TimelockController.json'
-import { TIMELOCK_ROLES } from '@/lib/constants'
+import { TIMELOCK_ROLES, CACHE_TTL } from '@/lib/constants'
 import { useHasRole } from '@/hooks/useHasRole'
 import { type Address } from 'viem'
 
@@ -203,6 +207,12 @@ export interface UseTimelockWriteResult {
   isCheckingRole: boolean
 
   /**
+   * Minimum delay in seconds required by the contract
+   * Used for delay validation before scheduling operations (T060)
+   */
+  minDelay: bigint | undefined
+
+  /**
    * Reset the mutation state
    */
   reset: () => void
@@ -305,6 +315,17 @@ export function useTimelockWrite({
     account,
   })
 
+  // Fetch minimum delay for delay validation (T060)
+  const { data: minDelay } = useReadContract({
+    address: timelockController,
+    abi: TimelockControllerABI,
+    functionName: 'getMinDelay',
+    query: {
+      staleTime: CACHE_TTL.ROLE, // 5 minutes cache
+      enabled: !!timelockController,
+    },
+  })
+
   const {
     writeContract,
     data: txHash,
@@ -369,11 +390,26 @@ export function useTimelockWrite({
    * Schedule a new operation
    * Automatically detects single vs batch based on parameters
    * Pre-flight check: blocks scheduling if account lacks PROPOSER_ROLE
+   * Pre-flight check: blocks scheduling if delay < minDelay (T060)
    */
   const schedule = (params: ScheduleOperationParams | ScheduleBatchParams) => {
     // Pre-flight permission check (T059)
     if (!hasProposerRole) {
       console.warn('Schedule blocked: Account lacks PROPOSER_ROLE')
+      return
+    }
+
+    // Pre-flight delay validation (T060)
+    const userDelay = params.delay
+    if (
+      minDelay !== undefined &&
+      minDelay !== null &&
+      typeof minDelay === 'bigint' &&
+      userDelay < minDelay
+    ) {
+      console.error(
+        `Schedule blocked: Delay ${userDelay.toString()}s is less than contract minimum ${minDelay.toString()}s`
+      )
       return
     }
 
@@ -421,6 +457,7 @@ export function useTimelockWrite({
     hasExecutorRole,
     hasProposerRole,
     isCheckingRole: isCheckingExecutorRole || isCheckingProposerRole,
+    minDelay: typeof minDelay === 'bigint' ? minDelay : undefined,
     reset,
   }
 }

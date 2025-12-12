@@ -206,11 +206,11 @@ description: 'Task list for Rootstock Timelock Management App - Blockchain Integ
 - [X] T057 [US4] Implement proxy detection in useContractABI using evm-proxy-detection library for EIP-1967/EIP-1822/EIP-1167 from research.md Section 2
 - [X] T058 [US4] Add schedule mutation to useTimelockWrite hook in src/hooks/useTimelockWrite.ts using wagmi useWriteContract for schedule() and scheduleBatch()
 - [X] T059 [US4] Implement pre-flight permission check in useTimelockWrite.schedule using useHasRole(PROPOSER_ROLE)
-- [ ] T060 [US4] Implement pre-flight delay validation in useTimelockWrite.schedule comparing user delay with getMinDelay() result
-- [ ] T061 [US4] Integrate useContractABI in src/components/new_proposal/NewProposalView.tsx Step 1 to fetch ABI on "Fetch ABI" button click
-- [ ] T062 [US4] Display manual ABI input modal in NewProposalView when useContractABI returns confidence=null (unverified contract)
-- [ ] T063 [US4] Generate dynamic form fields in NewProposalView Step 2 using React Hook Form + Zod validators for each function parameter type from ABI
-- [ ] T064 [US4] Implement function selector dropdown in NewProposalView Step 2 showing all functions from fetched ABI
+- [X] T060 [US4] Implement pre-flight delay validation in useTimelockWrite.schedule comparing user delay with getMinDelay() result
+- [X] T061 [US4] Integrate useContractABI in src/components/new_proposal/NewProposalView.tsx Step 1 to fetch ABI on "Fetch ABI" button click
+- [X] T062 [US4] Display manual ABI input modal in NewProposalView when useContractABI returns confidence=null (unverified contract)
+- [X] T063 [US4] Generate dynamic form fields in NewProposalView Step 2 using React Hook Form + Zod validators for each function parameter type from ABI
+- [X] T064 [US4] Implement function selector dropdown in NewProposalView Step 2 showing all functions from fetched ABI
 - [ ] T065 [US4] Build Step 3 review screen in NewProposalView showing human-readable summary (target.function(args)), delay, minDelay, predecessor, salt, encoded calldata preview
 - [ ] T066 [US4] Add high-risk function detection in NewProposalView Step 3 for upgradeTo, transferOwnership, setAdmin, updateDelay requiring "CONFIRM" text input
 - [ ] T067 [US4] Connect Submit button in NewProposalView Step 3 to useTimelockWrite.schedule with all parameters (target, value, data, predecessor, salt, delay)

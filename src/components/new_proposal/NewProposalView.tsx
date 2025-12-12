@@ -1,6 +1,12 @@
 import React, { useMemo, useState, useEffect } from 'react'
-import { isAddress, type Address } from 'viem'
+import { isAddress, type Address, encodeFunctionData, keccak256, toBytes } from 'viem'
+import { useAccount } from 'wagmi'
 import { useContractABI } from '@/hooks/useContractABI'
+import { useTimelockWrite } from '@/hooks/useTimelockWrite'
+import { useForm, Controller } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
+import { parseABITypeToZod } from '@/lib/validation'
 
 const NewProposalView: React.FC = () => {
   // State for wizard steps
@@ -9,13 +15,31 @@ const NewProposalView: React.FC = () => {
   const [addressToFetch, setAddressToFetch] = useState<Address | undefined>()
   const [fetchError, setFetchError] = useState<string | null>(null)
   const [hasAttemptedFetch, setHasAttemptedFetch] = useState(false)
-  const [selectedFunction, setSelectedFunction] = useState(
-    'transfer(address to, uint256 amount)'
-  )
-  const [functionParams, setFunctionParams] = useState({
-    to: '',
-    amount: '',
+  // Keep empty by default so we can auto-select the first available write function once ABI loads.
+  const [selectedFunction, setSelectedFunction] = useState('')
+
+  // T061: State to store fetched ABI result persistently across steps
+  const [fetchedABIData, setFetchedABIData] = useState<{
+    abi: unknown[]
+    source: string
+    confidence: string
+    isProxy: boolean
+    implementationAddress?: Address
+  } | null>(null)
+
+  // T062: State for manual ABI modal
+  const [showManualABIModal, setShowManualABIModal] = useState(false)
+  const [manualABIInput, setManualABIInput] = useState('')
+  const [manualABIError, setManualABIError] = useState<string | null>(null)
+
+  // T065: Step 3 review state
+  const [operationParams, setOperationParams] = useState({
+    delay: '', // in seconds
+    predecessor: '0x0000000000000000000000000000000000000000000000000000000000000000' as `0x${string}`,
+    salt: '' as `0x${string}`, // will generate random
   })
+  const [submissionSuccess, setSubmissionSuccess] = useState(false)
+  const [operationId, setOperationId] = useState<string | null>(null)
 
   const {
     abi,
@@ -31,6 +55,28 @@ const NewProposalView: React.FC = () => {
     enabled: !!addressToFetch,
   })
 
+  // T065: Get connected wallet address
+  const { address: connectedAddress } = useAccount()
+
+  // T065: Hook for scheduling operations (assumes contractAddress is the timelock)
+  // Note: In production, you'd have a separate input for timelock address
+  const timelockAddress = contractAddress as Address
+
+  const {
+    schedule,
+    isPending,
+    isSuccess,
+    isError: isScheduleError,
+    error: scheduleError,
+    txHash,
+    minDelay,
+    hasProposerRole,
+    reset: resetSchedule,
+  } = useTimelockWrite({
+    timelockController: timelockAddress,
+    account: connectedAddress,
+  })
+
   // Trigger refetch when addressToFetch changes (user clicked Fetch ABI)
   useEffect(() => {
     if (addressToFetch && hasAttemptedFetch) {
@@ -38,15 +84,176 @@ const NewProposalView: React.FC = () => {
     }
   }, [addressToFetch, hasAttemptedFetch, refetchABI])
 
+  // T061: Store successful ABI fetch for use in later steps
+  useEffect(() => {
+    if (abi && abi.length > 0 && !isAbiLoading && !isAbiError) {
+      setFetchedABIData({
+        abi,
+        source: source || 'unknown',
+        confidence: confidence || 'low',
+        isProxy: isProxy || false,
+        implementationAddress,
+      })
+    } else if (
+      !isAbiLoading &&
+      hasAttemptedFetch &&
+      addressToFetch &&
+      (!abi || abi.length === 0)
+    ) {
+      // T062: Unverified contract - show manual ABI modal
+      setShowManualABIModal(true)
+    }
+  }, [abi, source, confidence, isProxy, implementationAddress, isAbiLoading, isAbiError, hasAttemptedFetch, addressToFetch])
+
   const functionCount = useMemo(() => {
     if (!abi || abi.length === 0) return 0
     return abi.filter((item: any) => item?.type === 'function').length
   }, [abi])
 
+  // T064: Extract all functions from ABI for function selector dropdown
+  const availableFunctions = useMemo(() => {
+    if (!fetchedABIData || !fetchedABIData.abi) return []
+
+    return fetchedABIData.abi
+      // Only allow write functions for proposal scheduling (T063):
+      // - Exclude read-only functions (view/pure)
+      .filter((item: any) => {
+        if (item?.type !== 'function') return false
+        const mutability = item?.stateMutability
+        return mutability !== 'view' && mutability !== 'pure'
+      })
+      .map((func: any) => {
+        // Generate function signature: "functionName(type1,type2,...)"
+        const params =
+          func.inputs?.map((input: any) => input.type).join(',') || ''
+        const signature = `${func.name}(${params})`
+
+        return {
+          name: func.name,
+          signature,
+          inputs: func.inputs || [],
+        }
+      })
+      .sort((a, b) => a.name.localeCompare(b.name)) // Sort alphabetically
+  }, [fetchedABIData])
+
+  // T064: Auto-select first function when ABI loads
+  useEffect(() => {
+    if (availableFunctions.length > 0 && !selectedFunction) {
+      setSelectedFunction(availableFunctions[0].signature)
+    }
+  }, [availableFunctions, selectedFunction])
+
+  // T063: Parse selected function from ABI
+  const selectedFunctionABI = useMemo(() => {
+    if (!fetchedABIData || !fetchedABIData.abi) return null
+    if (!selectedFunction) return null
+
+    // Extract function name + type list from selectedFunction (e.g., "transfer(address,uint256)")
+    const match = selectedFunction.match(/^([^(]+)\((.*)\)$/)
+    if (!match) return null
+    const functionName = match[1]
+    const typeList = match[2] ?? ''
+    const normalizedTypeList = typeList
+      .split(',')
+      .map((t) => t.trim())
+      .filter(Boolean)
+      .join(',')
+
+    return fetchedABIData.abi.find(
+      (item: any) => {
+        if (item?.type !== 'function') return false
+
+        // Match function name and full input type list to handle overloads.
+        const itemTypeList = (item?.inputs ?? [])
+          .map((input: any) => input?.type)
+          .filter(Boolean)
+          .join(',')
+
+        // Only allow write functions (T063)
+        const mutability = item?.stateMutability
+        const isWrite = mutability !== 'view' && mutability !== 'pure'
+
+        return (
+          isWrite &&
+          item?.name === functionName &&
+          itemTypeList === normalizedTypeList
+        )
+      }
+    )
+  }, [fetchedABIData, selectedFunction])
+
+  // T063: Generate Zod schema from function inputs
+  const functionFormSchema = useMemo(() => {
+    if (!selectedFunctionABI || !(selectedFunctionABI as any).inputs) {
+      return z.object({})
+    }
+
+    const schemaFields: Record<string, z.ZodTypeAny> = {}
+    const inputs = (selectedFunctionABI as any).inputs
+
+    inputs.forEach((input: any) => {
+      const inputName = input.name || `param${input.index || 0}`
+      const inputType = input.type
+
+      try {
+        schemaFields[inputName] = parseABITypeToZod(inputType)
+      } catch (err) {
+        console.warn(`Failed to parse type ${inputType} for ${inputName}:`, err)
+        // Fallback to string validation
+        schemaFields[inputName] = z.string()
+      }
+    })
+
+    return z.object(schemaFields)
+  }, [selectedFunctionABI])
+
+  // T063: Initialize form with Zod validation
+  const {
+    control,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm({
+    resolver: zodResolver(functionFormSchema),
+    defaultValues: {},
+  })
+
+  // T063: Reset form when function changes
+  useEffect(() => {
+    if (selectedFunctionABI && (selectedFunctionABI as any).inputs) {
+      const defaultValues: Record<string, string> = {}
+      const inputs = (selectedFunctionABI as any).inputs
+      inputs.forEach((input: any) => {
+        const inputName = input.name || `param${input.index || 0}`
+        defaultValues[inputName] = ''
+      })
+      reset(defaultValues)
+    }
+  }, [selectedFunctionABI, reset])
+
+  // T063: Helper to generate appropriate placeholder based on Solidity type
+  const getPlaceholderForType = (type: string): string => {
+    if (type.startsWith('uint') || type.startsWith('int')) {
+      return '123'
+    } else if (type === 'address') {
+      return '0x...'
+    } else if (type.startsWith('bytes')) {
+      return '0x1234...'
+    } else if (type === 'bool') {
+      return 'true or false'
+    } else if (type === 'string') {
+      return 'Enter text'
+    } else {
+      return `Enter ${type} value`
+    }
+  }
+
   // Handler for Fetch ABI button
   const handleFetchAbi = () => {
     setFetchError(null)
     setHasAttemptedFetch(true)
+    setFetchedABIData(null) // T061: Reset ABI data on new fetch
 
     if (
       !contractAddress ||
@@ -73,17 +280,88 @@ const NewProposalView: React.FC = () => {
 
   // Handler for Next button
   const handleNext = () => {
-    if (currentStep < 3) {
+    if (currentStep === 2) {
+      // T065: Moving from Step 2 to Step 3 - validate form and prepare operation
+      handleSubmit((data) => {
+        // data contains validated form values
+
+        // Generate random salt if not set
+        if (!operationParams.salt) {
+          const randomSalt = keccak256(
+            toBytes(
+              `${Date.now()}-${Math.random()}-${connectedAddress || 'unknown'}`
+            )
+          ) as `0x${string}`
+          setOperationParams(prev => ({
+            ...prev,
+            salt: randomSalt,
+          }))
+        }
+
+        setCurrentStep(3)
+      })()
+    } else if (currentStep < 3) {
       setCurrentStep(currentStep + 1)
     }
   }
 
-  // Handler for function parameter changes
-  const handleParamChange = (paramName: string, value: string) => {
-    setFunctionParams({
-      ...functionParams,
-      [paramName]: value,
-    })
+  // T062: Handler for manual ABI submission
+  const handleManualABISubmit = () => {
+    setManualABIError(null)
+
+    try {
+      // Parse and validate JSON
+      const parsedABI = JSON.parse(manualABIInput)
+
+      // Validate it's an array
+      if (!Array.isArray(parsedABI)) {
+        setManualABIError('ABI must be a JSON array')
+        return
+      }
+
+      // Validate it contains function entries
+      const hasFunctions = parsedABI.some(
+        (item: any) => item?.type === 'function'
+      )
+      if (!hasFunctions) {
+        setManualABIError('ABI must contain at least one function definition')
+        return
+      }
+
+      // Store manual ABI in state
+      setFetchedABIData({
+        abi: parsedABI,
+        source: 'manual',
+        confidence: 'high',
+        isProxy: false,
+      })
+
+      // Store in sessionStorage for caching (as per useContractABI behavior)
+      if (addressToFetch && typeof window !== 'undefined') {
+        try {
+          const cache = JSON.parse(sessionStorage.getItem('abiCache') || '{}')
+          cache[addressToFetch] = {
+            abi: parsedABI,
+            source: 'manual',
+            confidence: 'high',
+            isProxy: false,
+            fetchedAt: new Date().toISOString(),
+            ttl: 24 * 60 * 60, // 24 hours
+          }
+          sessionStorage.setItem('abiCache', JSON.stringify(cache))
+        } catch (err) {
+          console.warn('Failed to cache manual ABI:', err)
+        }
+      }
+
+      // Close modal and clear input
+      setShowManualABIModal(false)
+      setManualABIInput('')
+    } catch (err) {
+      setManualABIError(
+        err instanceof Error ? err.message : 'Invalid JSON format'
+      )
+    }
   }
 
   return (
@@ -316,6 +594,17 @@ const NewProposalView: React.FC = () => {
                   arguments.
                 </p>
               </div>
+
+              {/* T064: Show warning if no ABI loaded */}
+              {!fetchedABIData ? (
+                <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-6">
+                  <p className="text-yellow-400 text-base">
+                    Please complete Step 1 to fetch the contract ABI before configuring
+                    the function call.
+                  </p>
+                </div>
+              ) : (
+                <>
               <div className="flex flex-col gap-6 rounded-lg border border-border-color bg-surface p-6">
                 <div className="flex flex-col w-full">
                   <p className="text-text-primary text-base font-medium leading-normal pb-2">
@@ -323,47 +612,76 @@ const NewProposalView: React.FC = () => {
                   </p>
                   <div className="relative w-full">
                     <select
-                      className="form-select w-full appearance-none rounded border border-border-color bg-background p-4 text-text-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50"
+                      className="form-select w-full appearance-none rounded border border-border-color bg-background h-14 py-[15px] pl-[15px] pr-12 text-text-primary text-base font-normal leading-normal focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50"
                       value={selectedFunction}
                       onChange={(e) => setSelectedFunction(e.target.value)}
+                      disabled={availableFunctions.length === 0}
                     >
-                      <option>transfer(address to, uint256 amount)</option>
-                      <option>setOwner(address newOwner)</option>
-                      <option>approve(address spender, uint256 amount)</option>
+                      {availableFunctions.length === 0 ? (
+                        <option>No functions available</option>
+                      ) : (
+                        availableFunctions.map((func) => (
+                          <option key={func.signature} value={func.signature}>
+                            {func.signature}
+                          </option>
+                        ))
+                      )}
                     </select>
                     <span className="material-symbols-outlined pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-text-secondary">
                       unfold_more
                     </span>
                   </div>
                 </div>
-                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                  <label className="flex flex-col w-full">
-                    <p className="text-text-primary text-base font-medium leading-normal pb-2">
-                      to (address)
+
+                {/* T063: Dynamic parameter inputs based on selected function */}
+                {selectedFunctionABI && (selectedFunctionABI as any).inputs && (selectedFunctionABI as any).inputs.length > 0 ? (
+                  <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                    {(selectedFunctionABI as any).inputs.map((input: any, index: number) => {
+                      const inputName = input.name || `param${index}`
+                      const inputType = input.type
+                      const fieldError = (errors as any)[inputName]
+
+                      return (
+                        <Controller
+                          key={`${selectedFunction}-${inputName}-${index}`}
+                          name={inputName as any}
+                          control={control as any}
+                          render={({ field }) => (
+                            <label className="flex flex-col w-full">
+                              <p className="text-text-primary text-base font-medium leading-normal pb-2">
+                                {inputName} ({inputType})
+                              </p>
+                              <input
+                                {...field}
+                                value={field.value ?? ''}
+                                className={`form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded text-text-primary focus:outline-0 focus:ring-2 focus:ring-primary/50 border ${
+                                  fieldError
+                                    ? 'border-red-500'
+                                    : 'border-border-color'
+                                } bg-background h-14 placeholder:text-text-secondary p-[15px] text-base font-normal leading-normal`}
+                                placeholder={getPlaceholderForType(inputType)}
+                                type="text"
+                              />
+                              {fieldError && (
+                                <p className="text-red-400 text-sm mt-1">
+                                  {fieldError?.message as string}
+                                </p>
+                              )}
+                            </label>
+                          )}
+                        />
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <div className="bg-background rounded p-6 text-center">
+                    <p className="text-text-secondary">
+                      {selectedFunctionABI
+                        ? 'This function has no parameters'
+                        : 'Select a function to configure parameters'}
                     </p>
-                    <input
-                      className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded text-text-primary focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-border-color bg-background h-14 placeholder:text-text-secondary p-[15px] text-base font-normal leading-normal"
-                      placeholder="0x..."
-                      type="text"
-                      value={functionParams.to}
-                      onChange={(e) => handleParamChange('to', e.target.value)}
-                    />
-                  </label>
-                  <label className="flex flex-col w-full">
-                    <p className="text-text-primary text-base font-medium leading-normal pb-2">
-                      amount (uint256)
-                    </p>
-                    <input
-                      className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded text-text-primary focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-border-color bg-background h-14 placeholder:text-text-secondary p-[15px] text-base font-normal leading-normal"
-                      placeholder="1000000000000000000"
-                      type="text"
-                      value={functionParams.amount}
-                      onChange={(e) =>
-                        handleParamChange('amount', e.target.value)
-                      }
-                    />
-                  </label>
-                </div>
+                  </div>
+                )}
               </div>
               <div className="flex items-center justify-start gap-4">
                 <button
@@ -379,10 +697,80 @@ const NewProposalView: React.FC = () => {
                   <span className="truncate">Next: Review</span>
                 </button>
               </div>
+              </>
+              )}
             </div>
           )}
         </div>
       </main>
+
+      {/* T062: Manual ABI Input Modal */}
+      {showManualABIModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-surface border border-border-color rounded-lg shadow-2xl p-8 max-w-2xl w-full mx-4 max-h-[80vh] overflow-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-text-primary text-2xl font-bold">
+                Contract Not Verified
+              </h2>
+              <button
+                onClick={() => {
+                  setShowManualABIModal(false)
+                  setManualABIInput('')
+                  setManualABIError(null)
+                }}
+                className="text-text-secondary hover:text-text-primary"
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            <p className="text-text-secondary mb-4">
+              This contract is not verified on Blockscout. Please paste the
+              contract ABI JSON to continue.
+            </p>
+
+            <label className="flex flex-col gap-2 mb-4">
+              <span className="text-text-primary font-medium">
+                Contract ABI (JSON)
+              </span>
+              <textarea
+                className="form-input w-full min-h-[300px] resize-y rounded border border-border-color bg-background p-4 text-text-primary font-mono text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                placeholder='[{"type":"function","name":"transfer","inputs":[...],...}]'
+                value={manualABIInput}
+                onChange={(e) => {
+                  setManualABIInput(e.target.value)
+                  setManualABIError(null)
+                }}
+              />
+            </label>
+
+            {manualABIError && (
+              <div className="bg-red-500/10 border border-red-500/30 rounded p-4 mb-4">
+                <p className="text-red-400 text-sm">{manualABIError}</p>
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-4">
+              <button
+                onClick={() => {
+                  setShowManualABIModal(false)
+                  setManualABIInput('')
+                  setManualABIError(null)
+                }}
+                className="px-6 py-3 rounded-full bg-surface border border-border-color text-text-primary hover:bg-border-color transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleManualABISubmit}
+                className="px-6 py-3 rounded-full bg-primary text-black font-bold hover:bg-primary/90 transition-colors"
+              >
+                Use This ABI
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -1,7 +1,68 @@
-import { render, screen, fireEvent } from '@testing-library/react'
-import { expect, test, describe } from 'vitest'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { expect, test, describe, vi } from 'vitest'
 import NewProposalView from '@/components/new_proposal/NewProposalView'
 import React from 'react'
+
+const MOCK_ABI = [
+  {
+    type: 'function',
+    name: 'owner',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'address' }],
+  },
+  {
+    type: 'function',
+    name: 'setOwner',
+    stateMutability: 'nonpayable',
+    inputs: [{ name: 'newOwner', type: 'address' }],
+    outputs: [],
+  },
+  {
+    type: 'function',
+    name: 'transfer',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'to', type: 'address' },
+      { name: 'amount', type: 'uint256' },
+    ],
+    outputs: [],
+  },
+]
+
+vi.mock('wagmi', () => ({
+  useAccount: () => ({
+    address: '0x0000000000000000000000000000000000000001',
+  }),
+}))
+
+vi.mock('@/hooks/useContractABI', () => ({
+  useContractABI: () => ({
+    abi: MOCK_ABI,
+    isProxy: false,
+    implementationAddress: undefined,
+    source: 'blockscout',
+    confidence: 'high',
+    isLoading: false,
+    isError: false,
+    error: null,
+    refetch: vi.fn(),
+  }),
+}))
+
+vi.mock('@/hooks/useTimelockWrite', () => ({
+  useTimelockWrite: () => ({
+    schedule: vi.fn(),
+    isPending: false,
+    isSuccess: false,
+    isError: false,
+    error: null,
+    txHash: undefined,
+    minDelay: 0n,
+    hasProposerRole: true,
+    reset: vi.fn(),
+  }),
+}))
 
 describe('NewProposalView', () => {
   test('renders sidebar navigation correctly', () => {
@@ -53,23 +114,20 @@ describe('NewProposalView', () => {
     ).toBeInTheDocument()
   })
 
-  test('shows success message after fetching ABI', () => {
+  test('shows ABI loaded status after fetching ABI', async () => {
     render(<NewProposalView />)
 
-    // Initially, success message should not be visible
-    expect(
-      screen.queryByText(/ABI fetched successfully!/i)
-    ).not.toBeInTheDocument()
-
-    // Click Fetch ABI button
+    // Enter valid address and click Fetch ABI
+    fireEvent.change(screen.getByLabelText(/Target Contract Address/i), {
+      target: { value: '0x0000000000000000000000000000000000000002' },
+    })
     const fetchButton = screen.getByRole('button', { name: /Fetch ABI/i })
     fireEvent.click(fetchButton)
 
-    // Success message should now be visible
-    expect(screen.getByText(/ABI fetched successfully!/i)).toBeInTheDocument()
+    await screen.findByText(/ABI loaded \(\d+ functions\)/i)
   })
 
-  test('allows navigation to Step 2', () => {
+  test('allows navigation to Step 2', async () => {
     render(<NewProposalView />)
 
     // Click on Step 2 in sidebar navigation
@@ -85,9 +143,12 @@ describe('NewProposalView', () => {
         /Select a function from the ABI and provide the required arguments/i
       )
     ).toBeInTheDocument()
+
+    // With a fetched ABI, Step 2 should show the function selector (not the warning block)
+    await screen.findByText(/Select Function/i)
   })
 
-  test('renders Step 2 content correctly', () => {
+  test('renders Step 2 content correctly (write functions only)', async () => {
     render(<NewProposalView />)
 
     // Navigate to Step 2
@@ -95,11 +156,24 @@ describe('NewProposalView', () => {
     fireEvent.click(step2Link)
 
     // Check for function selector
-    expect(screen.getByText(/Select Function/i)).toBeInTheDocument()
+    await screen.findByText(/Select Function/i)
     expect(screen.getByRole('combobox')).toBeInTheDocument()
 
-    // Check for parameter inputs
-    expect(screen.getByLabelText(/to \(address\)/i)).toBeInTheDocument()
+    // Only write functions should be selectable (T063)
+    expect(
+      screen.getByRole('option', { name: /setOwner\(address\)/i })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('option', { name: /transfer\(address,uint256\)/i })
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: /owner\(\)/i })).toBeNull()
+
+    // Select transfer and ensure dynamic fields are generated
+    fireEvent.change(screen.getByRole('combobox'), {
+      target: { value: 'transfer(address,uint256)' },
+    })
+
+    await screen.findByLabelText(/to \(address\)/i)
     expect(screen.getByLabelText(/amount \(uint256\)/i)).toBeInTheDocument()
 
     // Check for navigation buttons
@@ -120,17 +194,26 @@ describe('NewProposalView', () => {
     expect(input.value).toBe('0x1234567890abcdef')
   })
 
-  test('allows input in function parameter fields', () => {
+  test('allows input in function parameter fields', async () => {
     render(<NewProposalView />)
 
     // Navigate to Step 2
     const step2Link = screen.getByText(/2\. Function/i)
     fireEvent.click(step2Link)
 
+    await screen.findByText(/Select Function/i)
+    fireEvent.change(screen.getByRole('combobox'), {
+      target: { value: 'transfer(address,uint256)' },
+    })
+
     // Test 'to' parameter input
-    const toInput = screen.getByLabelText(/to \(address\)/i) as HTMLInputElement
-    fireEvent.change(toInput, { target: { value: '0xabcdef' } })
-    expect(toInput.value).toBe('0xabcdef')
+    const toInput = (await screen.findByLabelText(
+      /to \(address\)/i
+    )) as HTMLInputElement
+    fireEvent.change(toInput, {
+      target: { value: '0x0000000000000000000000000000000000000003' },
+    })
+    expect(toInput.value).toBe('0x0000000000000000000000000000000000000003')
 
     // Test 'amount' parameter input
     const amountInput = screen.getByLabelText(
@@ -140,22 +223,23 @@ describe('NewProposalView', () => {
     expect(amountInput.value).toBe('1000000000000000000')
   })
 
-  test('allows function selection from dropdown', () => {
+  test('allows function selection from dropdown', async () => {
     render(<NewProposalView />)
 
     // Navigate to Step 2
     const step2Link = screen.getByText(/2\. Function/i)
     fireEvent.click(step2Link)
 
+    await screen.findByText(/Select Function/i)
     const select = screen.getByRole('combobox') as HTMLSelectElement
     fireEvent.change(select, {
-      target: { value: 'setOwner(address newOwner)' },
+      target: { value: 'setOwner(address)' },
     })
 
-    expect(select.value).toBe('setOwner(address newOwner)')
+    expect(select.value).toBe('setOwner(address)')
   })
 
-  test('Back button navigates to previous step', () => {
+  test('Back button navigates to previous step', async () => {
     render(<NewProposalView />)
 
     // Navigate to Step 2
@@ -166,6 +250,7 @@ describe('NewProposalView', () => {
     expect(
       screen.getByText(/Step 2: Configure Function Call/i)
     ).toBeInTheDocument()
+    await screen.findByText(/Select Function/i)
 
     // Click Back button
     const backButton = screen.getByRole('button', { name: /^Back$/i })
@@ -180,19 +265,35 @@ describe('NewProposalView', () => {
     ).not.toBeInTheDocument()
   })
 
-  test('Next button navigates to next step', () => {
+  test('Next button navigates to next step (validates Step 2 before advancing)', async () => {
     render(<NewProposalView />)
 
     // Navigate to Step 2
     const step2Link = screen.getByText(/2\. Function/i)
     fireEvent.click(step2Link)
 
+    await screen.findByText(/Select Function/i)
+    fireEvent.change(screen.getByRole('combobox'), {
+      target: { value: 'transfer(address,uint256)' },
+    })
+
+    // Fill required params so validation passes
+    fireEvent.change(await screen.findByLabelText(/to \(address\)/i), {
+      target: { value: '0x0000000000000000000000000000000000000004' },
+    })
+    fireEvent.change(screen.getByLabelText(/amount \(uint256\)/i), {
+      target: { value: '1' },
+    })
+
     // Click Next button
     const nextButton = screen.getByRole('button', { name: /Next: Review/i })
     fireEvent.click(nextButton)
 
-    // Should now be on Step 3 (though Step 3 content is not yet implemented in the component)
-    // We can verify the step changed by checking the sidebar active state would change
-    // For now, this test verifies the button is clickable
+    // Verify Step 3 is now the active step in the sidebar
+    await waitFor(() => {
+      const step3 = screen.getByText(/3\. Review/i).closest('a')
+      expect(step3).toBeTruthy()
+      expect(step3?.className).toMatch(/bg-primary\/20/)
+    })
   })
 })

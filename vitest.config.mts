@@ -8,6 +8,8 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: './tests/setup.ts',
+    // Avoid process forking in sandboxed environments (fixes EPERM kill errors)
+    pool: 'threads',
     exclude: [
       '**/node_modules/**',
       '**/dist/**',
