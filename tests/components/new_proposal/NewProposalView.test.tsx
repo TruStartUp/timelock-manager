@@ -114,7 +114,7 @@ describe('NewProposalView', () => {
     ).toBeInTheDocument()
   })
 
-  test('shows ABI loaded status after fetching ABI', async () => {
+  test('advances to Step 2 after fetching ABI', async () => {
     render(<NewProposalView />)
 
     // Enter valid address and click Fetch ABI
@@ -124,7 +124,9 @@ describe('NewProposalView', () => {
     const fetchButton = screen.getByRole('button', { name: /Fetch ABI/i })
     fireEvent.click(fetchButton)
 
-    await screen.findByText(/ABI loaded \(\d+ functions\)/i)
+    // After successful ABI load, UX should auto-navigate to Step 2
+    await screen.findByText(/Step 2: Configure Function Call/i)
+    await screen.findByText(/Select Function/i)
   })
 
   test('allows navigation to Step 2', async () => {
@@ -181,6 +183,40 @@ describe('NewProposalView', () => {
     expect(
       screen.getByRole('button', { name: /Next: Review/i })
     ).toBeInTheDocument()
+  })
+
+  test('renders Step 3 review screen with calldata preview', async () => {
+    render(<NewProposalView />)
+
+    // Go to Step 2
+    fireEvent.click(screen.getByText(/2\. Function/i))
+    await screen.findByText(/Select Function/i)
+
+    // Select transfer and fill inputs
+    fireEvent.change(screen.getByRole('combobox'), {
+      target: { value: 'transfer(address,uint256)' },
+    })
+    fireEvent.change(await screen.findByLabelText(/to \(address\)/i), {
+      target: { value: '0x0000000000000000000000000000000000000004' },
+    })
+    fireEvent.change(screen.getByLabelText(/amount \(uint256\)/i), {
+      target: { value: '1' },
+    })
+
+    // Advance to Step 3
+    fireEvent.click(screen.getByRole('button', { name: /Next: Review/i }))
+
+    // Review screen should render
+    await screen.findByText(/Step 3: Review Operation/i)
+    expect(
+      screen.getByText(/Encoded calldata preview/i)
+    ).toBeInTheDocument()
+
+    // Calldata should be encoded (starts with 0x)
+    const calldataBox = screen.getByLabelText(
+      /Encoded calldata preview/i
+    ) as HTMLTextAreaElement
+    expect(calldataBox.value.startsWith('0x')).toBe(true)
   })
 
   test('allows input in contract address field', () => {
@@ -289,7 +325,8 @@ describe('NewProposalView', () => {
     const nextButton = screen.getByRole('button', { name: /Next: Review/i })
     fireEvent.click(nextButton)
 
-    // Verify Step 3 is now the active step in the sidebar
+    // Verify Step 3 UI is visible and sidebar highlights Step 3
+    await screen.findByText(/Step 3: Review Operation/i)
     await waitFor(() => {
       const step3 = screen.getByText(/3\. Review/i).closest('a')
       expect(step3).toBeTruthy()

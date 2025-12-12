@@ -35,11 +35,17 @@ const NewProposalView: React.FC = () => {
   // T065: Step 3 review state
   const [operationParams, setOperationParams] = useState({
     delay: '', // in seconds
+    timelockController: '', // contract that schedules the operation
     predecessor: '0x0000000000000000000000000000000000000000000000000000000000000000' as `0x${string}`,
     salt: '' as `0x${string}`, // will generate random
   })
-  const [submissionSuccess, setSubmissionSuccess] = useState(false)
-  const [operationId, setOperationId] = useState<string | null>(null)
+  const [reviewData, setReviewData] = useState<{
+    functionName: string
+    signature: string
+    argsByName: Record<string, unknown>
+    argsInOrder: unknown[]
+    calldata: `0x${string}` | null
+  } | null>(null)
 
   const {
     abi,
@@ -58,9 +64,32 @@ const NewProposalView: React.FC = () => {
   // T065: Get connected wallet address
   const { address: connectedAddress } = useAccount()
 
-  // T065: Hook for scheduling operations (assumes contractAddress is the timelock)
-  // Note: In production, you'd have a separate input for timelock address
-  const timelockAddress = contractAddress as Address
+  const normalizeBytes32 = (value: string): `0x${string}` => {
+    const v = value.trim().replace(/^0X/, '0x').toLowerCase()
+    if (!v.startsWith('0x')) return `0x${value}` as `0x${string}`
+    const hex = v.slice(2).replace(/[^0-9a-f]/g, '')
+    const padded = hex.padStart(64, '0').slice(-64)
+    return (`0x${padded}`) as `0x${string}`
+  }
+
+  const normalizedTimelockController = useMemo(() => {
+    const v = operationParams.timelockController.trim()
+    if (!v) return undefined
+    if (
+      !isAddress(v, {
+        // Rootstock addresses may not be checksummed; accept and normalize.
+        strict: false,
+      })
+    ) {
+      return undefined
+    }
+    return v.trim().replace(/^0X/, '0x').toLowerCase() as Address
+  }, [operationParams.timelockController])
+
+  // TimelockController address used to query minDelay and schedule operations.
+  // Note: Step 1 is the *target contract* for ABI. TimelockController is a separate contract.
+  const timelockAddress = (normalizedTimelockController ||
+    '0x0000000000000000000000000000000000000000') as Address
 
   const {
     schedule,
@@ -94,6 +123,11 @@ const NewProposalView: React.FC = () => {
         isProxy: isProxy || false,
         implementationAddress,
       })
+
+      // UX: after an explicit Fetch ABI succeeds, automatically advance to Step 2.
+      if (hasAttemptedFetch && currentStep === 1) {
+        setCurrentStep(2)
+      }
     } else if (
       !isAbiLoading &&
       hasAttemptedFetch &&
@@ -103,7 +137,18 @@ const NewProposalView: React.FC = () => {
       // T062: Unverified contract - show manual ABI modal
       setShowManualABIModal(true)
     }
-  }, [abi, source, confidence, isProxy, implementationAddress, isAbiLoading, isAbiError, hasAttemptedFetch, addressToFetch])
+  }, [
+    abi,
+    source,
+    confidence,
+    isProxy,
+    implementationAddress,
+    isAbiLoading,
+    isAbiError,
+    hasAttemptedFetch,
+    addressToFetch,
+    currentStep,
+  ])
 
   const functionCount = useMemo(() => {
     if (!abi || abi.length === 0) return 0
@@ -294,9 +339,58 @@ const NewProposalView: React.FC = () => {
           ) as `0x${string}`
           setOperationParams(prev => ({
             ...prev,
-            salt: randomSalt,
+            salt: normalizeBytes32(randomSalt),
           }))
         }
+
+        // Persist validated args for Step 3 review
+        const fnName = (selectedFunctionABI as any)?.name as string | undefined
+        const inputs = ((selectedFunctionABI as any)?.inputs ?? []) as any[]
+        const argsInOrder: unknown[] = inputs.map((input: any, index: number) => {
+          const inputName = input?.name || `param${index}`
+          const inputType = input?.type as string | undefined
+          const raw = (data as any)?.[inputName]
+          if (typeof raw !== 'string' || !inputType) return raw
+
+          // Minimal coercion for encoding:
+          // - uint/int -> bigint
+          // - bool -> boolean (supports 'true'/'false')
+          if (inputType.startsWith('uint') || inputType.startsWith('int')) {
+            try {
+              return BigInt(raw)
+            } catch {
+              return raw
+            }
+          }
+          if (inputType === 'bool') {
+            if (raw === 'true') return true
+            if (raw === 'false') return false
+            return raw
+          }
+          return raw
+        })
+
+        let calldata: `0x${string}` | null = null
+        try {
+          if (selectedFunctionABI && fnName) {
+            calldata = encodeFunctionData({
+              // Use only the selected function ABI to avoid overload ambiguity
+              abi: [selectedFunctionABI as any],
+              functionName: fnName,
+              args: argsInOrder as any,
+            }) as `0x${string}`
+          }
+        } catch (err) {
+          console.warn('Failed to encode calldata for review:', err)
+        }
+
+        setReviewData({
+          functionName: fnName || selectedFunction.split('(')[0],
+          signature: selectedFunction,
+          argsByName: data as Record<string, unknown>,
+          argsInOrder,
+          calldata,
+        })
 
         setCurrentStep(3)
       })()
@@ -496,7 +590,7 @@ const NewProposalView: React.FC = () => {
       <main className="flex-1 p-8 md:p-12 lg:p-16">
         <div className="mx-auto flex h-full max-w-4xl flex-col">
           {/* Step 1: Target Contract */}
-          {currentStep >= 1 && (
+          {currentStep === 1 && (
             <div className="flex flex-col gap-8">
               <div className="flex flex-col gap-3">
                 <p className="text-text-primary text-4xl font-black leading-tight tracking-[-0.033em]">
@@ -583,7 +677,7 @@ const NewProposalView: React.FC = () => {
           )}
 
           {/* Step 2: Configure Function */}
-          {currentStep >= 2 && (
+          {currentStep === 2 && (
             <div className="mt-16 flex flex-col gap-8">
               <div className="flex flex-col gap-3">
                 <p className="text-text-primary text-4xl font-black leading-tight tracking-[-0.033em]">
@@ -699,6 +793,198 @@ const NewProposalView: React.FC = () => {
               </div>
               </>
               )}
+            </div>
+          )}
+
+          {/* Step 3: Review */}
+          {currentStep === 3 && (
+            <div className="mt-16 flex flex-col gap-8">
+              <div className="flex flex-col gap-3">
+                <p className="text-text-primary text-4xl font-black leading-tight tracking-[-0.033em]">
+                  Step 3: Review Operation
+                </p>
+                <p className="text-text-secondary text-base font-normal leading-normal">
+                  Review the operation details before scheduling.
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-6 rounded-lg border border-border-color bg-surface p-6">
+                <div className="flex flex-col gap-2">
+                  <p className="text-text-primary text-base font-medium leading-normal">
+                    Summary
+                  </p>
+                  <p className="text-text-secondary text-sm leading-normal break-words">
+                    {contractAddress || '0x…'}.{reviewData?.signature || '…'}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                  <label className="flex flex-col w-full">
+                    <p className="text-text-primary text-base font-medium leading-normal pb-2">
+                      Timelock Controller Address
+                    </p>
+                    <input
+                      className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded text-text-primary focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-border-color bg-background h-14 placeholder:text-text-secondary p-[15px] text-base font-normal leading-normal"
+                      placeholder="0x..."
+                      type="text"
+                      value={operationParams.timelockController}
+                      onChange={(e) =>
+                        setOperationParams((prev) => ({
+                          ...prev,
+                          timelockController: e.target.value,
+                        }))
+                      }
+                    />
+                    <p className="text-text-secondary text-xs mt-2">
+                      This is the contract that enforces <code>minDelay</code> and
+                      calls <code>schedule()</code>.
+                    </p>
+                    {operationParams.timelockController.trim().length > 0 &&
+                      !normalizedTimelockController && (
+                        <p className="text-red-400 text-xs mt-2">
+                          Enter a valid address to fetch contract minDelay.
+                        </p>
+                      )}
+                  </label>
+
+                  <label className="flex flex-col w-full">
+                    <p className="text-text-primary text-base font-medium leading-normal pb-2">
+                      Delay (seconds)
+                    </p>
+                    <input
+                      className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded text-text-primary focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-border-color bg-background h-14 placeholder:text-text-secondary p-[15px] text-base font-normal leading-normal"
+                      placeholder="e.g. 86400"
+                      type="text"
+                      value={operationParams.delay}
+                      onChange={(e) =>
+                        setOperationParams((prev) => ({
+                          ...prev,
+                          delay: e.target.value,
+                        }))
+                      }
+                    />
+                    <p className="text-text-secondary text-xs mt-2">
+                      Contract minDelay:{' '}
+                      {typeof minDelay === 'bigint' &&
+                      normalizedTimelockController
+                        ? `${minDelay.toString()}s`
+                        : '—'}
+                    </p>
+                  </label>
+
+                  <label className="flex flex-col w-full md:col-span-2">
+                    <p className="text-text-primary text-base font-medium leading-normal pb-2">
+                      Salt (bytes32)
+                    </p>
+                    <input
+                      className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded text-text-primary focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-border-color bg-background h-14 placeholder:text-text-secondary p-[15px] text-base font-normal leading-normal font-mono"
+                      placeholder="0x0000000000000000000000000000000000000000000000000000000000000000"
+                      type="text"
+                      value={operationParams.salt}
+                      onChange={(e) =>
+                        setOperationParams((prev) => ({
+                          ...prev,
+                          salt: normalizeBytes32(e.target.value),
+                        }))
+                      }
+                    />
+                  </label>
+
+                  <label className="flex flex-col w-full md:col-span-2">
+                    <p className="text-text-primary text-base font-medium leading-normal pb-2">
+                      Predecessor (bytes32)
+                    </p>
+                    <input
+                      className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded text-text-primary focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-border-color bg-background h-14 placeholder:text-text-secondary p-[15px] text-base font-normal leading-normal font-mono"
+                      placeholder="0x0000000000000000000000000000000000000000000000000000000000000000"
+                      type="text"
+                      value={operationParams.predecessor}
+                      onChange={(e) =>
+                        setOperationParams((prev) => ({
+                          ...prev,
+                          predecessor: normalizeBytes32(e.target.value),
+                        }))
+                      }
+                    />
+                  </label>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <p className="text-text-primary text-base font-medium leading-normal">
+                    Parameters (decoded)
+                  </p>
+                  {selectedFunctionABI &&
+                  (selectedFunctionABI as any).inputs &&
+                  (selectedFunctionABI as any).inputs.length > 0 ? (
+                    <div className="rounded border border-border-color bg-background">
+                      <div className="grid grid-cols-3 gap-2 border-b border-border-color px-4 py-3 text-xs text-text-secondary">
+                        <div>Name</div>
+                        <div>Type</div>
+                        <div>Value</div>
+                      </div>
+                      {(selectedFunctionABI as any).inputs.map(
+                        (input: any, index: number) => {
+                          const name = input?.name || `param${index}`
+                          const type = input?.type || ''
+                          const value =
+                            (reviewData?.argsByName as any)?.[name] ?? ''
+                          const valueStr =
+                            typeof value === 'string'
+                              ? value
+                              : JSON.stringify(value)
+                          return (
+                            <div
+                              key={`${name}-${index}`}
+                              className="grid grid-cols-3 gap-2 px-4 py-3 text-sm"
+                            >
+                              <div className="text-text-primary break-words">
+                                {name}
+                              </div>
+                              <div className="text-text-secondary break-words">
+                                {type}
+                              </div>
+                              <div className="text-text-primary font-mono break-words">
+                                {valueStr}
+                              </div>
+                            </div>
+                          )
+                        }
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-text-secondary text-sm">
+                      This function has no parameters.
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <p className="text-text-primary text-base font-medium leading-normal">
+                    Encoded calldata preview
+                  </p>
+                  <textarea
+                    className="form-input w-full min-h-[120px] resize-y rounded border border-border-color bg-background p-4 text-text-primary font-mono text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    aria-label="Encoded calldata preview"
+                    readOnly
+                    value={reviewData?.calldata || 'Unable to encode calldata preview.'}
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-start gap-4">
+                <button
+                  className="flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-12 px-6 bg-surface text-text-primary text-sm font-medium leading-normal tracking-[0.015em] border border-border-color hover:bg-border-color transition-colors"
+                  onClick={handleBack}
+                >
+                  <span className="truncate">Back</span>
+                </button>
+                <button
+                  className="flex min-w-[84px] cursor-not-allowed items-center justify-center overflow-hidden rounded-full h-12 px-6 bg-primary text-black text-sm font-bold leading-normal tracking-[0.015em] opacity-50"
+                  disabled
+                >
+                  <span className="truncate">Submit</span>
+                </button>
+              </div>
             </div>
           )}
         </div>
