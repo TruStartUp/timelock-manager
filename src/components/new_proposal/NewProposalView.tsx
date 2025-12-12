@@ -2,6 +2,7 @@ import React, { useMemo, useState, useEffect } from 'react'
 import {
   BaseError,
   ContractFunctionRevertedError,
+  encodeAbiParameters,
   isAddress,
   type Address,
   encodeFunctionData,
@@ -110,6 +111,7 @@ const NewProposalView: React.FC = () => {
     txHash,
     minDelay,
     hasProposerRole,
+    isCheckingRole,
     reset: resetSchedule,
   } = useTimelockWrite({
     timelockController: timelockAddress,
@@ -117,6 +119,16 @@ const NewProposalView: React.FC = () => {
   })
 
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [hasSubmitted, setHasSubmitted] = useState(false)
+  const [lastSubmitted, setLastSubmitted] = useState<{
+    target: Address
+    value: bigint
+    data: `0x${string}`
+    predecessor: `0x${string}`
+    salt: `0x${string}`
+    delay: bigint
+    submittedAtMs: number
+  } | null>(null)
 
   // Trigger refetch when addressToFetch changes (user clicked Fetch ABI)
   useEffect(() => {
@@ -397,12 +409,32 @@ const NewProposalView: React.FC = () => {
     }
 
     // Single-call scheduling (T067)
+    const target = contractAddress
+      .trim()
+      .replace(/^0X/, '0x')
+      .toLowerCase() as Address
+    const value = BigInt(0)
+    const data = reviewData.calldata
+    const predecessor = operationParams.predecessor
+    const salt = operationParams.salt
+
+    setHasSubmitted(true)
+    setLastSubmitted({
+      target,
+      value,
+      data,
+      predecessor,
+      salt,
+      delay,
+      submittedAtMs: Date.now(),
+    })
+
     schedule({
-      target: contractAddress.trim().replace(/^0X/, '0x').toLowerCase() as Address,
-      value: BigInt(0),
-      data: reviewData.calldata,
-      predecessor: operationParams.predecessor,
-      salt: operationParams.salt,
+      target,
+      value,
+      data,
+      predecessor,
+      salt,
       delay,
     })
   }
@@ -579,6 +611,47 @@ const NewProposalView: React.FC = () => {
 
     return base.shortMessage || base.message
   }, [scheduleError])
+
+  const operationId = useMemo(() => {
+    if (!lastSubmitted) return null
+    try {
+      // TimelockController.hashOperation(target, value, data, predecessor, salt):
+      // id = keccak256(abi.encode(target, value, keccak256(data), predecessor, salt))
+      const dataHash = keccak256(lastSubmitted.data)
+      const encoded = encodeAbiParameters(
+        [
+          { name: 'target', type: 'address' },
+          { name: 'value', type: 'uint256' },
+          { name: 'dataHash', type: 'bytes32' },
+          { name: 'predecessor', type: 'bytes32' },
+          { name: 'salt', type: 'bytes32' },
+        ],
+        [
+          lastSubmitted.target,
+          lastSubmitted.value,
+          dataHash,
+          lastSubmitted.predecessor,
+          lastSubmitted.salt,
+        ]
+      )
+      return keccak256(encoded)
+    } catch {
+      return null
+    }
+  }, [lastSubmitted])
+
+  const estimatedEta = useMemo(() => {
+    if (!lastSubmitted) return null
+    try {
+      const delayMs = Number(lastSubmitted.delay) * 1000
+      const eta = new Date(lastSubmitted.submittedAtMs + delayMs)
+      return eta.toLocaleString()
+    } catch {
+      return null
+    }
+  }, [lastSubmitted])
+
+  const showSuccess = Boolean(hasSubmitted && isSuccess && txHash)
 
   return (
     <div className="flex min-h-screen">
@@ -930,7 +1003,79 @@ const NewProposalView: React.FC = () => {
                 </p>
               </div>
 
-              <div className="flex flex-col gap-6 rounded-lg border border-border-color bg-surface p-6">
+              {showSuccess ? (
+                <div className="flex flex-col gap-6 rounded-lg border border-border-color bg-surface p-6">
+                  <div className="flex items-center gap-3 text-green-500">
+                    <span className="material-symbols-outlined text-base">
+                      task_alt
+                    </span>
+                    <p className="text-base font-medium">
+                      Operation scheduled successfully
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                    <div className="flex flex-col gap-2">
+                      <p className="text-text-primary text-sm font-medium">
+                        TX Hash
+                      </p>
+                      <p
+                        className="text-text-primary font-mono text-sm wrap-break-word"
+                        aria-label="Transaction hash"
+                      >
+                        {txHash}
+                      </p>
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                      <p className="text-text-primary text-sm font-medium">
+                        Estimated ETA
+                      </p>
+                      <p
+                        className="text-text-primary text-sm"
+                        aria-label="Estimated ETA"
+                      >
+                        {estimatedEta || '—'}
+                      </p>
+                    </div>
+
+                    <div className="flex flex-col gap-2 md:col-span-2">
+                      <p className="text-text-primary text-sm font-medium">
+                        Operation ID
+                      </p>
+                      <p
+                        className="text-text-primary font-mono text-sm wrap-break-word"
+                        aria-label="Operation ID"
+                      >
+                        {operationId || '—'}
+                      </p>
+                      <p className="text-text-secondary text-xs">
+                        Computed locally using TimelockController hashOperation
+                        algorithm.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-start gap-4">
+                    <button
+                      className="flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-12 px-6 bg-surface text-text-primary text-sm font-medium leading-normal tracking-[0.015em] border border-border-color hover:bg-border-color transition-colors"
+                      onClick={() => {
+                        // Reset wizard for another proposal
+                        setHasSubmitted(false)
+                        setLastSubmitted(null)
+                        setSubmitError(null)
+                        setConfirmText('')
+                        resetSchedule()
+                        setCurrentStep(1)
+                      }}
+                    >
+                      <span className="truncate">Schedule another</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                <div className="flex flex-col gap-6 rounded-lg border border-border-color bg-surface p-6">
                 <div className="flex flex-col gap-2">
                   <p className="text-text-primary text-base font-medium leading-normal">
                     Summary
@@ -964,6 +1109,30 @@ const NewProposalView: React.FC = () => {
                       />
                     </label>
                   </div>
+                )}
+
+                {/* Permission feedback: schedule requires PROPOSER_ROLE */}
+                {normalizedTimelockController && (
+                  <>
+                    {isCheckingRole ? (
+                      <div className="bg-background border border-border-color rounded-lg p-4">
+                        <p className="text-text-secondary text-sm">
+                          Checking if your wallet has <code>PROPOSER_ROLE</code>…
+                        </p>
+                      </div>
+                    ) : !hasProposerRole ? (
+                      <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
+                        <p className="text-red-400 text-sm font-medium">
+                          Not authorized to schedule
+                        </p>
+                        <p className="text-text-secondary text-sm mt-1">
+                          The connected wallet does not have{' '}
+                          <code>PROPOSER_ROLE</code> on this TimelockController, so
+                          it cannot schedule operations.
+                        </p>
+                      </div>
+                    ) : null}
+                  </>
                 )}
 
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
@@ -1141,10 +1310,18 @@ const NewProposalView: React.FC = () => {
                   <span className="truncate">Back</span>
                 </button>
                 <button
-                  className={`flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-12 px-6 bg-primary text-black text-sm font-bold leading-normal tracking-[0.015em] ${
-                    isHighRiskFunction && confirmText !== 'CONFIRM'
+                  className={`flex min-w-[84px] items-center justify-center overflow-hidden rounded-full h-12 px-6 bg-primary text-black text-sm font-bold leading-normal tracking-[0.015em] ${
+                    isPending ||
+                    !reviewData?.calldata ||
+                    !normalizedTimelockController ||
+                    !operationParams.delay ||
+                    !contractAddress ||
+                    !isAddress(contractAddress, { strict: false }) ||
+                    typeof minDelay !== 'bigint' ||
+                    !hasProposerRole ||
+                    (isHighRiskFunction && confirmText !== 'CONFIRM')
                       ? 'opacity-50 cursor-not-allowed'
-                      : 'hover:bg-primary/90 transition-colors'
+                      : 'cursor-pointer hover:bg-primary/90 transition-colors'
                   }`}
                   disabled={
                     isPending ||
@@ -1164,6 +1341,8 @@ const NewProposalView: React.FC = () => {
                   </span>
                 </button>
               </div>
+                </>
+              )}
             </div>
           )}
         </div>

@@ -214,8 +214,8 @@ description: 'Task list for Rootstock Timelock Management App - Blockchain Integ
 - [X] T065 [US4] Build Step 3 review screen in NewProposalView showing human-readable summary (target.function(args)), delay, minDelay, predecessor, salt, encoded calldata preview
 - [X] T066 [US4] Add high-risk function detection in NewProposalView Step 3 for upgradeTo, transferOwnership, setAdmin, updateDelay requiring "CONFIRM" text input
 - [X] T067 [US4] Connect Submit button in NewProposalView Step 3 to useTimelockWrite.schedule with all parameters (target, value, data, predecessor, salt, delay)
-- [ ] T068 [US4] Display success screen in NewProposalView showing operation ID, ETA, and TX hash after successful scheduling
-- [ ] T069 [US4] Store user-provided ABIs in sessionStorage when manual ABI input used, with 24-hour TTL from research.md Section 3
+- [X] T068 [US4] Display success screen in NewProposalView showing operation ID, ETA, and TX hash after successful scheduling
+- [X] T069 [US4] Store user-provided ABIs in sessionStorage when manual ABI input used, with 24-hour TTL from research.md Section 3
 
 **Checkpoint**: Users can now create new timelock proposals through the complete wizard flow with blockchain validation
 
