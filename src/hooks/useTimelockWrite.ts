@@ -2,7 +2,10 @@
  * useTimelockWrite Hook
  * Provides mutations for executing, canceling, and scheduling timelock operations
  * Based on User Story 2: Execute Ready Timelock Operations
+ * Based on User Story 4: Schedule New Timelock Operations
  * Implements FR-042: Execute button integration with mutation
+ * Implements T058: Schedule mutation (schedule/scheduleBatch)
+ * Implements T059: PROPOSER_ROLE pre-flight permission check
  */
 
 import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
@@ -78,6 +81,70 @@ export interface ExecuteBatchParams {
   salt: `0x${string}`
 }
 
+export interface ScheduleOperationParams {
+  /**
+   * Target contract address (for single call)
+   */
+  target: Address
+
+  /**
+   * Value to send in wei (for single call)
+   */
+  value: bigint
+
+  /**
+   * Encoded calldata (for single call)
+   */
+  data: `0x${string}`
+
+  /**
+   * Predecessor operation ID (0x0 if none)
+   */
+  predecessor: `0x${string}`
+
+  /**
+   * Salt for operation uniqueness
+   */
+  salt: `0x${string}`
+
+  /**
+   * Delay in seconds before operation becomes executable
+   */
+  delay: bigint
+}
+
+export interface ScheduleBatchParams {
+  /**
+   * Array of target contract addresses
+   */
+  targets: Address[]
+
+  /**
+   * Array of values to send in wei
+   */
+  values: bigint[]
+
+  /**
+   * Array of encoded calldata
+   */
+  payloads: `0x${string}`[]
+
+  /**
+   * Predecessor operation ID (0x0 if none)
+   */
+  predecessor: `0x${string}`
+
+  /**
+   * Salt for operation uniqueness
+   */
+  salt: `0x${string}`
+
+  /**
+   * Delay in seconds before operation becomes executable
+   */
+  delay: bigint
+}
+
 export interface UseTimelockWriteResult {
   /**
    * Execute a ready operation (single or batch)
@@ -87,7 +154,14 @@ export interface UseTimelockWriteResult {
   execute: (params: ExecuteOperationParams | ExecuteBatchParams) => void
 
   /**
-   * Transaction hash if execution was submitted
+   * Schedule a new operation (single or batch)
+   * Automatically detects batch operations based on params
+   * Blocked if account lacks PROPOSER_ROLE
+   */
+  schedule: (params: ScheduleOperationParams | ScheduleBatchParams) => void
+
+  /**
+   * Transaction hash if execution/scheduling was submitted
    */
   txHash: `0x${string}` | undefined
 
@@ -118,6 +192,12 @@ export interface UseTimelockWriteResult {
   hasExecutorRole: boolean
 
   /**
+   * Whether the connected account has PROPOSER_ROLE
+   * Used for UI to enable/disable schedule button
+   */
+  hasProposerRole: boolean
+
+  /**
    * Whether the role check is loading
    */
   isCheckingRole: boolean
@@ -138,17 +218,33 @@ function isBatchParams(
 }
 
 /**
+ * Type guard to check if params are for batch scheduling
+ */
+function isBatchScheduleParams(
+  params: ScheduleOperationParams | ScheduleBatchParams
+): params is ScheduleBatchParams {
+  return 'targets' in params && Array.isArray(params.targets)
+}
+
+/**
  * Hook to execute, cancel, and schedule timelock operations
  *
  * Features:
- * - Automatic detection of single vs batch operations
+ * - Automatic detection of single vs batch operations (execute & schedule)
  * - Transaction state management (pending/success/error)
  * - Type-safe with viem and wagmi
- * - Pre-flight permission checks using EXECUTOR_ROLE
+ * - Pre-flight permission checks using EXECUTOR_ROLE (execute) and PROPOSER_ROLE (schedule)
  *
  * @example
  * ```tsx
- * const { execute, isPending, isSuccess, hasExecutorRole } = useTimelockWrite({
+ * const {
+ *   execute,
+ *   schedule,
+ *   isPending,
+ *   isSuccess,
+ *   hasExecutorRole,
+ *   hasProposerRole,
+ * } = useTimelockWrite({
  *   timelockController: '0x123...',
  *   account: address, // from useAccount
  * })
@@ -164,8 +260,24 @@ function isBatchParams(
  *   })
  * }
  *
+ * const handleSchedule = () => {
+ *   // schedule() will only proceed if hasProposerRole is true
+ *   schedule({
+ *     target: '0xTarget...',
+ *     value: 0n,
+ *     data: '0x...',
+ *     predecessor: '0x0000000000000000000000000000000000000000000000000000000000000000',
+ *     salt: '0x0000000000000000000000000000000000000000000000000000000000000000',
+ *     delay: 172800n, // 2 days in seconds
+ *   })
+ * }
+ *
  * <button onClick={handleExecute} disabled={isPending || !hasExecutorRole}>
  *   {isPending ? 'Executing...' : 'Execute'}
+ * </button>
+ *
+ * <button onClick={handleSchedule} disabled={isPending || !hasProposerRole}>
+ *   {isPending ? 'Scheduling...' : 'Schedule Operation'}
  * </button>
  * ```
  */
@@ -176,10 +288,20 @@ export function useTimelockWrite({
   // Check if account has EXECUTOR_ROLE for pre-flight permission check
   const {
     hasRole: hasExecutorRole,
-    isLoading: isCheckingRole,
+    isLoading: isCheckingExecutorRole,
   } = useHasRole({
     timelockController,
     role: TIMELOCK_ROLES.EXECUTOR_ROLE,
+    account,
+  })
+
+  // Check if account has PROPOSER_ROLE for schedule operations (T059)
+  const {
+    hasRole: hasProposerRole,
+    isLoading: isCheckingProposerRole,
+  } = useHasRole({
+    timelockController,
+    role: TIMELOCK_ROLES.PROPOSER_ROLE,
     account,
   })
 
@@ -243,15 +365,62 @@ export function useTimelockWrite({
     }
   }
 
+  /**
+   * Schedule a new operation
+   * Automatically detects single vs batch based on parameters
+   * Pre-flight check: blocks scheduling if account lacks PROPOSER_ROLE
+   */
+  const schedule = (params: ScheduleOperationParams | ScheduleBatchParams) => {
+    // Pre-flight permission check (T059)
+    if (!hasProposerRole) {
+      console.warn('Schedule blocked: Account lacks PROPOSER_ROLE')
+      return
+    }
+
+    if (isBatchScheduleParams(params)) {
+      // Schedule batch operation
+      writeContract({
+        address: timelockController,
+        abi: TimelockControllerABI,
+        functionName: 'scheduleBatch',
+        args: [
+          params.targets,
+          params.values,
+          params.payloads,
+          params.predecessor,
+          params.salt,
+          params.delay,
+        ],
+      })
+    } else {
+      // Schedule single operation
+      writeContract({
+        address: timelockController,
+        abi: TimelockControllerABI,
+        functionName: 'schedule',
+        args: [
+          params.target,
+          params.value,
+          params.data,
+          params.predecessor,
+          params.salt,
+          params.delay,
+        ],
+      })
+    }
+  }
+
   return {
     execute,
+    schedule,
     txHash,
     isPending: isWritePending || isConfirming,
     isSuccess: isWriteSuccess && isConfirmed,
     isError: isWriteError,
     error: writeError as Error | null,
     hasExecutorRole,
-    isCheckingRole,
+    hasProposerRole,
+    isCheckingRole: isCheckingExecutorRole || isCheckingProposerRole,
     reset,
   }
 }

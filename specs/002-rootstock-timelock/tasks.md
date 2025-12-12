@@ -171,7 +171,7 @@ description: 'Task list for Rootstock Timelock Management App - Blockchain Integ
 - [X] T047 [P] [US3] Create useRoles hook in src/hooks/useRoles.ts to fetch role members and history from subgraph, with event-sourcing logic to compute current members from RoleGranted/RoleRevoked
 - [X] T048 [US3] Integrate useRoles in src/components/dashboard/DashboardView.tsx to replace mock role summary table with live member counts
 - [X] T049 [US3] Integrate useRoles in src/components/permissions/PermissionsView.tsx to replace mockRoles with live data for all 4 standard roles
-- [ ] T050 [US3] Integrate useHasRole in PermissionsView to detect and highlight roles held by connected wallet
+- [X] T050 [US3] Integrate useHasRole in PermissionsView to detect and highlight roles held by connected wallet
 - [X] T051 [US3] Implement AccessManager detection in PermissionsView - check if DEFAULT_ADMIN_ROLE holder implements IAccessManager interface and display link
 - [X] T052 [US3] Add copy-to-clipboard functionality for role member addresses in PermissionsView role holders list
 - [X] T053 [US3] Display role history table in PermissionsView with columns: Action (Grant/Revoke), Target Address, TX Hash (link to explorer), Timestamp
@@ -204,8 +204,8 @@ description: 'Task list for Rootstock Timelock Management App - Blockchain Integ
 
 - [X] T056 [P] [US4] Create useContractABI hook in src/hooks/useContractABI.ts implementing priority: Session cache → Blockscout verified → Known registry → 4byte from research.md Section 3
 - [X] T057 [US4] Implement proxy detection in useContractABI using evm-proxy-detection library for EIP-1967/EIP-1822/EIP-1167 from research.md Section 2
-- [ ] T058 [US4] Add schedule mutation to useTimelockWrite hook in src/hooks/useTimelockWrite.ts using wagmi useWriteContract for schedule() and scheduleBatch()
-- [ ] T059 [US4] Implement pre-flight permission check in useTimelockWrite.schedule using useHasRole(PROPOSER_ROLE)
+- [X] T058 [US4] Add schedule mutation to useTimelockWrite hook in src/hooks/useTimelockWrite.ts using wagmi useWriteContract for schedule() and scheduleBatch()
+- [X] T059 [US4] Implement pre-flight permission check in useTimelockWrite.schedule using useHasRole(PROPOSER_ROLE)
 - [ ] T060 [US4] Implement pre-flight delay validation in useTimelockWrite.schedule comparing user delay with getMinDelay() result
 - [ ] T061 [US4] Integrate useContractABI in src/components/new_proposal/NewProposalView.tsx Step 1 to fetch ABI on "Fetch ABI" button click
 - [ ] T062 [US4] Display manual ABI input modal in NewProposalView when useContractABI returns confidence=null (unverified contract)
