@@ -14,7 +14,7 @@ env:
   # Wallet Connect Project ID (Required)
   # This should be a secret.
   - variable: NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID
-    secret: your_project_id_here
+    value: "your_project_id_here"
 
   # Rootstock RPC URLs (Optional - defaults to public nodes)
   - variable: NEXT_PUBLIC_RSK_MAINNET_RPC_URL
@@ -25,15 +25,15 @@ env:
   # The Graph Subgraph URLs (Required after deploying subgraphs)
   # These should be secrets as they may contain sensitive information.
   - variable: NEXT_PUBLIC_RSK_MAINNET_SUBGRAPH_URL
-    secret: your_mainnet_subgraph_url_secret_name
+    value: "https://api.studio.thegraph.com/query/<your-subgraph-id>/rootstock-timelock-mainnet/v1"
   - variable: NEXT_PUBLIC_RSK_TESTNET_SUBGRAPH_URL
-    secret: your_testnet_subgraph_url_secret_name
+    value: "https://api.studio.thegraph.com/query/46125/rootstock-timelock-testnet/version/latest"
 
   # Rootstock Blockscout v2 APIs (Defaults provided, can override)
   - variable: NEXT_PUBLIC_RSK_MAINNET_BLOCKSCOUT_URL
-    value: "https://rootstock.blockscout.com/api"
+    value: "https://rootstock.blockscout.com/api/v2"
   - variable: NEXT_PUBLIC_RSK_TESTNET_BLOCKSCOUT_URL
-    value: "https://rootstock-testnet.blockscout.com/api"
+    value: "https://rootstock-testnet.blockscout.com/api/v2"
 
   # 4byte Directory (Default provided)
   - variable: NEXT_PUBLIC_4BYTE_DIRECTORY_URL
