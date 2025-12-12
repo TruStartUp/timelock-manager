@@ -3,12 +3,7 @@ import '../styles/globals.css'
 import '@rainbow-me/rainbowkit/styles.css'
 import type { AppProps } from 'next/app'
 import { Inter } from 'next/font/google'
-
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { WagmiProvider } from 'wagmi'
-import { RainbowKitProvider } from '@rainbow-me/rainbowkit'
-
-import { config } from '../wagmi'
+import dynamic from 'next/dynamic'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -16,7 +11,9 @@ const inter = Inter({
   variable: '--font-inter',
 })
 
-const client = new QueryClient()
+const Providers = dynamic(() => import('../components/common/Providers').then(m => m.Providers), {
+  ssr: false,
+})
 
 function MyApp({ Component, pageProps }: AppProps) {
   return (
@@ -27,13 +24,9 @@ function MyApp({ Component, pageProps }: AppProps) {
           rel="stylesheet"
         />
       </Head>
-      <WagmiProvider config={config}>
-        <QueryClientProvider client={client}>
-          <RainbowKitProvider>
-            <Component {...pageProps} />
-          </RainbowKitProvider>
-        </QueryClientProvider>
-      </WagmiProvider>
+      <Providers>
+        <Component {...pageProps} />
+      </Providers>
     </div>
   )
 }
