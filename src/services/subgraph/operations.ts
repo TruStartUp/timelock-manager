@@ -18,6 +18,7 @@ import {
   type ChainId,
   type PaginationParams,
   DEFAULT_PAGE_SIZE,
+  GraphQLError,
 } from './client'
 import { type Operation, type Call, type OperationStatus } from '@/types/operation'
 
@@ -85,7 +86,11 @@ interface OperationQueryResponse {
 /**
  * Build GraphQL where clause from filters
  */
-function buildWhereClause(filters: OperationFilters): string {
+function buildWhereClause(
+  filters: OperationFilters,
+  opts: { includeCallTargetFilter?: boolean } = {}
+): string {
+  const { includeCallTargetFilter = true } = opts
   const conditions: string[] = []
 
   if (filters.status) {
@@ -99,7 +104,9 @@ function buildWhereClause(filters: OperationFilters): string {
   if (filters.target) {
     // Note: This requires the subgraph to support filtering by call target
     // May need to be implemented via post-filtering if not supported
-    conditions.push(`calls_: { target: "${filters.target.toLowerCase()}" }`)
+    if (includeCallTargetFilter) {
+      conditions.push(`calls_: { target: "${filters.target.toLowerCase()}" }`)
+    }
   }
 
   if (filters.dateFrom) {
@@ -179,61 +186,96 @@ export async function fetchOperations(
   chainId: ChainId
 ): Promise<Operation[]> {
   const { first = DEFAULT_PAGE_SIZE, skip = 0 } = pagination
-  const whereClause = buildWhereClause(filters)
+  const targetLower = filters.target?.toLowerCase()
 
-  const query = `
-    query GetOperations($first: Int!, $skip: Int!) {
-      operations(
-        first: $first
-        skip: $skip
-        ${whereClause}
-        orderBy: scheduledAt
-        orderDirection: desc
-      ) {
-        id
-        index
-        timelockController
-        target
-        value
-        data
-        predecessor
-        salt
-        delay
-        timestamp
-        status
-        scheduledAt
-        scheduledTx
-        scheduledBy
-        executedAt
-        executedTx
-        executedBy
-        cancelledAt
-        cancelledTx
-        cancelledBy
-        calls {
+  const runQuery = async (includeCallTargetFilter: boolean) => {
+    const whereClause = buildWhereClause(filters, { includeCallTargetFilter })
+
+    const query = `
+      query GetOperations($first: Int!, $skip: Int!) {
+        operations(
+          first: $first
+          skip: $skip
+          ${whereClause}
+          orderBy: scheduledAt
+          orderDirection: desc
+        ) {
           id
           index
+          timelockController
           target
           value
           data
-          signature
+          predecessor
+          salt
+          delay
+          timestamp
+          status
+          scheduledAt
+          scheduledTx
+          scheduledBy
+          executedAt
+          executedTx
+          executedBy
+          cancelledAt
+          cancelledTx
+          cancelledBy
+          calls {
+            id
+            index
+            target
+            value
+            data
+            signature
+          }
         }
       }
-    }
-  `
+    `
 
-  const variables = {
-    first,
-    skip,
+    const variables = {
+      first,
+      skip,
+    }
+
+    return await executeGraphQLQueryWithRetry<OperationsQueryResponse>(
+      query,
+      variables,
+      chainId
+    )
   }
 
-  const response = await executeGraphQLQueryWithRetry<OperationsQueryResponse>(
-    query,
-    variables,
-    chainId
-  )
+  try {
+    const response = await runQuery(true)
+    return response.operations.map(transformOperation)
+  } catch (err) {
+    // T088: Safe fallback if the deployed subgraph doesn't support `calls_` filtering.
+    const msg = err instanceof Error ? err.message : String(err)
+    const looksLikeCallsFilterUnsupported =
+      Boolean(filters.target) &&
+      msg.toLowerCase().includes('calls_') &&
+      (msg.toLowerCase().includes('unknown') ||
+        msg.toLowerCase().includes('argument') ||
+        msg.toLowerCase().includes('field'))
 
-  return response.operations.map(transformOperation)
+    if (looksLikeCallsFilterUnsupported) {
+      const response = await runQuery(false)
+      const filtered = targetLower
+        ? response.operations.filter((op) => {
+            const direct = (op.target || '').toLowerCase() === targetLower
+            const viaCalls = (op.calls || []).some(
+              (c) => (c.target || '').toLowerCase() === targetLower
+            )
+            return direct || viaCalls
+          })
+        : response.operations
+      return filtered.map(transformOperation)
+    }
+
+    if (err instanceof GraphQLError) {
+      throw err
+    }
+    throw err
+  }
 }
 
 /**

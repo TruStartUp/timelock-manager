@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react'
-import { type Address, formatEther } from 'viem'
+import { type Address, formatEther, isAddress } from 'viem'
 import { useAccount, useChainId } from 'wagmi'
 import { useQueryClient } from '@tanstack/react-query'
 import { useOperations } from '@/hooks/useOperations'
@@ -44,6 +44,8 @@ interface Operation {
 const OperationsExplorerView: React.FC = () => {
   const [selectedFilter, setSelectedFilter] = useState<OperationStatus>('All')
   const [searchQuery, setSearchQuery] = useState('')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null)
   const [confirmCancelOperation, setConfirmCancelOperation] =
     useState<Operation | null>(null)
@@ -115,11 +117,60 @@ const OperationsExplorerView: React.FC = () => {
     return statusMap[selectedFilter]
   }, [selectedFilter])
 
+  // T091: If search input is an address, apply to BOTH proposer + target filters.
+  const normalizedAddressQuery = useMemo((): Address | null => {
+    const trimmed = searchQuery.trim().replace(/^0X/, '0x')
+    if (!trimmed) return null
+    if (
+      isAddress(trimmed, {
+        strict: false,
+      })
+    ) {
+      return trimmed.toLowerCase() as Address
+    }
+    return null
+  }, [searchQuery])
+
+  const textSearch = useMemo(() => {
+    if (normalizedAddressQuery) return ''
+    return searchQuery.trim().toLowerCase()
+  }, [normalizedAddressQuery, searchQuery])
+
+  const dateFromTs = useMemo((): bigint | undefined => {
+    if (!dateFrom) return undefined
+    const ms = Date.parse(`${dateFrom}T00:00:00Z`)
+    if (Number.isNaN(ms)) return undefined
+    return BigInt(Math.floor(ms / 1000))
+  }, [dateFrom])
+
+  const dateToTs = useMemo((): bigint | undefined => {
+    if (!dateTo) return undefined
+    const ms = Date.parse(`${dateTo}T23:59:59Z`)
+    if (Number.isNaN(ms)) return undefined
+    return BigInt(Math.floor(ms / 1000))
+  }, [dateTo])
+
+  const dateRangeError = useMemo(() => {
+    if (dateFromTs !== undefined && dateToTs !== undefined && dateFromTs > dateToTs) {
+      return 'Invalid date range: “From” must be earlier than “To”.'
+    }
+    return null
+  }, [dateFromTs, dateToTs])
+
   // Fetch operations from subgraph with filters
-  const { data: subgraphOperations, isLoading, isError, refetch } = useOperations({
-    timelockController: timelockAddress,
-    status: statusFilter,
-  })
+  const { data: subgraphOperations, isLoading, isError, refetch } = useOperations(
+    {
+      timelockController: timelockAddress,
+      status: statusFilter,
+      proposer: normalizedAddressQuery ?? undefined,
+      target: normalizedAddressQuery ?? undefined,
+      dateFrom: dateFromTs,
+      dateTo: dateToTs,
+    },
+    {
+      enabled: !dateRangeError,
+    }
+  )
 
   // Automatically refresh operations list after successful execution (T044)
   useEffect(() => {
@@ -211,17 +262,65 @@ const OperationsExplorerView: React.FC = () => {
   }, [subgraphOperations, timelockAddress])
 
   // Filter operations by search query (client-side)
-  const filteredOperations = useMemo(() => {
-    if (!searchQuery.trim()) return operations
-
-    const query = searchQuery.toLowerCase()
+  const clientFilteredOperations = useMemo(() => {
+    if (!textSearch) return operations
     return operations.filter((op) =>
-      op.id.toLowerCase().includes(query) ||
-      op.proposer.toLowerCase().includes(query) ||
-      op.details?.fullId.toLowerCase().includes(query) ||
-      op.details?.fullProposer.toLowerCase().includes(query)
+      op.id.toLowerCase().includes(textSearch) ||
+      op.proposer.toLowerCase().includes(textSearch) ||
+      op.details?.fullId.toLowerCase().includes(textSearch) ||
+      op.details?.fullProposer.toLowerCase().includes(textSearch)
     )
-  }, [operations, searchQuery])
+  }, [operations, textSearch])
+
+  const resultsCount = useMemo(() => {
+    return {
+      showing: clientFilteredOperations.length,
+      total: operations.length,
+    }
+  }, [clientFilteredOperations.length, operations.length])
+
+  const activeFilters = useMemo(() => {
+    const items: Array<{ key: string; label: string; onClear: () => void }> = []
+    if (selectedFilter !== 'All') {
+      items.push({
+        key: 'status',
+        label: `Status: ${selectedFilter}`,
+        onClear: () => setSelectedFilter('All'),
+      })
+    }
+    if (normalizedAddressQuery) {
+      items.push({
+        key: 'address',
+        label: `Address: ${shortenAddress(normalizedAddressQuery)}`,
+        onClear: () => setSearchQuery(''),
+      })
+    } else if (textSearch) {
+      items.push({
+        key: 'search',
+        label: `Search: ${searchQuery.trim()}`,
+        onClear: () => setSearchQuery(''),
+      })
+    }
+    if (dateFrom || dateTo) {
+      const label = `Date: ${dateFrom || '…'} → ${dateTo || '…'}`
+      items.push({
+        key: 'date',
+        label,
+        onClear: () => {
+          setDateFrom('')
+          setDateTo('')
+        },
+      })
+    }
+    return items
+  }, [dateFrom, dateTo, normalizedAddressQuery, searchQuery, selectedFilter, textSearch])
+
+  const clearAllFilters = () => {
+    setSelectedFilter('All')
+    setSearchQuery('')
+    setDateFrom('')
+    setDateTo('')
+  }
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -472,18 +571,74 @@ const OperationsExplorerView: React.FC = () => {
                   </div>
                   <input
                     className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-r-lg border-l-0 border-none bg-border-dark text-base font-normal leading-normal text-text-dark-primary placeholder:text-text-dark-secondary focus:outline-0 focus:ring-0 h-full px-3"
-                    placeholder="Search by ID, proposer..."
+                    placeholder="Search by ID, or paste an address…"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                   />
                 </div>
               </label>
             </div>
+            {/* T092: Date range */}
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="h-11 rounded-lg bg-border-dark px-3 text-sm text-text-dark-primary placeholder:text-text-dark-secondary focus:outline-0 focus:ring-0"
+              aria-label="Date from"
+            />
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="h-11 rounded-lg bg-border-dark px-3 text-sm text-text-dark-primary placeholder:text-text-dark-secondary focus:outline-0 focus:ring-0"
+              aria-label="Date to"
+            />
             <button className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-border-dark text-text-dark-secondary hover:bg-white/10 transition-colors">
               <span className="material-symbols-outlined">filter_list</span>
             </button>
           </div>
         </div>
+
+        {/* T092: Date range validation error */}
+        {dateRangeError ? (
+          <div className="rounded-lg border border-red-500/50 bg-red-500/10 p-4 text-sm text-red-300">
+            {dateRangeError}
+          </div>
+        ) : null}
+
+        {/* T093: Active filter badges */}
+        {activeFilters.length > 0 ? (
+          <div className="flex flex-wrap items-center gap-2">
+            {activeFilters.map((f) => (
+              <span
+                key={f.key}
+                className="inline-flex items-center gap-2 rounded-full bg-border-dark px-3 py-1 text-sm text-text-dark-primary"
+              >
+                {f.label}
+                <button
+                  className="text-text-dark-secondary hover:text-text-dark-primary"
+                  onClick={f.onClear}
+                  aria-label={`Clear ${f.key} filter`}
+                >
+                  <span className="material-symbols-outlined text-base!">close</span>
+                </button>
+              </span>
+            ))}
+            <button
+              className="text-sm font-semibold text-text-dark-secondary hover:text-text-dark-primary underline underline-offset-4"
+              onClick={clearAllFilters}
+            >
+              Clear all
+            </button>
+          </div>
+        ) : null}
+
+        {/* T094: Results count */}
+        {!isLoading && !isError ? (
+          <div className="text-sm text-text-dark-secondary">
+            Showing {resultsCount.showing} of {resultsCount.total} operations
+          </div>
+        ) : null}
 
         {/* Error State - Execute Transaction Failed */}
         {isExecuteError && executeError && (
@@ -605,7 +760,7 @@ const OperationsExplorerView: React.FC = () => {
         )}
 
         {/* Empty State */}
-        {!isLoading && !isError && filteredOperations.length === 0 && (
+        {!isLoading && !isError && clientFilteredOperations.length === 0 && (
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <p className="text-text-dark-primary text-lg font-medium">No operations found</p>
             <p className="text-text-dark-secondary text-sm mt-2">
@@ -617,7 +772,7 @@ const OperationsExplorerView: React.FC = () => {
         )}
 
         {/* Operations Table */}
-        {!isLoading && !isError && filteredOperations.length > 0 && (
+        {!isLoading && !isError && clientFilteredOperations.length > 0 && (
           <div className="w-full overflow-x-auto rounded-lg bg-surface-dark">
             <table className="w-full min-w-[1024px] text-left text-sm">
             <thead className="border-b border-border-dark text-xs uppercase text-text-dark-secondary">
@@ -666,7 +821,7 @@ const OperationsExplorerView: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredOperations.map((operation) => (
+              {clientFilteredOperations.map((operation) => (
                 <OperationRow
                   key={operation.id}
                   operation={operation}

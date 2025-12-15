@@ -293,14 +293,14 @@ description: 'Task list for Rootstock Timelock Management App - Blockchain Integ
 
 ### Implementation for User Story 7
 
-- [ ] T087 [US7] Extend useOperations hook in src/hooks/useOperations.ts to support filter parameters: status (Pending/Ready/Executed/Cancelled), proposer address, target address, dateFrom, dateTo
-- [ ] T088 [US7] Update subgraph queries in src/services/subgraph/operations.ts to support where clauses for all filter combinations
-- [ ] T089 [US7] Add filter state management in src/components/operations_explorer/OperationsExplorerView.tsx using React state for active filters
-- [ ] T090 [US7] Connect status filter chips (All/Pending/Ready/Executed/Canceled) to useOperations filter parameter
-- [ ] T091 [US7] Connect search input to useOperations filter parameter for proposer/target address filtering
-- [ ] T092 [US7] Add date range picker in OperationsExplorerView and connect to useOperations dateFrom/dateTo parameters
-- [ ] T093 [US7] Display active filter badges in OperationsExplorerView showing current filter selections with clear buttons
-- [ ] T094 [US7] Add filter results count display showing "Showing X of Y operations"
+- [X] T087 [US7] Extend useOperations hook in src/hooks/useOperations.ts to support filter parameters: status (Pending/Ready/Executed/Cancelled), proposer address, target address, dateFrom, dateTo
+- [X] T088 [US7] Update subgraph queries in src/services/subgraph/operations.ts to support where clauses for all filter combinations
+- [X] T089 [US7] Add filter state management in src/components/operations_explorer/OperationsExplorerView.tsx using React state for active filters
+- [X] T090 [US7] Connect status filter chips (All/Pending/Ready/Executed/Canceled) to useOperations filter parameter
+- [X] T091 [US7] Connect search input to useOperations filter parameter for proposer/target address filtering
+- [X] T092 [US7] Add date range picker in OperationsExplorerView and connect to useOperations dateFrom/dateTo parameters
+- [X] T093 [US7] Display active filter badges in OperationsExplorerView showing current filter selections with clear buttons
+- [X] T094 [US7] Add filter results count display showing "Showing X of Y operations"
 
 **Checkpoint**: Users can efficiently find specific operations in large operation lists using multiple filter criteria
 
