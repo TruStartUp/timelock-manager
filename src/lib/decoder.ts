@@ -69,6 +69,15 @@ export type DecodeCalldataParams = {
   abi?: Abi
 
   /**
+   * If you provide `abi`, you can also provide the source/confidence metadata
+   * so the UI can render the correct badge (e.g. ABI came from Blockscout).
+   *
+   * If omitted and `abi` is provided, defaults to MANUAL/HIGH.
+   */
+  abiSource?: ABISource
+  abiConfidence?: ABIConfidence
+
+  /**
    * Optional ABI resolution context (required for auto-fetching ABIs).
    * This is mainly used for recursive decoding where each inner target
    * may require a distinct ABI.
@@ -198,6 +207,8 @@ export async function decodeCalldata(
     calldata,
     target,
     abi,
+    abiSource,
+    abiConfidence,
     network,
     publicClient,
     abiByAddress,
@@ -234,7 +245,10 @@ export async function decodeCalldata(
   let resolvedAbi: Abi | null = (abi as Abi | undefined) ?? null
   let resolvedMeta: Pick<DecodedCall, 'source' | 'confidence'> | null =
     resolvedAbi && resolvedAbi.length > 0
-      ? { source: ABISource.MANUAL, confidence: ABIConfidence.HIGH }
+      ? {
+          source: abiSource ?? ABISource.MANUAL,
+          confidence: abiConfidence ?? ABIConfidence.HIGH,
+        }
       : null
   const warnings: DecoderWarning[] = []
 

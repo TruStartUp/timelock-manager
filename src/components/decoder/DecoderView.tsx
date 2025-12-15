@@ -3,6 +3,7 @@ import { type Address, isAddress, type Abi } from 'viem'
 import { useChainId, usePublicClient } from 'wagmi'
 import { useContractABI } from '@/hooks/useContractABI'
 import { CHAIN_TO_NETWORK } from '@/services/blockscout/client'
+import { ABISource, ABIConfidence, setManualABI } from '@/services/blockscout/abi'
 import { decodeCalldata, type DecodedCall } from '@/lib/decoder'
 
 const DecoderView: React.FC = () => {
@@ -57,30 +58,110 @@ const DecoderView: React.FC = () => {
   } {
     if (result.source === 'BLOCKSCOUT' && result.confidence === 'HIGH') {
       return {
-        label: 'Verified',
+        label: '✅ Verified contract',
         className:
           'inline-flex items-center rounded-full bg-success/20 px-3 py-1 text-sm font-medium text-success',
       }
     }
-    if (result.source === 'MANUAL') {
-      return {
-        label: 'Manual ABI',
-        className:
-          'inline-flex items-center rounded-full bg-primary/15 px-3 py-1 text-sm font-medium text-primary',
-      }
-    }
     if (result.source === 'FOURBYTE') {
       return {
-        label: 'Guessed',
+        label: '⚠️ Decoded using guessed signature',
         className:
           'inline-flex items-center rounded-full bg-yellow-500/20 px-3 py-1 text-sm font-medium text-yellow-400',
       }
     }
+    if (result.source === 'MANUAL') {
+      return {
+        label: '✅ Decoded using manual ABI',
+        className:
+          'inline-flex items-center rounded-full bg-success/20 px-3 py-1 text-sm font-medium text-success',
+      }
+    }
     return {
-      label: 'Decoded',
+      label: '✅ Decoded',
       className:
         'inline-flex items-center rounded-full bg-border-color px-3 py-1 text-sm font-medium text-text-secondary',
     }
+  }
+
+  function shortAddress(addr: string): string {
+    if (!addr.startsWith('0x') || addr.length < 10) return addr
+    return `${addr.slice(0, 6)}…${addr.slice(-4)}`
+  }
+
+  function renderCall(call: DecodedCall, depth: number): React.ReactNode {
+    const summary = `${call.target ? shortAddress(call.target) : 'unknown'} — ${
+      call.signature || call.functionName
+    }`
+
+    return (
+      <details
+        key={`${call.selector}-${call.target ?? 'no_target'}-${depth}`}
+        className="rounded border border-border-color bg-background"
+        open={depth === 0}
+      >
+        <summary className="cursor-pointer select-none px-4 py-3">
+          <div className="flex items-center justify-between gap-3">
+            <span className="font-mono text-sm break-all">{summary}</span>
+            <span className={confidenceBadge(call).className}>
+              {confidenceBadge(call).label}
+            </span>
+          </div>
+        </summary>
+        <div className="px-4 pb-4 pt-2 flex flex-col gap-4">
+          <div className="rounded border border-border-color bg-surface p-3">
+            <p className="font-mono text-xs text-text-secondary">Selector</p>
+            <p className="font-mono text-sm text-orange-400 mt-1">
+              {call.selector}
+            </p>
+          </div>
+
+          {call.params.length ? (
+            <div>
+              <p className="text-text-secondary text-sm">Parameters</p>
+              <div className="mt-2 flex flex-col gap-2">
+                {call.params.map((p, idx) => (
+                  <div
+                    key={`${p.name}-${idx}`}
+                    className="grid grid-cols-[1fr_2fr] gap-3 rounded border border-border-color bg-surface p-3"
+                  >
+                    <div className="font-mono text-sm text-purple-400">
+                      {p.name}
+                    </div>
+                    <div className="font-mono text-sm break-all">
+                      <span className="text-cyan-400">({p.type})</span>{' '}
+                      <span className="text-orange-400">
+                        {formatValue(p.value)}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {call.warnings.length ? (
+            <div className="rounded border border-border-color bg-surface p-3">
+              <p className="text-text-secondary text-sm">Warnings</p>
+              <ul className="mt-2 list-disc pl-5 text-text-secondary text-sm">
+                {call.warnings.map((w, i) => (
+                  <li key={`${w.kind}-${i}`}>{w.message}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
+          {call.children.length ? (
+            <div className="flex flex-col gap-2">
+              <p className="text-text-secondary text-sm">Nested operations</p>
+              <div className="flex flex-col gap-3 pl-3 border-l border-border-color">
+                {call.children.map((c) => renderCall(c, depth + 1))}
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </details>
+    )
   }
 
   // Handler for Decode button
@@ -107,6 +188,11 @@ const DecoderView: React.FC = () => {
           setDecodeError('ABI must be a JSON array.')
           return
         }
+        const hasFunctions = parsed.some((item: any) => item?.type === 'function')
+        if (!hasFunctions) {
+          setDecodeError('ABI must contain at least one function definition.')
+          return
+        }
         manualAbi = parsed as Abi
       } catch (err) {
         setDecodeError(
@@ -122,10 +208,17 @@ const DecoderView: React.FC = () => {
         : (fetchedAbi as Abi | undefined)
 
     try {
+      // T078: Cache manual ABI for this address in sessionStorage (so useContractABI can reuse it).
+      if (manualAbi && normalizedContractAddress) {
+        setManualABI(normalizedContractAddress, manualAbi as unknown[])
+      }
+
       const result = await decodeCalldata({
         calldata: cd as `0x${string}`,
         target: normalizedContractAddress,
         abi: abiToUse,
+        abiSource: manualAbi ? ABISource.MANUAL : fetchedSource,
+        abiConfidence: manualAbi ? ABIConfidence.HIGH : fetchedConfidence,
         network,
         publicClient: publicClient ?? undefined,
       })
@@ -315,11 +408,30 @@ const DecoderView: React.FC = () => {
                     </ul>
                   </div>
                 ) : null}
+
+                {/* T077: Nested operations (collapsible) */}
+                {decoded.children.length > 0 ? (
+                  <div className="mt-2">
+                    <h4 className="text-lg font-semibold">Nested operations</h4>
+                    <div className="mt-4 flex flex-col gap-3">
+                      {decoded.children.map((c) => renderCall(c, 0))}
+                    </div>
+                  </div>
+                ) : null}
               </div>
             ) : decodeError ? (
               <div className="flex flex-1 flex-col gap-3">
-                <h4 className="text-lg font-semibold">Cannot decode</h4>
+                <div className="flex items-center justify-between">
+                  <h4 className="text-lg font-semibold">Cannot decode</h4>
+                  <span className="inline-flex items-center rounded-full bg-red-500/20 px-3 py-1 text-sm font-medium text-red-400">
+                    ❌ Cannot decode
+                  </span>
+                </div>
                 <p className="text-text-secondary">{decodeError}</p>
+                <div className="rounded border border-border-color bg-background p-4">
+                  <p className="font-mono text-sm text-text-secondary">Raw</p>
+                  <p className="font-mono text-sm break-all mt-2">{calldata.trim()}</p>
+                </div>
               </div>
             ) : (
               <div className="flex flex-1 items-center justify-center text-center">
