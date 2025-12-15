@@ -1,18 +1,138 @@
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
+import { type Address, isAddress, type Abi } from 'viem'
+import { useChainId, usePublicClient } from 'wagmi'
+import { useContractABI } from '@/hooks/useContractABI'
+import { CHAIN_TO_NETWORK } from '@/services/blockscout/client'
+import { decodeCalldata, type DecodedCall } from '@/lib/decoder'
 
 const DecoderView: React.FC = () => {
   // State for form inputs
   const [calldata, setCalldata] = useState('')
   const [contractAddress, setContractAddress] = useState('')
   const [abi, setAbi] = useState('')
-  const [isDecoded, setIsDecoded] = useState(true) // Set to true to show example output
+  const [decoded, setDecoded] = useState<DecodedCall | null>(null)
+  const [decodeError, setDecodeError] = useState<string | null>(null)
+
+  const chainId = useChainId()
+  const publicClient = usePublicClient()
+  const network = CHAIN_TO_NETWORK[chainId]
+
+  const normalizedContractAddress = useMemo(() => {
+    const trimmed = contractAddress.trim().replace(/^0X/, '0x')
+    if (!trimmed) return undefined
+    if (
+      !isAddress(trimmed, {
+        strict: false,
+      })
+    ) {
+      return undefined
+    }
+    return trimmed.toLowerCase() as Address
+  }, [contractAddress])
+
+  const {
+    abi: fetchedAbi,
+    source: fetchedSource,
+    confidence: fetchedConfidence,
+    isLoading: isAbiLoading,
+    isError: isAbiError,
+    error: abiError,
+  } = useContractABI(normalizedContractAddress, {
+    enabled: Boolean(normalizedContractAddress),
+  })
+
+  function formatValue(value: unknown): string {
+    if (typeof value === 'bigint') return value.toString()
+    if (typeof value === 'string') return value
+    if (typeof value === 'number') return String(value)
+    if (typeof value === 'boolean') return value ? 'true' : 'false'
+    if (Array.isArray(value)) return JSON.stringify(value)
+    if (value && typeof value === 'object') return JSON.stringify(value)
+    return String(value)
+  }
+
+  function confidenceBadge(result: DecodedCall): {
+    label: string
+    className: string
+  } {
+    if (result.source === 'BLOCKSCOUT' && result.confidence === 'HIGH') {
+      return {
+        label: 'Verified',
+        className:
+          'inline-flex items-center rounded-full bg-success/20 px-3 py-1 text-sm font-medium text-success',
+      }
+    }
+    if (result.source === 'MANUAL') {
+      return {
+        label: 'Manual ABI',
+        className:
+          'inline-flex items-center rounded-full bg-primary/15 px-3 py-1 text-sm font-medium text-primary',
+      }
+    }
+    if (result.source === 'FOURBYTE') {
+      return {
+        label: 'Guessed',
+        className:
+          'inline-flex items-center rounded-full bg-yellow-500/20 px-3 py-1 text-sm font-medium text-yellow-400',
+      }
+    }
+    return {
+      label: 'Decoded',
+      className:
+        'inline-flex items-center rounded-full bg-border-color px-3 py-1 text-sm font-medium text-text-secondary',
+    }
+  }
 
   // Handler for Decode button
-  const handleDecode = () => {
-    // TODO: Implement actual decoding logic when data hooks/services are available
-    // This will call a service or hook to decode the calldata
-    console.log('Decoding calldata:', { calldata, contractAddress, abi })
-    setIsDecoded(true)
+  const handleDecode = async () => {
+    setDecodeError(null)
+    setDecoded(null)
+
+    const cd = calldata.trim().replace(/^0X/, '0x')
+    if (!/^0x[0-9a-fA-F]*$/.test(cd)) {
+      setDecodeError('Calldata must be a 0x-prefixed hex string.')
+      return
+    }
+    if (cd.length < 10) {
+      setDecodeError('Calldata is too short (needs at least 4 bytes selector).')
+      return
+    }
+
+    let manualAbi: Abi | undefined
+    const abiText = abi.trim()
+    if (abiText) {
+      try {
+        const parsed = JSON.parse(abiText)
+        if (!Array.isArray(parsed)) {
+          setDecodeError('ABI must be a JSON array.')
+          return
+        }
+        manualAbi = parsed as Abi
+      } catch (err) {
+        setDecodeError(
+          err instanceof Error ? err.message : 'Invalid ABI JSON format.'
+        )
+        return
+      }
+    }
+
+    const abiToUse =
+      manualAbi && manualAbi.length > 0
+        ? manualAbi
+        : (fetchedAbi as Abi | undefined)
+
+    try {
+      const result = await decodeCalldata({
+        calldata: cd as `0x${string}`,
+        target: normalizedContractAddress,
+        abi: abiToUse,
+        network,
+        publicClient: publicClient ?? undefined,
+      })
+      setDecoded(result)
+    } catch (err) {
+      setDecodeError(err instanceof Error ? err.message : String(err))
+    }
   }
 
   // Handler for Clear button
@@ -20,7 +140,8 @@ const DecoderView: React.FC = () => {
     setCalldata('')
     setContractAddress('')
     setAbi('')
-    setIsDecoded(false)
+    setDecoded(null)
+    setDecodeError(null)
   }
 
   return (
@@ -118,120 +239,104 @@ const DecoderView: React.FC = () => {
             Output
           </h3>
           <div className="flex h-full min-h-[400px] flex-col rounded border border-border-color bg-surface p-6">
-            {isDecoded ? (
-              /* Decoded State */
+            {decoded ? (
               <div className="flex flex-col gap-6">
                 <div className="flex items-center justify-between">
                   <h4 className="text-lg font-semibold">Decoded Function</h4>
-                  <span className="inline-flex items-center rounded-full bg-success/20 px-3 py-1 text-sm font-medium text-success">
-                    Verified
+                  <span className={confidenceBadge(decoded).className}>
+                    {confidenceBadge(decoded).label}
                   </span>
                 </div>
 
-                {/* Function Name Card */}
+                {/* Function */}
                 <div className="rounded border border-border-color bg-background p-4">
-                  <p className="font-mono text-sm text-text-secondary">
-                    Function
+                  <p className="font-mono text-sm text-text-secondary">Function</p>
+                  <p className="font-mono text-base break-all mt-2">
+                    {decoded.signature || decoded.functionName}
                   </p>
-                  <div className="flex items-center justify-between gap-2 mt-2">
-                    <p className="font-mono text-base break-all">
-                      <span className="text-yellow-400">transfer</span>(
-                      <span className="text-cyan-400">address</span>{' '}
-                      <span className="text-purple-400">to</span>,{' '}
-                      <span className="text-cyan-400">uint256</span>{' '}
-                      <span className="text-purple-400">amount</span>)
-                    </p>
-                    <button className="text-text-secondary hover:text-text-primary transition-colors">
-                      <span className="material-symbols-outlined">
-                        content_copy
-                      </span>
-                    </button>
-                  </div>
                 </div>
 
-                {/* Signature Card */}
+                {/* Selector */}
                 <div className="rounded border border-border-color bg-background p-4">
                   <p className="font-mono text-sm text-text-secondary">
-                    Signature
+                    Selector
                   </p>
-                  <div className="flex items-center justify-between gap-2 mt-2">
-                    <p className="font-mono text-base text-orange-400">
-                      0xa9059cbb
-                    </p>
-                    <button className="text-text-secondary hover:text-text-primary transition-colors">
-                      <span className="material-symbols-outlined">
-                        content_copy
-                      </span>
-                    </button>
-                  </div>
+                  <p className="font-mono text-base text-orange-400 mt-2">
+                    {decoded.selector}
+                  </p>
                 </div>
 
                 {/* Parameters */}
                 <div className="mt-2">
                   <h4 className="text-lg font-semibold">Parameters</h4>
-                  <div className="mt-4 flex flex-col gap-3">
-                    {/* Parameter 1 */}
-                    <div className="grid grid-cols-[1fr_2fr] items-start gap-4 rounded border border-border-color bg-background p-4">
-                      <div className="flex flex-col">
-                        <p className="font-mono text-sm text-text-secondary">
-                          Parameter
-                        </p>
-                        <p className="font-mono text-base text-purple-400 mt-1">
-                          to
-                        </p>
-                      </div>
-                      <div className="flex flex-col">
-                        <p className="font-mono text-sm text-text-secondary">
-                          Value (<span className="text-cyan-400">address</span>)
-                        </p>
-                        <div className="flex items-center justify-between gap-2 mt-1">
-                          <p className="font-mono text-base text-orange-400 break-all">
-                            0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D
-                          </p>
-                          <button className="text-text-secondary hover:text-text-primary transition-colors self-start">
-                            <span className="material-symbols-outlined">
-                              content_copy
-                            </span>
-                          </button>
+                  {decoded.params.length === 0 ? (
+                    <p className="text-text-secondary mt-3">
+                      No parameters detected.
+                    </p>
+                  ) : (
+                    <div className="mt-4 flex flex-col gap-3">
+                      {decoded.params.map((p, idx) => (
+                        <div
+                          key={`${p.name}-${idx}`}
+                          className="grid grid-cols-[1fr_2fr] items-start gap-4 rounded border border-border-color bg-background p-4"
+                        >
+                          <div className="flex flex-col">
+                            <p className="font-mono text-sm text-text-secondary">
+                              Name
+                            </p>
+                            <p className="font-mono text-base text-purple-400 mt-1">
+                              {p.name}
+                            </p>
+                          </div>
+                          <div className="flex flex-col">
+                            <p className="font-mono text-sm text-text-secondary">
+                              Value{' '}
+                              <span className="text-cyan-400">({p.type})</span>
+                            </p>
+                            <p className="font-mono text-base text-orange-400 break-all mt-1">
+                              {formatValue(p.value)}
+                            </p>
+                          </div>
                         </div>
-                      </div>
+                      ))}
                     </div>
-
-                    {/* Parameter 2 */}
-                    <div className="grid grid-cols-[1fr_2fr] items-start gap-4 rounded border border-border-color bg-background p-4">
-                      <div className="flex flex-col">
-                        <p className="font-mono text-sm text-text-secondary">
-                          Parameter
-                        </p>
-                        <p className="font-mono text-base text-purple-400 mt-1">
-                          amount
-                        </p>
-                      </div>
-                      <div className="flex flex-col">
-                        <p className="font-mono text-sm text-text-secondary">
-                          Value (<span className="text-cyan-400">uint256</span>)
-                        </p>
-                        <div className="flex items-center justify-between gap-2 mt-1">
-                          <p className="font-mono text-base text-orange-400 break-all">
-                            1000000000000000000
-                          </p>
-                          <button className="text-text-secondary hover:text-text-primary transition-colors self-start">
-                            <span className="material-symbols-outlined">
-                              content_copy
-                            </span>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                  )}
                 </div>
+
+                {decoded.warnings.length > 0 ? (
+                  <div className="rounded border border-border-color bg-background p-4">
+                    <p className="text-text-secondary text-sm">
+                      Warnings:
+                    </p>
+                    <ul className="mt-2 list-disc pl-5 text-text-secondary text-sm">
+                      {decoded.warnings.map((w, i) => (
+                        <li key={`${w.kind}-${i}`}>{w.message}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+              </div>
+            ) : decodeError ? (
+              <div className="flex flex-1 flex-col gap-3">
+                <h4 className="text-lg font-semibold">Cannot decode</h4>
+                <p className="text-text-secondary">{decodeError}</p>
               </div>
             ) : (
-              /* Initial/Empty State */
               <div className="flex flex-1 items-center justify-center text-center">
-                <p className="text-text-secondary">
-                  Awaiting input to decode...
-                </p>
+                <div className="flex flex-col gap-2">
+                  <p className="text-text-secondary">Awaiting input to decode…</p>
+                  {normalizedContractAddress ? (
+                    <p className="text-text-secondary text-sm">
+                      {isAbiLoading
+                        ? 'Fetching verified ABI…'
+                        : isAbiError
+                          ? `ABI lookup failed: ${abiError || 'Unknown error'}`
+                          : fetchedAbi?.length
+                            ? `ABI ready (${fetchedSource}/${fetchedConfidence})`
+                            : 'No ABI found yet.'}
+                    </p>
+                  ) : null}
+                </div>
               </div>
             )}
           </div>

@@ -240,11 +240,11 @@ description: 'Task list for Rootstock Timelock Management App - Blockchain Integ
 
 ### Implementation for User Story 5
 
-- [ ] T071 [US5] Create decodeCalldata utility function in src/lib/decoder.ts using viem decodeFunctionData with ABI resolution priority
-- [ ] T072 [US5] Implement recursive decode logic in decoder.ts for TimelockController execute() and executeBatch() functions to extract and decode inner calls
-- [ ] T073 [US5] Integrate useContractABI in src/components/decoder/DecoderView.tsx for optional contract address input to fetch verified ABI
-- [ ] T074 [US5] Integrate decodeCalldata utility in DecoderView to process calldata input when user clicks "Decode" button
-- [ ] T075 [US5] Display decoded output in DecoderView showing: Function name, Full signature, Parameter table (Name, Type, Value), Confidence indicator badge
+- [X] T071 [US5] Create decodeCalldata utility function in src/lib/decoder.ts using viem decodeFunctionData with ABI resolution priority
+- [X] T072 [US5] Implement recursive decode logic in decoder.ts for TimelockController execute() and executeBatch() functions to extract and decode inner calls
+- [X] T073 [US5] Integrate useContractABI in src/components/decoder/DecoderView.tsx for optional contract address input to fetch verified ABI
+- [X] T074 [US5] Integrate decodeCalldata utility in DecoderView to process calldata input when user clicks "Decode" button
+- [X] T075 [US5] Display decoded output in DecoderView showing: Function name, Full signature, Parameter table (Name, Type, Value), Confidence indicator badge
 - [ ] T076 [US5] Implement confidence badge display in DecoderView: "✅ Verified contract" (green) for Blockscout-verified, "⚠️ Decoded using guessed signature" (yellow) for 4byte, "❌ Cannot decode" (red) for failures
 - [ ] T077 [US5] Add nested operation display in DecoderView for recursively decoded execute/executeBatch calls with collapsible sections
 - [ ] T078 [US5] Add manual ABI JSON input option in DecoderView with validation and sessionStorage caching
