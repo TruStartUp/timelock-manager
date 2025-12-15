@@ -236,7 +236,7 @@ description: 'Task list for Rootstock Timelock Management App - Blockchain Integ
 
 ### Tests for User Story 5
 
-- [ ] T070 [P] [US5] Unit test for recursive decoding in tests/unit/decoder.test.ts (execute/executeBatch inner calls)
+- [X] T070 [P] [US5] Unit test for recursive decoding in tests/unit/decoder.test.ts (execute/executeBatch inner calls)
 
 ### Implementation for User Story 5
 
