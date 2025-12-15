@@ -320,15 +320,15 @@ description: 'Task list for Rootstock Timelock Management App - Blockchain Integ
 
 ### Implementation for User Story 8
 
-- [ ] T095 [P] [US8] Create network configuration state management in src/hooks/useNetworkConfig.ts for custom RPC storage in localStorage
-- [ ] T096 [P] [US8] Create ABI management state in src/hooks/useABIManager.ts for custom ABI storage in sessionStorage
-- [ ] T097 [US8] Integrate useNetworkConfig in src/components/settings/SettingsView.tsx for custom RPC URL input and connection test
-- [ ] T098 [US8] Add RPC connection test function in SettingsView using wagmi publicClient to verify custom endpoint
-- [ ] T099 [US8] Integrate useABIManager in SettingsView for custom ABI JSON import with validation
-- [ ] T100 [US8] Display stored custom ABIs list in SettingsView with contract addresses and delete buttons
-- [ ] T101 [US8] Implement ABI export functionality in SettingsView to download all stored ABIs as JSON file
-- [ ] T102 [US8] Connect custom RPC setting to wagmi configuration reload using wagmi's configureChains
-- [ ] T103 [US8] Update useContractABI hook to check custom ABI storage before Blockscout API lookup
+- [X] T095 [P] [US8] Create network configuration state management in src/hooks/useNetworkConfig.ts for custom RPC storage in localStorage
+- [X] T096 [P] [US8] Create ABI management state in src/hooks/useABIManager.ts for custom ABI storage in sessionStorage
+- [X] T097 [US8] Integrate useNetworkConfig in src/components/settings/SettingsView.tsx for custom RPC URL input and connection test
+- [X] T098 [US8] Add RPC connection test function in SettingsView using wagmi publicClient to verify custom endpoint
+- [X] T099 [US8] Integrate useABIManager in SettingsView for custom ABI JSON import with validation
+- [X] T100 [US8] Display stored custom ABIs list in SettingsView with contract addresses and delete buttons
+- [X] T101 [US8] Implement ABI export functionality in SettingsView to download all stored ABIs as JSON file
+- [X] T102 [US8] Connect custom RPC setting to wagmi configuration reload using wagmi's configureChains
+- [X] T103 [US8] Update useContractABI hook to check custom ABI storage before Blockscout API lookup
 
 **Checkpoint**: Power users can customize network settings and manage contract ABIs for specialized use cases
 

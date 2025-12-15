@@ -15,6 +15,7 @@ import {
   ABIConfidence,
 } from '@/services/blockscout/abi'
 import { CHAIN_TO_NETWORK } from '@/services/blockscout/client'
+import { getABIManagerUpdatedAtMs, getCustomABIFromSessionStorage } from '@/hooks/useABIManager'
 
 export interface UseContractABIOptions {
   /**
@@ -113,6 +114,7 @@ export function useContractABI(
   const publicClient = usePublicClient()
 
   const network = CHAIN_TO_NETWORK[chainId]
+  const abiManagerUpdatedAt = typeof window !== 'undefined' ? getABIManagerUpdatedAtMs() : 0
 
   const {
     data,
@@ -121,7 +123,13 @@ export function useContractABI(
     error,
     refetch,
   } = useQuery({
-    queryKey: ['contractABI', address, network, Boolean(publicClient)],
+    queryKey: [
+      'contractABI',
+      address,
+      network,
+      Boolean(publicClient),
+      abiManagerUpdatedAt,
+    ],
     queryFn: async (): Promise<ABIResolution> => {
       if (!address) {
         throw new Error('Address is required')
@@ -131,6 +139,17 @@ export function useContractABI(
       }
       if (!publicClient) {
         throw new Error('Public client is not available')
+      }
+
+      // T103: Prefer custom ABI manager storage before Blockscout lookup.
+      const custom = getCustomABIFromSessionStorage(address)
+      if (custom?.abi && custom.abi.length > 0) {
+        return {
+          abi: custom.abi,
+          source: ABISource.MANUAL,
+          confidence: ABIConfidence.HIGH,
+          isProxy: false,
+        }
       }
       return getContractABI(address, network, publicClient)
     },
