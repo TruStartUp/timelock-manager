@@ -266,14 +266,14 @@ description: 'Task list for Rootstock Timelock Management App - Blockchain Integ
 
 ### Implementation for User Story 6
 
-- [ ] T079 [US6] Add cancel mutation to useTimelockWrite hook in src/hooks/useTimelockWrite.ts using cancel(id) function
-- [ ] T080 [US6] Implement pre-flight permission check in useTimelockWrite.cancel using useHasRole(CANCELLER_ROLE)
-- [ ] T081 [US6] Integrate useHasRole in src/components/operations_explorer/OperationsExplorerView.tsx to enable/disable Cancel button based on CANCELLER_ROLE
-- [ ] T082 [US6] Add confirmation dialog in OperationsExplorerView showing full operation details before cancel() transaction submission
-- [ ] T083 [US6] Connect Cancel button to useTimelockWrite.cancel with operation ID parameter
-- [ ] T084 [US6] Add transaction pending/success/error states to Cancel button
-- [ ] T085 [US6] Implement automatic operation list refresh after successful cancellation
-- [ ] T086 [US6] Add tooltip to disabled Cancel button showing "Your wallet does not have the CANCELLER_ROLE"
+- [X] T079 [US6] Add cancel mutation to useTimelockWrite hook in src/hooks/useTimelockWrite.ts using cancel(id) function
+- [X] T080 [US6] Implement pre-flight permission check in useTimelockWrite.cancel using useHasRole(CANCELLER_ROLE)
+- [X] T081 [US6] Integrate useHasRole in src/components/operations_explorer/OperationsExplorerView.tsx to enable/disable Cancel button based on CANCELLER_ROLE
+- [X] T082 [US6] Add confirmation dialog in OperationsExplorerView showing full operation details before cancel() transaction submission
+- [X] T083 [US6] Connect Cancel button to useTimelockWrite.cancel with operation ID parameter
+- [X] T084 [US6] Add transaction pending/success/error states to Cancel button
+- [X] T085 [US6] Implement automatic operation list refresh after successful cancellation
+- [X] T086 [US6] Add tooltip to disabled Cancel button showing "Your wallet does not have the CANCELLER_ROLE"
 
 **Checkpoint**: Users can now cancel pending operations if they have the appropriate role
 

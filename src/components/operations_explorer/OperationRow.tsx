@@ -19,6 +19,12 @@ interface Operation {
   timelockAddress: Address
   cancelledAt: bigint | null
   executedAt: bigint | null
+  // Execution parameters (from subgraph) - included for type compatibility with parent view
+  target: `0x${string}` | null
+  value: bigint | null
+  data: `0x${string}` | null
+  predecessor: `0x${string}`
+  salt: `0x${string}`
   details?: {
     fullId: string
     fullProposer: string
@@ -35,12 +41,17 @@ interface OperationRowProps {
   isExpanded: boolean
   onRowClick: (id: string) => void
   onExecute: (id: string) => void
-  onCancel: (id: string) => void
+  onCancel: (operation: Operation) => void
   hasExecutorRole: boolean
   isCheckingExecutorRole: boolean
   isExecuting: boolean
   isExecuteSuccess: boolean
   isExecuteError: boolean
+  hasCancellerRole: boolean
+  isCheckingCancellerRole: boolean
+  isCancelling: boolean
+  isCancelSuccess: boolean
+  isCancelError: boolean
   getStatusColor: (status: string) => string
   getStatusTextColor: (status: string) => string
   formatTargets: (targets: string[]) => string
@@ -58,6 +69,11 @@ export const OperationRow: React.FC<OperationRowProps> = ({
   isExecuting,
   isExecuteSuccess,
   isExecuteError,
+  hasCancellerRole,
+  isCheckingCancellerRole,
+  isCancelling,
+  isCancelSuccess,
+  isCancelError,
   getStatusColor,
   getStatusTextColor,
   formatTargets,
@@ -199,10 +215,10 @@ export const OperationRow: React.FC<OperationRowProps> = ({
                     <div className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
                   )}
                   {isExecuteSuccess && (
-                    <span className="material-symbols-outlined !text-base">check_circle</span>
+                    <span className="material-symbols-outlined text-base!">check_circle</span>
                   )}
                   {isExecuteError && (
-                    <span className="material-symbols-outlined !text-base">error</span>
+                    <span className="material-symbols-outlined text-base!">error</span>
                   )}
                   {isExecuting
                     ? 'EXECUTING...'
@@ -215,19 +231,105 @@ export const OperationRow: React.FC<OperationRowProps> = ({
                     : 'EXECUTE'}
                 </button>
                 <button
-                  className="flex items-center justify-center rounded-md h-9 px-3 bg-status-canceled/20 text-status-canceled text-xs font-bold hover:bg-status-canceled/30 transition-colors"
-                  onClick={() => onCancel(operation.id)}
+                  className={`flex items-center justify-center gap-2 rounded-md h-9 px-3 text-xs font-bold transition-colors ${
+                    isCancelling
+                      ? 'bg-primary/20 text-primary cursor-wait'
+                      : isCancelSuccess
+                      ? 'bg-green-500/20 text-green-500'
+                      : isCancelError
+                      ? 'bg-red-500/20 text-red-500'
+                      : hasCancellerRole
+                      ? 'bg-status-canceled/20 text-status-canceled hover:bg-status-canceled/30'
+                      : 'bg-border-dark text-text-dark-secondary cursor-not-allowed opacity-50'
+                  }`}
+                  onClick={() =>
+                    hasCancellerRole && !isCancelling && onCancel(operation)
+                  }
+                  disabled={!hasCancellerRole || isCheckingCancellerRole || isCancelling}
+                  title={
+                    isCancelling
+                      ? 'Transaction pending...'
+                      : isCancelSuccess
+                      ? 'Cancellation successful!'
+                      : isCancelError
+                      ? 'Cancellation failed'
+                      : isCheckingCancellerRole
+                      ? 'Checking permissions...'
+                      : !hasCancellerRole
+                      ? 'Your wallet does not have the CANCELLER_ROLE'
+                      : 'Cancel this operation'
+                  }
                 >
-                  CANCEL
+                  {isCancelling && (
+                    <div className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
+                  )}
+                  {isCancelSuccess && (
+                    <span className="material-symbols-outlined text-base!">check_circle</span>
+                  )}
+                  {isCancelError && (
+                    <span className="material-symbols-outlined text-base!">error</span>
+                  )}
+                  {isCancelling
+                    ? 'CANCELLING...'
+                    : isCancelSuccess
+                    ? 'SUCCESS'
+                    : isCancelError
+                    ? 'FAILED'
+                    : isCheckingCancellerRole
+                    ? 'CHECKING...'
+                    : 'CANCEL'}
                 </button>
               </>
             )}
             {displayStatus === 'Pending' && (
               <button
-                className="flex items-center justify-center rounded-md h-9 px-3 bg-status-canceled/20 text-status-canceled text-xs font-bold hover:bg-status-canceled/30 transition-colors"
-                onClick={() => onCancel(operation.id)}
+                className={`flex items-center justify-center gap-2 rounded-md h-9 px-3 text-xs font-bold transition-colors ${
+                  isCancelling
+                    ? 'bg-primary/20 text-primary cursor-wait'
+                    : isCancelSuccess
+                    ? 'bg-green-500/20 text-green-500'
+                    : isCancelError
+                    ? 'bg-red-500/20 text-red-500'
+                    : hasCancellerRole
+                    ? 'bg-status-canceled/20 text-status-canceled hover:bg-status-canceled/30'
+                    : 'bg-border-dark text-text-dark-secondary cursor-not-allowed opacity-50'
+                }`}
+                onClick={() =>
+                  hasCancellerRole && !isCancelling && onCancel(operation)
+                }
+                disabled={!hasCancellerRole || isCheckingCancellerRole || isCancelling}
+                title={
+                  isCancelling
+                    ? 'Transaction pending...'
+                    : isCancelSuccess
+                    ? 'Cancellation successful!'
+                    : isCancelError
+                    ? 'Cancellation failed'
+                    : isCheckingCancellerRole
+                    ? 'Checking permissions...'
+                    : !hasCancellerRole
+                    ? 'Your wallet does not have the CANCELLER_ROLE'
+                    : 'Cancel this operation'
+                }
               >
-                CANCEL
+                {isCancelling && (
+                  <div className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
+                )}
+                {isCancelSuccess && (
+                  <span className="material-symbols-outlined text-base!">check_circle</span>
+                )}
+                {isCancelError && (
+                  <span className="material-symbols-outlined text-base!">error</span>
+                )}
+                {isCancelling
+                  ? 'CANCELLING...'
+                  : isCancelSuccess
+                  ? 'SUCCESS'
+                  : isCancelError
+                  ? 'FAILED'
+                  : isCheckingCancellerRole
+                  ? 'CHECKING...'
+                  : 'CANCEL'}
               </button>
             )}
           </div>

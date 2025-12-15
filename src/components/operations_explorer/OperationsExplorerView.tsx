@@ -11,6 +11,9 @@ import { OperationRow } from './OperationRow'
 
 type OperationStatus = 'All' | 'Pending' | 'Ready' | 'Executed' | 'Canceled'
 
+const ZERO_BYTES32 =
+  '0x0000000000000000000000000000000000000000000000000000000000000000' as const
+
 interface Operation {
   id: string
   fullId: `0x${string}`
@@ -42,6 +45,11 @@ const OperationsExplorerView: React.FC = () => {
   const [selectedFilter, setSelectedFilter] = useState<OperationStatus>('All')
   const [searchQuery, setSearchQuery] = useState('')
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null)
+  const [confirmCancelOperation, setConfirmCancelOperation] =
+    useState<Operation | null>(null)
+  const [activeCancelOperationId, setActiveCancelOperationId] = useState<
+    `0x${string}` | null
+  >(null)
 
   // State for selected timelock contract address
   // Using the actual deployed TimelockController on Rootstock Testnet
@@ -65,14 +73,30 @@ const OperationsExplorerView: React.FC = () => {
     account: connectedAccount,
   })
 
+  // T081: Check if connected wallet has CANCELLER_ROLE
+  const { hasRole: hasCancellerRole, isLoading: isCheckingCancellerRole } = useHasRole({
+    timelockController:
+      timelockAddress ??
+      ('0x0000000000000000000000000000000000000000' as Address),
+    role: TIMELOCK_ROLES.CANCELLER_ROLE,
+    account: connectedAccount,
+  })
+
   // Initialize useTimelockWrite for executing operations
   const {
     execute,
+    cancel,
     isPending: isExecuting,
     isSuccess: isExecuteSuccess,
     isError: isExecuteError,
     error: executeError,
     txHash: executeTxHash,
+    isCancelPending: isCancelling,
+    isCancelSuccess,
+    isCancelError,
+    cancelError,
+    cancelTxHash,
+    resetCancel,
   } = useTimelockWrite({
     timelockController: timelockAddress ?? ('0x0000000000000000000000000000000000000000' as Address),
     account: connectedAccount,
@@ -107,6 +131,14 @@ const OperationsExplorerView: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['operations-summary', chainId] })
     }
   }, [isExecuteSuccess, chainId, queryClient])
+
+  // T085: Automatically refresh operations list after successful cancellation
+  useEffect(() => {
+    if (isCancelSuccess) {
+      queryClient.invalidateQueries({ queryKey: ['operations', chainId] })
+      queryClient.invalidateQueries({ queryKey: ['operations-summary', chainId] })
+    }
+  }, [isCancelSuccess, chainId, queryClient])
 
   // Helper functions for formatting
   const shortenAddress = (address: string): string => {
@@ -158,11 +190,11 @@ const OperationsExplorerView: React.FC = () => {
         cancelledAt: op.cancelledAt,
         executedAt: op.executedAt,
         // Execution parameters for useTimelockWrite
-        target: op.target,
-        value: op.value,
-        data: op.data,
-        predecessor: op.predecessor,
-        salt: op.salt,
+        target: op.target ?? null,
+        value: op.value ?? null,
+        data: op.data ?? null,
+        predecessor: op.predecessor ?? ZERO_BYTES32,
+        salt: op.salt ?? ZERO_BYTES32,
         details: {
           fullId: op.id,
           fullProposer: op.scheduledBy,
@@ -249,9 +281,18 @@ const OperationsExplorerView: React.FC = () => {
     })
   }
 
-  const handleCancel = (id: string) => {
-    // TODO: Implement cancel logic with data hooks/services
-    console.log('Cancel operation:', id)
+  const handleCancel = (operation: Operation) => {
+    // T082: Show confirmation dialog with operation details before submission
+    setConfirmCancelOperation(operation)
+  }
+
+  const confirmCancel = () => {
+    if (!confirmCancelOperation) return
+    // Ensure previous cancel mutation state doesn't bleed into the next one.
+    resetCancel()
+    setActiveCancelOperationId(confirmCancelOperation.fullId)
+    cancel(confirmCancelOperation.fullId)
+    setConfirmCancelOperation(null)
   }
 
   const formatTargets = (targets: string[]) => {
@@ -261,6 +302,104 @@ const OperationsExplorerView: React.FC = () => {
 
   return (
     <>
+      {/* T082: Cancel confirmation dialog */}
+      {confirmCancelOperation ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-xl rounded-lg border border-border-dark bg-surface-dark p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-xl font-bold text-text-dark-primary">
+                  Confirm cancellation
+                </h3>
+                <p className="mt-1 text-sm text-text-dark-secondary">
+                  This will submit a transaction calling <code>cancel(id)</code> on the timelock.
+                </p>
+              </div>
+              <button
+                className="text-text-dark-secondary hover:text-text-dark-primary"
+                onClick={() => setConfirmCancelOperation(null)}
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            <div className="mt-5 space-y-3 rounded-md bg-background-dark p-4 font-mono text-sm">
+              <div className="flex justify-between gap-3">
+                <span className="text-text-dark-secondary">Operation ID</span>
+                <span className="text-text-dark-primary break-all">
+                  {confirmCancelOperation.details?.fullId ??
+                    confirmCancelOperation.fullId}
+                </span>
+              </div>
+              <div className="flex justify-between gap-3">
+                <span className="text-text-dark-secondary">Proposer</span>
+                <span className="text-text-dark-primary break-all">
+                  {confirmCancelOperation.details?.fullProposer ??
+                    confirmCancelOperation.proposer}
+                </span>
+              </div>
+              <div className="flex justify-between gap-3">
+                <span className="text-text-dark-secondary">Status</span>
+                <span className="text-text-dark-primary">
+                  {confirmCancelOperation.status}
+                </span>
+              </div>
+              <div className="flex justify-between gap-3">
+                <span className="text-text-dark-secondary">Targets</span>
+                <span className="text-text-dark-primary break-all">
+                  {confirmCancelOperation.targets.join(', ') || '—'}
+                </span>
+              </div>
+            </div>
+
+            {isCancelError && cancelError ? (
+              <div className="mt-4 rounded border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
+                {cancelError.message}
+              </div>
+            ) : null}
+
+            {isCancelSuccess && cancelTxHash ? (
+              <div className="mt-4 rounded border border-green-500/30 bg-green-500/10 p-3 text-sm text-green-300">
+                Cancelled successfully. Tx:{' '}
+                <span className="font-mono break-all">{cancelTxHash}</span>
+              </div>
+            ) : null}
+
+            <div className="mt-6 flex items-center justify-end gap-3">
+              <button
+                className="rounded-md border border-border-dark bg-transparent px-4 py-2 text-sm font-semibold text-text-dark-secondary hover:bg-white/5"
+                onClick={() => setConfirmCancelOperation(null)}
+                disabled={isCancelling}
+              >
+                Close
+              </button>
+              <button
+                className={`rounded-md px-4 py-2 text-sm font-semibold ${
+                  isCancelling
+                    ? 'bg-primary/20 text-primary cursor-wait'
+                    : hasCancellerRole
+                      ? 'bg-status-canceled/20 text-status-canceled hover:bg-status-canceled/30'
+                      : 'bg-border-dark text-text-dark-secondary cursor-not-allowed opacity-50'
+                }`}
+                onClick={confirmCancel}
+                disabled={!hasCancellerRole || isCheckingCancellerRole || isCancelling}
+                title={
+                  isCancelling
+                    ? 'Transaction pending...'
+                    : isCheckingCancellerRole
+                      ? 'Checking permissions...'
+                      : !hasCancellerRole
+                        ? 'Your wallet does not have the CANCELLER_ROLE'
+                        : 'Cancel this operation'
+                }
+              >
+                {isCancelling ? 'Cancelling…' : 'Cancel operation'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {/* Top Navigation Bar */}
       <header className="flex items-center justify-between whitespace-nowrap border-b border-solid border-border-dark px-6 py-4 mb-4">
         <div className="flex items-center gap-4 text-text-dark-primary">
@@ -283,7 +422,7 @@ const OperationsExplorerView: React.FC = () => {
           </h1>
         </div>
         <button className="flex min-w-[84px] cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-full h-10 px-4 bg-primary text-background-dark text-sm font-bold leading-normal tracking-[0.015em] hover:opacity-90 transition-opacity">
-          <span className="material-symbols-outlined !text-xl">add</span>
+          <span className="material-symbols-outlined text-xl!">add</span>
           <span className="truncate">Schedule Operation</span>
         </button>
       </header>
@@ -325,7 +464,7 @@ const OperationsExplorerView: React.FC = () => {
 
           {/* Search Bar & Advanced Filter */}
           <div className="flex items-center gap-2">
-            <div className="flex-grow">
+            <div className="grow">
               <label className="flex flex-col min-w-40 h-11 w-full">
                 <div className="flex w-full flex-1 items-stretch rounded-lg h-full">
                   <div className="text-text-dark-secondary flex items-center justify-center rounded-l-lg border-r-0 border-none bg-border-dark pl-3">
@@ -350,7 +489,7 @@ const OperationsExplorerView: React.FC = () => {
         {isExecuteError && executeError && (
           <div className="rounded-lg border border-red-500/50 bg-red-500/10 p-6">
             <div className="flex items-start gap-4">
-              <div className="flex-shrink-0">
+              <div className="shrink-0">
                 <span className="material-symbols-outlined text-red-500 text-3xl">
                   error
                 </span>
@@ -370,7 +509,7 @@ const OperationsExplorerView: React.FC = () => {
                 </ul>
                 <details className="text-text-dark-secondary text-xs font-mono bg-background-dark p-3 rounded">
                   <summary className="cursor-pointer font-bold mb-2">Error Details</summary>
-                  <pre className="whitespace-pre-wrap break-words">{executeError.message}</pre>
+                  <pre className="whitespace-pre-wrap wrap-break-word">{executeError.message}</pre>
                 </details>
               </div>
             </div>
@@ -381,7 +520,7 @@ const OperationsExplorerView: React.FC = () => {
         {isExecuteSuccess && executeTxHash && (
           <div className="rounded-lg border border-green-500/50 bg-green-500/10 p-6">
             <div className="flex items-start gap-4">
-              <div className="flex-shrink-0">
+              <div className="shrink-0">
                 <span className="material-symbols-outlined text-green-500 text-3xl">
                   check_circle
                 </span>
@@ -415,7 +554,7 @@ const OperationsExplorerView: React.FC = () => {
         {isError && (
           <div className="rounded-lg border border-yellow-500/50 bg-yellow-500/10 p-6">
             <div className="flex items-start gap-4">
-              <div className="flex-shrink-0">
+              <div className="shrink-0">
                 <span className="material-symbols-outlined text-yellow-500 text-3xl">
                   warning
                 </span>
@@ -486,7 +625,7 @@ const OperationsExplorerView: React.FC = () => {
                 <th className="px-6 py-4" scope="col">
                   <div className="flex items-center gap-1 cursor-pointer">
                     ID{' '}
-                    <span className="material-symbols-outlined !text-base">
+                    <span className="material-symbols-outlined text-base!">
                       swap_vert
                     </span>
                   </div>
@@ -494,7 +633,7 @@ const OperationsExplorerView: React.FC = () => {
                 <th className="px-6 py-4" scope="col">
                   <div className="flex items-center gap-1 cursor-pointer">
                     Status{' '}
-                    <span className="material-symbols-outlined !text-base">
+                    <span className="material-symbols-outlined text-base!">
                       swap_vert
                     </span>
                   </div>
@@ -508,7 +647,7 @@ const OperationsExplorerView: React.FC = () => {
                 <th className="px-6 py-4" scope="col">
                   <div className="flex items-center gap-1 cursor-pointer">
                     ETA{' '}
-                    <span className="material-symbols-outlined !text-base">
+                    <span className="material-symbols-outlined text-base!">
                       swap_vert
                     </span>
                   </div>
@@ -516,7 +655,7 @@ const OperationsExplorerView: React.FC = () => {
                 <th className="px-6 py-4" scope="col">
                   <div className="flex items-center gap-1 cursor-pointer">
                     Proposer{' '}
-                    <span className="material-symbols-outlined !text-base">
+                    <span className="material-symbols-outlined text-base!">
                       swap_vert
                     </span>
                   </div>
@@ -540,6 +679,23 @@ const OperationsExplorerView: React.FC = () => {
                   isExecuting={isExecuting}
                   isExecuteSuccess={isExecuteSuccess}
                   isExecuteError={isExecuteError}
+                  hasCancellerRole={hasCancellerRole}
+                  isCheckingCancellerRole={isCheckingCancellerRole}
+                  isCancelling={
+                    isCancelling &&
+                    activeCancelOperationId !== null &&
+                    activeCancelOperationId === operation.fullId
+                  }
+                  isCancelSuccess={
+                    isCancelSuccess &&
+                    activeCancelOperationId !== null &&
+                    activeCancelOperationId === operation.fullId
+                  }
+                  isCancelError={
+                    isCancelError &&
+                    activeCancelOperationId !== null &&
+                    activeCancelOperationId === operation.fullId
+                  }
                   getStatusColor={getStatusColor}
                   getStatusTextColor={getStatusTextColor}
                   formatTargets={formatTargets}

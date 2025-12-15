@@ -165,9 +165,20 @@ export interface UseTimelockWriteResult {
   schedule: (params: ScheduleOperationParams | ScheduleBatchParams) => void
 
   /**
+   * Cancel a pending operation by ID (bytes32)
+   * Blocked if account lacks CANCELLER_ROLE
+   */
+  cancel: (id: `0x${string}`) => void
+
+  /**
    * Transaction hash if execution/scheduling was submitted
    */
   txHash: `0x${string}` | undefined
+
+  /**
+   * Transaction hash for cancel()
+   */
+  cancelTxHash: `0x${string}` | undefined
 
   /**
    * Whether the transaction is pending
@@ -175,9 +186,19 @@ export interface UseTimelockWriteResult {
   isPending: boolean
 
   /**
+   * Whether the cancel transaction is pending
+   */
+  isCancelPending: boolean
+
+  /**
    * Whether the transaction was successful
    */
   isSuccess: boolean
+
+  /**
+   * Whether the cancel transaction was successful
+   */
+  isCancelSuccess: boolean
 
   /**
    * Whether the transaction failed
@@ -185,9 +206,19 @@ export interface UseTimelockWriteResult {
   isError: boolean
 
   /**
+   * Whether the cancel transaction failed
+   */
+  isCancelError: boolean
+
+  /**
    * Error if transaction failed
    */
   error: Error | null
+
+  /**
+   * Error if cancel transaction failed
+   */
+  cancelError: Error | null
 
   /**
    * Whether the connected account has EXECUTOR_ROLE
@@ -200,6 +231,12 @@ export interface UseTimelockWriteResult {
    * Used for UI to enable/disable schedule button
    */
   hasProposerRole: boolean
+
+  /**
+   * Whether the connected account has CANCELLER_ROLE
+   * Used for UI to enable/disable cancel button
+   */
+  hasCancellerRole: boolean
 
   /**
    * Whether the role check is loading
@@ -216,6 +253,11 @@ export interface UseTimelockWriteResult {
    * Reset the mutation state
    */
   reset: () => void
+
+  /**
+   * Reset the cancel mutation state
+   */
+  resetCancel: () => void
 }
 
 /**
@@ -315,6 +357,16 @@ export function useTimelockWrite({
     account,
   })
 
+  // Check if account has CANCELLER_ROLE for cancel operations (T080)
+  const {
+    hasRole: hasCancellerRole,
+    isLoading: isCheckingCancellerRole,
+  } = useHasRole({
+    timelockController,
+    role: TIMELOCK_ROLES.CANCELLER_ROLE,
+    account,
+  })
+
   // Fetch minimum delay for delay validation (T060)
   const { data: minDelay } = useReadContract({
     address: timelockController,
@@ -336,11 +388,29 @@ export function useTimelockWrite({
     reset,
   } = useWriteContract()
 
+  // Separate writer for cancel() so cancel state doesn't collide with execute/schedule state (T084)
+  const {
+    writeContract: writeCancel,
+    data: cancelTxHash,
+    isPending: isCancelWritePending,
+    isSuccess: isCancelWriteSuccess,
+    isError: isCancelWriteError,
+    error: cancelWriteError,
+    reset: resetCancel,
+  } = useWriteContract()
+
   const {
     isLoading: isConfirming,
     isSuccess: isConfirmed,
   } = useWaitForTransactionReceipt({
     hash: txHash,
+  })
+
+  const {
+    isLoading: isCancelConfirming,
+    isSuccess: isCancelConfirmed,
+  } = useWaitForTransactionReceipt({
+    hash: cancelTxHash,
   })
 
   /**
@@ -446,18 +516,51 @@ export function useTimelockWrite({
     }
   }
 
+  /**
+   * Cancel a pending operation
+   * Pre-flight check: blocks cancel if account lacks CANCELLER_ROLE (T080)
+   */
+  const cancel = (id: `0x${string}`) => {
+    if (!hasCancellerRole) {
+      console.warn('Cancel blocked: Account lacks CANCELLER_ROLE')
+      return
+    }
+
+    // Basic bytes32 validation (0x + 64 hex chars)
+    if (!/^0x[0-9a-fA-F]{64}$/.test(id)) {
+      console.error('Cancel blocked: Invalid operation id (expected bytes32)')
+      return
+    }
+
+    writeCancel({
+      address: timelockController,
+      abi: TimelockControllerABI,
+      functionName: 'cancel',
+      args: [id],
+    })
+  }
+
   return {
     execute,
     schedule,
+    cancel,
     txHash,
+    cancelTxHash,
     isPending: isWritePending || isConfirming,
+    isCancelPending: isCancelWritePending || isCancelConfirming,
     isSuccess: isWriteSuccess && isConfirmed,
+    isCancelSuccess: isCancelWriteSuccess && isCancelConfirmed,
     isError: isWriteError,
+    isCancelError: isCancelWriteError,
     error: writeError as Error | null,
+    cancelError: cancelWriteError as Error | null,
     hasExecutorRole,
     hasProposerRole,
-    isCheckingRole: isCheckingExecutorRole || isCheckingProposerRole,
+    hasCancellerRole,
+    isCheckingRole:
+      isCheckingExecutorRole || isCheckingProposerRole || isCheckingCancellerRole,
     minDelay: typeof minDelay === 'bigint' ? minDelay : undefined,
     reset,
+    resetCancel,
   }
 }
