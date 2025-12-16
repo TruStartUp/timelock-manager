@@ -7,7 +7,7 @@
 
 **Purpose**: Add new dependencies required for the feature.
 
-- [ ] T001 Install `zod` for runtime type validation of `localStorage` data (`npm install zod`)
+- [X] T001 Install `zod` for runtime type validation of `localStorage` data (`npm install zod`)
 
 ---
 
@@ -15,12 +15,12 @@
 
 **Purpose**: Create the core context and hooks for managing timelock state. This infrastructure is required by both user stories.
 
-- [ ] T002 [P] Define the `TimelockConfiguration` and related types in `src/types/timelock.ts`
-- [ ] T003 [P] Create the `zod` schema for `TimelockConfiguration` validation in `src/lib/validation.ts`
-- [ ] T004 Create the `TimelockContext` to manage state in `src/context/TimelockContext.tsx`
-- [ ] T005 Implement the `TimelockProvider` in `src/context/TimelockContext.tsx`, including logic to load configurations from `localStorage` and validate them using the `zod` schema.
-- [ ] T006 Create the `useTimelocks` custom hook in `src/hooks/useTimelocks.ts` to expose context values (`configurations`, `selected`, `addConfig`, `removeConfig`, `select`).
-- [ ] T007 Integrate `TimelockProvider` into the application's component tree, likely in `src/pages/_app.tsx` or `src/components/common/Providers.tsx`.
+- [X] T002 [P] Define the `TimelockConfiguration` and related types in `src/types/timelock.ts`
+- [X] T003 [P] Create the `zod` schema for `TimelockConfiguration` validation in `src/lib/validation.ts`
+- [X] T004 Create the `TimelockContext` to manage state in `src/context/TimelockContext.tsx`
+- [X] T005 Implement the `TimelockProvider` in `src/context/TimelockContext.tsx`, including logic to load configurations from `localStorage` and validate them using the `zod` schema.
+- [X] T006 Create the `useTimelocks` custom hook in `src/hooks/useTimelocks.ts` to expose context values (`configurations`, `selected`, `addConfig`, `removeConfig`, `select`).
+- [X] T007 Integrate `TimelockProvider` into the application's component tree, likely in `src/pages/_app.tsx` or `src/components/common/Providers.tsx`.
 
 ---
 
