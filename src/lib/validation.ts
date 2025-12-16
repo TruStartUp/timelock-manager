@@ -360,3 +360,22 @@ export function isValidInt256(value: string): boolean {
     return false
   }
 }
+
+/**
+ * Zod schema for a single TimelockConfiguration object.
+ *
+ * @see data-model.md
+ */
+export const timelockConfigurationSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().min(1, 'Timelock name cannot be empty'),
+  address: solidityValidators.address, // Reusing the existing address validator
+  network: z.union([z.literal('rsk_mainnet'), z.literal('rsk_testnet')]),
+  subgraphUrl: z.string().url('Invalid URL format for subgraph'),
+});
+
+/**
+ * Zod schema for an array of TimelockConfiguration objects.
+ * Used for validating data loaded from localStorage.
+ */
+export const timelockConfigurationsArraySchema = z.array(timelockConfigurationSchema);
