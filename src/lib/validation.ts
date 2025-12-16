@@ -8,22 +8,36 @@
  */
 
 import { z } from 'zod'
-import { isAddress, getAddress } from 'viem'
+import { isAddress } from 'viem'
+
+/**
+ * Rootstock-friendly address normalization.
+ * - Trims whitespace
+ * - Strips wrapping quotes (common when copy/pasting)
+ * - Normalizes 0X -> 0x
+ * - Lowercases (Rootstock addresses are often not checksummed)
+ */
+export function normalizeAddressLoose(value: string): `0x${string}` {
+  const trimmed = value.trim().replace(/^["']|["']$/g, '')
+  const normalized = trimmed.replace(/^0X/, '0x').toLowerCase()
+  return normalized as `0x${string}`
+}
 
 /**
  * Zod validators for Solidity primitive and complex types
  */
 export const solidityValidators = {
   /**
-   * Address with EIP-55 checksum validation
-   * Ensures valid Ethereum address format and normalizes to checksummed format
+   * Address validator (Rootstock-friendly; non-checksum-strict)
+   * Ensures valid 0x-prefixed 20-byte hex address and normalizes to lowercase.
    */
   address: z
     .string()
-    .refine((val) => isAddress(val), {
+    .transform((val) => normalizeAddressLoose(val))
+    .refine((val) => isAddress(val, { strict: false }), {
       message: 'Invalid Ethereum address format',
     })
-    .transform((val) => getAddress(val)), // Normalize to checksummed address
+    .transform((val) => normalizeAddressLoose(val)),
 
   /**
    * Unsigned integer validator with configurable bit size
@@ -278,7 +292,10 @@ export function getExpectedBytesLength(type: string): number | null {
  * @returns True if value is a valid address string
  */
 export function isValidAddress(value: unknown): value is `0x${string}` {
-  return typeof value === 'string' && isAddress(value)
+  return (
+    typeof value === 'string' &&
+    isAddress(normalizeAddressLoose(value), { strict: false })
+  )
 }
 
 /**
@@ -304,10 +321,11 @@ export function isValidHex(value: unknown): value is `0x${string}` {
  * @throws Error if address is invalid
  */
 export function validateAddress(address: string): `0x${string}` {
-  if (!isAddress(address)) {
+  const normalized = normalizeAddressLoose(address)
+  if (!isAddress(normalized, { strict: false })) {
     throw new Error(`Invalid address: ${address}`)
   }
-  return getAddress(address)
+  return normalized
 }
 
 /**

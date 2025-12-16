@@ -9,9 +9,9 @@ Use this checklist to manually validate the feature against the functional requi
 
 ## Network & Wallet
 
-- [ ] FR-001: System MUST support connection via RainbowKit-compatible wallets including MetaMask, WalletConnect, and injected providers
-- [ ] FR-002: System MUST support exactly two networks: Rootstock mainnet (chainId 30) and Rootstock testnet (chainId 31)
-- [ ] FR-003: System MUST display a "Wrong network" banner when connected wallet is on an unsupported network
+- [X] FR-001: System MUST support connection via RainbowKit-compatible wallets including MetaMask, WalletConnect, and injected providers
+- [X] FR-002: System MUST support exactly two networks: Rootstock mainnet (chainId 30) and Rootstock testnet (chainId 31)
+- [X] FR-003: System MUST display a "Wrong network" banner when connected wallet is on an unsupported network
 - [ ] FR-004: System MUST disable all transaction buttons (execute, cancel, schedule) when user is on wrong network while maintaining read-only functionality
 - [ ] FR-005: System MUST prompt users to add Rootstock network configuration to their wallet using wallet_addEthereumChain when network is not present
 - [ ] FR-006: System MUST load RPC URLs from environment variables (NEXT_PUBLIC_RSK_MAINNET_RPC_URL and NEXT_PUBLIC_RSK_TESTNET_RPC_URL)

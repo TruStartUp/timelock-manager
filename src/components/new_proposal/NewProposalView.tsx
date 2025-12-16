@@ -13,7 +13,7 @@ import { useTimelockWrite } from '@/hooks/useTimelockWrite'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { parseABITypeToZod } from '@/lib/validation'
+import { normalizeAddressLoose, parseABITypeToZod } from '@/lib/validation'
 import TimelockControllerABI from '@/lib/abis/TimelockController.json'
 import { formatTxError } from '@/lib/txErrors'
 
@@ -400,11 +400,13 @@ const NewProposalView: React.FC = () => {
   // T063: Reset form when function changes
   useEffect(() => {
     if (selectedFunctionABI && (selectedFunctionABI as any).inputs) {
-      const defaultValues: Record<string, string> = {}
+      const defaultValues: Record<string, any> = {}
       const inputs = (selectedFunctionABI as any).inputs
       inputs.forEach((input: any) => {
         const inputName = input.name || `param${input.index || 0}`
-        defaultValues[inputName] = ''
+        const inputType = input.type as string | undefined
+        // Ensure bool params are real booleans so z.boolean() passes validation.
+        defaultValues[inputName] = inputType === 'bool' ? false : ''
       })
       reset(defaultValues)
     }
@@ -579,6 +581,10 @@ const NewProposalView: React.FC = () => {
             if (raw === 'true') return true
             if (raw === 'false') return false
             return raw
+          }
+          if (inputType === 'address') {
+            // Keep encoding stable and Rootstock-friendly by normalizing case.
+            return normalizeAddressLoose(raw)
           }
           return raw
         })
@@ -1004,17 +1010,42 @@ const NewProposalView: React.FC = () => {
                               <p className="text-text-primary text-base font-medium leading-normal pb-2">
                                 {inputName} ({inputType})
                               </p>
-                              <input
-                                {...field}
-                                value={field.value ?? ''}
-                                className={`form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded text-text-primary focus:outline-0 focus:ring-2 focus:ring-primary/50 border ${
-                                  fieldError
-                                    ? 'border-red-500'
-                                    : 'border-border-color'
-                                } bg-background h-14 placeholder:text-text-secondary p-[15px] text-base font-normal leading-normal`}
-                                placeholder={getPlaceholderForType(inputType)}
-                                type="text"
-                              />
+                              {inputType === 'bool' ? (
+                                <div className="relative w-full">
+                                  <select
+                                    name={field.name}
+                                    ref={field.ref}
+                                    onBlur={field.onBlur}
+                                    value={field.value === true ? 'true' : 'false'}
+                                    onChange={(e) =>
+                                      field.onChange(e.target.value === 'true')
+                                    }
+                                    className={`form-select w-full appearance-none rounded border ${
+                                      fieldError
+                                        ? 'border-red-500'
+                                        : 'border-border-color'
+                                    } bg-background h-14 py-[15px] pl-[15px] pr-12 text-text-primary text-base font-normal leading-normal focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50`}
+                                  >
+                                    <option value="true">True</option>
+                                    <option value="false">False</option>
+                                  </select>
+                                  <span className="material-symbols-outlined pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-text-secondary">
+                                    unfold_more
+                                  </span>
+                                </div>
+                              ) : (
+                                <input
+                                  {...field}
+                                  value={field.value ?? ''}
+                                  className={`form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded text-text-primary focus:outline-0 focus:ring-2 focus:ring-primary/50 border ${
+                                    fieldError
+                                      ? 'border-red-500'
+                                      : 'border-border-color'
+                                  } bg-background h-14 placeholder:text-text-secondary p-[15px] text-base font-normal leading-normal`}
+                                  placeholder={getPlaceholderForType(inputType)}
+                                  type="text"
+                                />
+                              )}
                               {fieldError && (
                                 <p className="text-red-400 text-sm mt-1">
                                   {fieldError?.message as string}

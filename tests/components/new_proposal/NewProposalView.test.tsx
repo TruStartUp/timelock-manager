@@ -21,6 +21,16 @@ const MOCK_ABI = [
   },
   {
     type: 'function',
+    name: '_setMintPaused',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'cToken', type: 'address' },
+      { name: 'state', type: 'bool' },
+    ],
+    outputs: [],
+  },
+  {
+    type: 'function',
     name: 'setOwner',
     stateMutability: 'nonpayable',
     inputs: [{ name: 'newOwner', type: 'address' }],
@@ -189,7 +199,7 @@ describe('NewProposalView', () => {
 
     // Check for function selector
     await screen.findByText(/Select Function/i)
-    expect(screen.getByRole('combobox')).toBeInTheDocument()
+    expect(screen.getAllByRole('combobox')[0]).toBeInTheDocument()
 
     // Only write functions should be selectable (T063)
     expect(
@@ -201,7 +211,7 @@ describe('NewProposalView', () => {
     expect(screen.queryByRole('option', { name: /owner\(\)/i })).toBeNull()
 
     // Select transfer and ensure dynamic fields are generated
-    fireEvent.change(screen.getByRole('combobox'), {
+    fireEvent.change(screen.getAllByRole('combobox')[0], {
       target: { value: 'transfer(address,uint256)' },
     })
 
@@ -223,7 +233,7 @@ describe('NewProposalView', () => {
     await screen.findByText(/Select Function/i)
 
     // Select transfer and fill inputs
-    fireEvent.change(screen.getByRole('combobox'), {
+    fireEvent.change(screen.getAllByRole('combobox')[0], {
       target: { value: 'transfer(address,uint256)' },
     })
     fireEvent.change(await screen.findByLabelText(/to \(address\)/i), {
@@ -257,7 +267,7 @@ describe('NewProposalView', () => {
     await screen.findByText(/Select Function/i)
 
     // Select high-risk function and fill inputs
-    fireEvent.change(screen.getByRole('combobox'), {
+    fireEvent.change(screen.getAllByRole('combobox')[0], {
       target: { value: 'updateDelay(uint256)' },
     })
     fireEvent.change(await screen.findByLabelText(/newDelay \(uint256\)/i), {
@@ -297,7 +307,7 @@ describe('NewProposalView', () => {
     await screen.findByText(/Select Function/i)
 
     // Select transfer and fill inputs
-    fireEvent.change(screen.getByRole('combobox'), {
+    fireEvent.change(screen.getAllByRole('combobox')[0], {
       target: { value: 'transfer(address,uint256)' },
     })
     fireEvent.change(await screen.findByLabelText(/to \(address\)/i), {
@@ -345,7 +355,7 @@ describe('NewProposalView', () => {
     await screen.findByText(/Select Function/i)
 
     // Select transfer and fill inputs
-    fireEvent.change(screen.getByRole('combobox'), {
+    fireEvent.change(screen.getAllByRole('combobox')[0], {
       target: { value: 'transfer(address,uint256)' },
     })
     fireEvent.change(await screen.findByLabelText(/to \(address\)/i), {
@@ -444,7 +454,7 @@ describe('NewProposalView', () => {
     await screen.findByText(/Select Function/i)
 
     // Step 2 -> Step 3
-    fireEvent.change(screen.getByRole('combobox'), {
+    fireEvent.change(screen.getAllByRole('combobox')[0], {
       target: { value: 'transfer(address,uint256)' },
     })
     fireEvent.change(await screen.findByLabelText(/to \(address\)/i), {
@@ -486,7 +496,7 @@ describe('NewProposalView', () => {
     fireEvent.click(step2Link)
 
     await screen.findByText(/Select Function/i)
-    fireEvent.change(screen.getByRole('combobox'), {
+    fireEvent.change(screen.getAllByRole('combobox')[0], {
       target: { value: 'transfer(address,uint256)' },
     })
 
@@ -515,7 +525,7 @@ describe('NewProposalView', () => {
     fireEvent.click(step2Link)
 
     await screen.findByText(/Select Function/i)
-    const select = screen.getByRole('combobox') as HTMLSelectElement
+    const select = screen.getAllByRole('combobox')[0] as HTMLSelectElement
     fireEvent.change(select, {
       target: { value: 'setOwner(address)' },
     })
@@ -557,7 +567,7 @@ describe('NewProposalView', () => {
     fireEvent.click(step2Link)
 
     await screen.findByText(/Select Function/i)
-    fireEvent.change(screen.getByRole('combobox'), {
+    fireEvent.change(screen.getAllByRole('combobox')[0], {
       target: { value: 'transfer(address,uint256)' },
     })
 
@@ -580,5 +590,36 @@ describe('NewProposalView', () => {
       expect(step3).toBeTruthy()
       expect(step3?.className).toMatch(/bg-primary\/20/)
     })
+  })
+
+  test('renders bool params as a true/false dropdown and accepts non-checksummed mixed-case Rootstock addresses', async () => {
+    render(<NewProposalView />)
+
+    // Go to Step 2
+    fireEvent.click(screen.getByText(/2\. Function/i))
+    await screen.findByText(/Select Function/i)
+
+    // Select the bool function
+    fireEvent.change(screen.getAllByRole('combobox')[0], {
+      target: { value: '_setMintPaused(address,bool)' },
+    })
+
+    // Fill a mixed-case address that would fail strict EIP-55 checksum
+    fireEvent.change(await screen.findByLabelText(/cToken \(address\)/i), {
+      target: { value: '0x71E6b108D823c2786F8Ef63A3E0589576B4f39' },
+    })
+
+    // Bool param should be a dropdown, not a text input
+    const boolSelect = await screen.findByLabelText(/state \(bool\)/i)
+    fireEvent.change(boolSelect, { target: { value: 'true' } })
+
+    // No schema errors should show for address/bool
+    expect(screen.queryByText(/Invalid Ethereum address format/i)).toBeNull()
+    expect(screen.queryByText(/Expected boolean, received string/i)).toBeNull()
+
+    // Advance to Step 3
+    fireEvent.click(screen.getByRole('button', { name: /Next: Review/i }))
+    await screen.findByText(/Step 3: Review Operation/i)
+    expect(screen.getByText(/Encoded calldata preview/i)).toBeInTheDocument()
   })
 })

@@ -18,33 +18,31 @@ import {
   isValidUint256,
   isValidInt256,
 } from '@/lib/validation'
-import { isAddress, getAddress } from 'viem'
+import { isAddress } from 'viem'
 
 describe('Zod Validators for Solidity Types', () => {
   describe('1. Address Validation', () => {
     it('should accept valid checksummed address', () => {
-      // Use a valid lowercase address (will be checksummed by getAddress)
-      // viem's isAddress accepts lowercase addresses
+      // Rootstock-friendly behavior: accept valid address and normalize to lowercase.
       const validAddress = '0x742d35cc6634c0532925a3b844bc9e7595f0beb0'
       const result = solidityValidators.address.safeParse(validAddress)
 
       expect(result.success).toBe(true)
       if (result.success) {
-        // Should normalize to checksummed format
-        expect(result.data).toBe(getAddress(validAddress))
+        expect(result.data).toBe(validAddress)
       }
     })
 
-    it('should normalize non-checksummed address to checksum', () => {
-      // Use a valid lowercase address (will be checksummed)
-      const lowercaseAddress = '0x742d35cc6634c0532925a3b844bc9e7595f0beb0'
-      const result = solidityValidators.address.safeParse(lowercaseAddress)
+    it('should accept mixed-case address and normalize to lowercase', () => {
+      const mixedCase =
+        '0x742D35CC6634c0532925A3b844BC9E7595F0BEb0' as const
+      const expected = mixedCase.toLowerCase()
+      const result = solidityValidators.address.safeParse(mixedCase)
 
       expect(result.success).toBe(true)
       if (result.success) {
-        // Should transform to checksummed
-        expect(result.data).toBe(getAddress(lowercaseAddress))
-        expect(result.data).not.toBe(lowercaseAddress)
+        expect(result.data).toBe(expected)
+        expect(result.data).not.toBe(mixedCase)
       }
     })
 
@@ -76,13 +74,13 @@ describe('Zod Validators for Solidity Types', () => {
       expect(result.success).toBe(false)
     })
 
-    it('should transform to checksummed format (EIP-55)', () => {
-      const address = '0x742d35cc6634c0532925a3b844bc9e7595f0beb0'
-      const result = solidityValidators.address.parse(address)
+    it('should normalize to lowercase 0x format', () => {
+      const mixedCase =
+        '0x742D35CC6634c0532925A3b844BC9E7595F0BEb0' as const
+      const result = solidityValidators.address.parse(mixedCase)
 
-      // Should be checksummed
-      expect(result).toBe(getAddress(address))
-      expect(result).toMatch(/^0x[0-9a-fA-F]{40}$/)
+      expect(result).toBe(mixedCase.toLowerCase())
+      expect(result).toMatch(/^0x[0-9a-f]{40}$/)
     })
   })
 
@@ -651,11 +649,12 @@ describe('Zod Validators for Solidity Types', () => {
     })
 
     describe('validateAddress', () => {
-      it('should return checksummed address for valid input', () => {
-        const address = '0x742d35cc6634c0532925a3b844bc9e7595f0beb0'
-        const result = validateAddress(address)
-        expect(result).toBe(getAddress(address))
-        expect(isAddress(result)).toBe(true)
+      it('should return normalized lowercase address for valid input', () => {
+        const mixedCase =
+          '0x742D35CC6634c0532925A3b844BC9E7595F0BEb0' as const
+        const result = validateAddress(mixedCase)
+        expect(result).toBe(mixedCase.toLowerCase())
+        expect(isAddress(result, { strict: false })).toBe(true)
       })
 
       it('should throw on invalid address', () => {
