@@ -104,3 +104,10 @@ The `specs/` directory contains all the planning and design documents, including
 - `data-model.md`: The application's data model.
 - `quickstart.md`: A guide for developers to get started.
 - `tasks.md`: A detailed list of implementation tasks.
+
+## Active Technologies
+- TypeScript 5+ + Next.js 15+, React 19+, wagmi, RainbowKit, TanStack Query, Tailwind CSS (001-support-multiple-timelocks)
+- Browser `localStorage` for timelock configurations. (001-support-multiple-timelocks)
+
+## Recent Changes
+- 001-support-multiple-timelocks: Added TypeScript 5+ + Next.js 15+, React 19+, wagmi, RainbowKit, TanStack Query, Tailwind CSS
