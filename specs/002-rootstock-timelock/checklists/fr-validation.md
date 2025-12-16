@@ -47,12 +47,12 @@ Use this checklist to manually validate the feature against the functional requi
 
 ## Operation Execution & Cancellation
 
-- [ ] FR-027: System MUST provide "Execute" action for operations in Ready status that calls execute() or executeBatch() on the TimelockController
-- [ ] FR-028: System MUST provide "Cancel" action for pending operations that calls cancel(id) on the TimelockController
-- [ ] FR-029: System MUST disable Execute button when connected wallet does not have EXECUTOR_ROLE, with tooltip "Your wallet does not have the EXECUTOR_ROLE"
-- [ ] FR-030: System MUST disable Cancel button when connected wallet does not have CANCELLER_ROLE, with tooltip "Your wallet does not have the CANCELLER_ROLE"
-- [ ] FR-031: System MUST show explicit call summary before executing any operation
-- [ ] FR-032: System MUST highlight dangerous functions (upgrade, admin changes, updateDelay) with visual warnings
+- [X] FR-027: System MUST provide "Execute" action for operations in Ready status that calls execute() or executeBatch() on the TimelockController
+- [X] FR-028: System MUST provide "Cancel" action for pending operations that calls cancel(id) on the TimelockController
+- [X] FR-029: System MUST disable Execute button when connected wallet does not have EXECUTOR_ROLE, with tooltip "Your wallet does not have the EXECUTOR_ROLE"
+- [X] FR-030: System MUST disable Cancel button when connected wallet does not have CANCELLER_ROLE, with tooltip "Your wallet does not have the CANCELLER_ROLE"
+- [X] FR-031: System MUST show explicit call summary before executing any operation
+- [X] FR-032: System MUST highlight dangerous functions (upgrade, admin changes, updateDelay) with visual warnings
 
 ## Proposal Builder / Scheduler
 

@@ -1,17 +1,22 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react'
-import { type Address, formatEther, isAddress } from 'viem'
+import { type Address, type Abi, formatEther, isAddress } from 'viem'
 import { useAccount, useChainId, usePublicClient } from 'wagmi'
 import { useQueryClient } from '@tanstack/react-query'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useOperations } from '@/hooks/useOperations'
 import { useHasRole } from '@/hooks/useHasRole'
 import { useTimelockWrite } from '@/hooks/useTimelockWrite'
+import { useABIManager } from '@/hooks/useABIManager'
 import { TIMELOCK_ROLES } from '@/lib/constants'
 import { formatTxError } from '@/lib/txErrors'
 import { type Operation as SubgraphOperation, type OperationStatus as SubgraphOperationStatus } from '@/types/operation'
 import { Skeleton } from '@/components/common/Skeleton'
 import { OperationRow } from './OperationRow'
 import TimelockControllerABI from '@/lib/abis/TimelockController.json'
+import { decodeCalldata, type DecodedCall } from '@/lib/decoder'
+import { CHAIN_TO_NETWORK } from '@/services/blockscout/client'
+import { ABISource, ABIConfidence } from '@/services/blockscout/abi'
+import Link from 'next/link'
 
 type OperationStatus = 'All' | 'Pending' | 'Ready' | 'Executed' | 'Canceled'
 
@@ -95,9 +100,102 @@ const OperationsExplorerView: React.FC = () => {
 
   // Get current chain ID for query invalidation
   const chainId = useChainId()
+  const network = CHAIN_TO_NETWORK[chainId]
 
   // Get query client for invalidating queries after execution
   const queryClient = useQueryClient()
+
+  // ABI sources (custom ABIs + optional Blockscout resolution)
+  const abiManager = useABIManager()
+  const abiByAddress = useMemo(() => {
+    const map: Record<string, Abi> = {}
+    for (const e of abiManager.entries) {
+      map[e.address.toLowerCase()] = e.abi as Abi
+    }
+    return map
+  }, [abiManager.entries])
+  const allowRemoteDecode =
+    typeof window !== 'undefined' && process.env.NODE_ENV !== 'test'
+
+  // FR-031: decoded call summary for the execute confirmation modal
+  const [decodedExecute, setDecodedExecute] = useState<DecodedCall | null>(null)
+  const [executeDecodeError, setExecuteDecodeError] = useState<string | null>(null)
+  const [isDecodingExecute, setIsDecodingExecute] = useState(false)
+
+  const stringifyValue = useMemo(() => {
+    return (value: unknown) => {
+      try {
+        return JSON.stringify(
+          value,
+          (_k, v) => (typeof v === 'bigint' ? v.toString() : v),
+          2
+        )
+      } catch {
+        return String(value)
+      }
+    }
+  }, [])
+
+  const isVerifiedBlockscout = (decoded: DecodedCall | null) => {
+    return (
+      !!decoded &&
+      decoded.source === ABISource.BLOCKSCOUT &&
+      decoded.confidence === ABIConfidence.HIGH
+    )
+  }
+
+  useEffect(() => {
+    let cancelled = false
+    const run = async () => {
+      if (
+        !confirmExecuteOperation?.target ||
+        confirmExecuteOperation.value === null ||
+        !confirmExecuteOperation.data
+      ) {
+        setDecodedExecute(null)
+        setExecuteDecodeError(null)
+        setIsDecodingExecute(false)
+        return
+      }
+
+      const target = confirmExecuteOperation.target as Address
+      const calldata = confirmExecuteOperation.data as `0x${string}`
+      const abi = abiByAddress[target.toLowerCase()]
+
+      // Only attempt if we have a custom ABI or remote decode is allowed.
+      if ((!abi || abi.length === 0) && !allowRemoteDecode) {
+        setDecodedExecute(null)
+        setExecuteDecodeError(null)
+        setIsDecodingExecute(false)
+        return
+      }
+
+      setIsDecodingExecute(true)
+      setExecuteDecodeError(null)
+      setDecodedExecute(null)
+      try {
+        const decoded = await decodeCalldata({
+          calldata,
+          target,
+          abi: abi && abi.length > 0 ? abi : undefined,
+          network: allowRemoteDecode ? network : undefined,
+          publicClient: allowRemoteDecode ? (publicClient ?? undefined) : undefined,
+          abiByAddress,
+        })
+        if (!cancelled) setDecodedExecute(decoded)
+      } catch (err) {
+        if (!cancelled) {
+          setExecuteDecodeError(err instanceof Error ? err.message : String(err))
+        }
+      } finally {
+        if (!cancelled) setIsDecodingExecute(false)
+      }
+    }
+    run()
+    return () => {
+      cancelled = true
+    }
+  }, [abiByAddress, allowRemoteDecode, confirmExecuteOperation, network, publicClient])
 
   // Check if connected wallet has EXECUTOR_ROLE (only if timelockAddress is set)
   const { hasRole: hasExecutorRole, isLoading: isCheckingExecutorRole } = useHasRole({
@@ -638,6 +736,102 @@ const OperationsExplorerView: React.FC = () => {
                 <span className="text-text-dark-primary break-all">
                   {confirmExecuteOperation.target ?? '—'}
                 </span>
+              </div>
+              <div className="flex justify-between gap-3">
+                <span className="text-text-dark-secondary">Value</span>
+                <span className="text-text-dark-primary break-all">
+                  {confirmExecuteOperation.value === null
+                    ? '—'
+                    : confirmExecuteOperation.value > BigInt(0)
+                      ? `${formatEther(confirmExecuteOperation.value)} RBTC`
+                      : '0'}
+                </span>
+              </div>
+              <div className="flex justify-between gap-3">
+                <span className="text-text-dark-secondary">Calldata</span>
+                <span className="text-text-dark-primary break-all">
+                  {confirmExecuteOperation.data ?? '—'}
+                </span>
+              </div>
+            </div>
+
+            {/* FR-031: explicit call summary with decoded calldata (when available) */}
+            <div className="mt-4 rounded border border-border-dark bg-background-dark p-4 text-sm">
+              <div className="flex items-center justify-between gap-3">
+                <span className="font-semibold text-text-dark-primary">
+                  Call summary
+                </span>
+                {isVerifiedBlockscout(decodedExecute) ? (
+                  <span className="inline-flex items-center rounded-full border border-green-500/30 bg-green-500/10 px-2 py-0.5 text-[11px] font-semibold text-green-200">
+                    ✅ Verified contract
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center rounded-full border border-yellow-500/30 bg-yellow-500/10 px-2 py-0.5 text-[11px] font-semibold text-yellow-200">
+                    ⚠️ Unverified - showing raw hex
+                  </span>
+                )}
+              </div>
+
+              <div className="mt-3 space-y-2 font-mono text-sm">
+                <div className="flex justify-between gap-3">
+                  <span className="text-text-dark-secondary">Function</span>
+                  <span className="text-text-dark-primary break-all text-right">
+                    {isDecodingExecute ? (
+                      'Decoding…'
+                    ) : decodedExecute ? (
+                      decodedExecute.signature || decodedExecute.functionName
+                    ) : (
+                      '—'
+                    )}
+                  </span>
+                </div>
+
+                {executeDecodeError ? (
+                  <div className="text-xs text-red-300">
+                    Decode failed: {executeDecodeError}
+                  </div>
+                ) : null}
+
+                {/* Only show typed args when we have Blockscout-verified ABI */}
+                {isVerifiedBlockscout(decodedExecute) &&
+                decodedExecute &&
+                decodedExecute.params.length > 0 ? (
+                  <div className="mt-3">
+                    <div className="text-xs font-bold uppercase text-text-dark-secondary mb-1">
+                      Arguments
+                    </div>
+                    <div className="space-y-2 text-xs">
+                      {decodedExecute.params.map((p, i) => (
+                        <div key={i} className="rounded border border-border-dark/60 bg-black/10 p-2">
+                          <div className="text-text-dark-secondary">
+                            {p.name} ({p.type})
+                          </div>
+                          <pre className="whitespace-pre-wrap wrap-break-word text-text-dark-primary">
+                            {stringifyValue(p.value)}
+                          </pre>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                {confirmExecuteOperation.data ? (
+                  <div className="pt-2">
+                    <Link
+                      href={`/decoder?calldata=${encodeURIComponent(
+                        confirmExecuteOperation.data
+                      )}&contractAddress=${encodeURIComponent(
+                        confirmExecuteOperation.target ?? ''
+                      )}`}
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline underline-offset-4"
+                    >
+                      Open in Decoder
+                      <span className="material-symbols-outlined text-base!">
+                        open_in_new
+                      </span>
+                    </Link>
+                  </div>
+                ) : null}
               </div>
             </div>
 
