@@ -336,7 +336,7 @@ describe('OperationsExplorerView', () => {
     render(<OperationsExplorerView />, { wrapper: TestWrapper })
 
     // Click the first row to expand it (starts with no expansion)
-    const firstRow = screen.getByText(/0xab12\.\.\.c456/i).closest('tr')
+    const firstRow = screen.getByText(/0xab12\.\.\.c456/i).closest('[role="row"]')
     if (firstRow) {
       fireEvent.click(firstRow)
       // Now operation details should be visible
@@ -344,7 +344,7 @@ describe('OperationsExplorerView', () => {
     }
 
     // Click the second operation row
-    const secondRow = screen.getByText(/0x2d12\.\.\.a1b2/i).closest('tr')
+    const secondRow = screen.getByText(/0x2d12\.\.\.a1b2/i).closest('[role="row"]')
     if (secondRow) {
       fireEvent.click(secondRow)
       // The first operation details should be collapsed (only second expanded)
@@ -355,7 +355,7 @@ describe('OperationsExplorerView', () => {
     render(<OperationsExplorerView />, { wrapper: TestWrapper })
 
     // Click the first row to expand it
-    const firstRow = screen.getByText(/0xab12\.\.\.c456/i).closest('tr')
+    const firstRow = screen.getByText(/0xab12\.\.\.c456/i).closest('[role="row"]')
     if (firstRow) {
       fireEvent.click(firstRow)
     }
@@ -373,7 +373,7 @@ describe('OperationsExplorerView', () => {
     render(<OperationsExplorerView />, { wrapper: TestWrapper })
 
     // Click the first row to expand it
-    const firstRow = screen.getByText(/0xab12\.\.\.c456/i).closest('tr')
+    const firstRow = screen.getByText(/0xab12\.\.\.c456/i).closest('[role="row"]')
     if (firstRow) {
       fireEvent.click(firstRow)
     }
@@ -384,13 +384,19 @@ describe('OperationsExplorerView', () => {
     expect(screen.getByText(/1\.5 RBTC/i)).toBeInTheDocument()
   })
 
-  test('EXECUTE button is clickable and calls execute function', () => {
+  test('EXECUTE button opens confirm dialog and calls execute on confirm', () => {
     render(<OperationsExplorerView />, { wrapper: TestWrapper })
 
     const executeButtons = screen.getAllByRole('button', { name: /^EXECUTE$/i })
-    // The actual EXECUTE action button should be the last one (after the "Executed" filter)
     const executeButton = executeButtons[executeButtons.length - 1]
     fireEvent.click(executeButton)
+
+    // Confirm modal opens (T111)
+    expect(screen.getByText(/Confirm execution/i)).toBeInTheDocument()
+
+    // Confirming triggers execute()
+    const confirmButton = screen.getByRole('button', { name: /Execute operation/i })
+    fireEvent.click(confirmButton)
 
     // Verify that the execute function was called with the correct parameters
     expect(mockExecute).toHaveBeenCalledTimes(1)
@@ -439,7 +445,7 @@ describe('OperationsExplorerView', () => {
 
     // Check that absolute timestamps are formatted (they will be localized)
     // Just verify there are timestamp strings present
-    const timestamps = screen.getAllByText(/\d{2}\/\d{2}\/\d{4}.*UTC/i)
+    const timestamps = screen.getAllByText(/\d{1,2}\/\d{1,2}\/\d{4}.*(UTC|GMT)/i)
     expect(timestamps.length).toBeGreaterThan(0)
   })
 

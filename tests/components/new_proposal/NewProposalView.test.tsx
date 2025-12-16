@@ -49,6 +49,9 @@ vi.mock('wagmi', () => ({
   useAccount: () => ({
     address: '0x0000000000000000000000000000000000000001',
   }),
+  usePublicClient: () => ({
+    simulateContract: vi.fn(),
+  }),
 }))
 
 vi.mock('@/hooks/useContractABI', () => ({

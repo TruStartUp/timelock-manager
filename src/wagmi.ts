@@ -27,9 +27,14 @@ export function makeWagmiConfig(rpcOverride?: RpcOverride) {
         }
       : undefined
 
+  const projectId =
+    process.env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID ||
+    process.env.NEXT_PUBLIC_RAINBOWKIT_PROJECT_ID ||
+    'YOUR_PROJECT_ID'
+
   return getDefaultConfig({
     appName: 'RainbowKit App',
-    projectId: process.env.NEXT_PUBLIC_RAINBOWKIT_PROJECT_ID || 'YOUR_PROJECT_ID',
+    projectId,
     chains: [...chains],
     ssr: true,
     transports,

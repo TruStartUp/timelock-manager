@@ -1,12 +1,15 @@
-import React, { useState, useMemo, useEffect } from 'react'
+import React, { useState, useMemo, useEffect, useRef } from 'react'
 import { type Address, formatEther, isAddress } from 'viem'
 import { useAccount, useChainId, usePublicClient } from 'wagmi'
 import { useQueryClient } from '@tanstack/react-query'
+import { useVirtualizer } from '@tanstack/react-virtual'
 import { useOperations } from '@/hooks/useOperations'
 import { useHasRole } from '@/hooks/useHasRole'
 import { useTimelockWrite } from '@/hooks/useTimelockWrite'
 import { TIMELOCK_ROLES } from '@/lib/constants'
+import { formatTxError } from '@/lib/txErrors'
 import { type Operation as SubgraphOperation, type OperationStatus as SubgraphOperationStatus } from '@/types/operation'
+import { Skeleton } from '@/components/common/Skeleton'
 import { OperationRow } from './OperationRow'
 import TimelockControllerABI from '@/lib/abis/TimelockController.json'
 
@@ -54,6 +57,9 @@ const OperationsExplorerView: React.FC = () => {
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null)
+  // T116: pagination state
+  const [pageSize, setPageSize] = useState<number>(50)
+  const [pageIndex, setPageIndex] = useState<number>(0)
   const [confirmCancelOperation, setConfirmCancelOperation] =
     useState<Operation | null>(null)
   const [activeCancelOperationId, setActiveCancelOperationId] = useState<
@@ -68,6 +74,11 @@ const OperationsExplorerView: React.FC = () => {
     useState<SimulationState>({ status: 'idle' })
   const [cancelSimulation, setCancelSimulation] =
     useState<SimulationState>({ status: 'idle' })
+
+  // T113: focus management for dialogs
+  const lastFocusedElRef = useRef<HTMLElement | null>(null)
+  const executeDialogCloseRef = useRef<HTMLButtonElement | null>(null)
+  const cancelDialogCloseRef = useRef<HTMLButtonElement | null>(null)
 
   // State for selected timelock contract address
   // Using the actual deployed TimelockController on Rootstock Testnet
@@ -163,6 +174,16 @@ const OperationsExplorerView: React.FC = () => {
     run()
   }, [confirmExecuteOperation, connectedAccount, publicClient, timelockAddress])
 
+  // T113: focus trap-lite for execute dialog
+  useEffect(() => {
+    if (confirmExecuteOperation) {
+      lastFocusedElRef.current = document.activeElement as HTMLElement | null
+      requestAnimationFrame(() => executeDialogCloseRef.current?.focus())
+      return
+    }
+    lastFocusedElRef.current?.focus?.()
+  }, [confirmExecuteOperation])
+
   // T111: simulate cancel(id) when cancel confirmation dialog opens
   useEffect(() => {
     const run = async () => {
@@ -190,6 +211,16 @@ const OperationsExplorerView: React.FC = () => {
     }
     run()
   }, [confirmCancelOperation, connectedAccount, publicClient, timelockAddress])
+
+  // T113: focus trap-lite for cancel dialog
+  useEffect(() => {
+    if (confirmCancelOperation) {
+      lastFocusedElRef.current = document.activeElement as HTMLElement | null
+      requestAnimationFrame(() => cancelDialogCloseRef.current?.focus())
+      return
+    }
+    lastFocusedElRef.current?.focus?.()
+  }, [confirmCancelOperation])
 
   // Map UI filter to subgraph status filter
   const statusFilter: SubgraphOperationStatus | undefined = useMemo(() => {
@@ -244,6 +275,18 @@ const OperationsExplorerView: React.FC = () => {
     return null
   }, [dateFromTs, dateToTs])
 
+  // T116: reset pagination when filters change
+  useEffect(() => {
+    setPageIndex(0)
+  }, [
+    selectedFilter,
+    normalizedAddressQuery,
+    textSearch,
+    dateFromTs,
+    dateToTs,
+    timelockAddress,
+  ])
+
   // Fetch operations from subgraph with filters
   const { data: subgraphOperations, isLoading, isError, refetch } = useOperations(
     {
@@ -256,6 +299,10 @@ const OperationsExplorerView: React.FC = () => {
     },
     {
       enabled: !dateRangeError,
+      pagination: {
+        first: pageSize,
+        skip: pageIndex * pageSize,
+      },
     }
   )
 
@@ -360,11 +407,20 @@ const OperationsExplorerView: React.FC = () => {
   }, [operations, textSearch])
 
   const resultsCount = useMemo(() => {
+    const skip = pageIndex * pageSize
+    const showing = clientFilteredOperations.length
+    const from = showing === 0 ? 0 : skip + 1
+    const to = skip + showing
     return {
-      showing: clientFilteredOperations.length,
+      showing,
       total: operations.length,
+      from,
+      to,
     }
-  }, [clientFilteredOperations.length, operations.length])
+  }, [clientFilteredOperations.length, operations.length, pageIndex, pageSize])
+
+  const canPrevPage = pageIndex > 0
+  const canNextPage = Boolean(subgraphOperations && subgraphOperations.length === pageSize)
 
   const activeFilters = useMemo(() => {
     const items: Array<{ key: string; label: string; onClear: () => void }> = []
@@ -497,11 +553,22 @@ const OperationsExplorerView: React.FC = () => {
     <>
       {/* T111: Execute simulation preview dialog */}
       {confirmExecuteOperation ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="execute-dialog-title"
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') setConfirmExecuteOperation(null)
+          }}
+        >
           <div className="w-full max-w-xl rounded-lg border border-border-dark bg-surface-dark p-6">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h3 className="text-xl font-bold text-text-dark-primary">
+                <h3
+                  id="execute-dialog-title"
+                  className="text-xl font-bold text-text-dark-primary"
+                >
                   Confirm execution
                 </h3>
                 <p className="mt-1 text-sm text-text-dark-secondary">
@@ -513,6 +580,7 @@ const OperationsExplorerView: React.FC = () => {
                 className="text-text-dark-secondary hover:text-text-dark-primary"
                 onClick={() => setConfirmExecuteOperation(null)}
                 aria-label="Close execute confirmation dialog"
+                ref={executeDialogCloseRef}
               >
                 <span className="material-symbols-outlined">close</span>
               </button>
@@ -550,7 +618,7 @@ const OperationsExplorerView: React.FC = () => {
                 )}
               </div>
               {executeSimulation.status === 'error' ? (
-                <p className="mt-2 text-red-300 break-words">
+                <p className="mt-2 text-red-300 wrap-break-word">
                   {executeSimulation.message}
                 </p>
               ) : null}
@@ -595,11 +663,22 @@ const OperationsExplorerView: React.FC = () => {
 
       {/* T082: Cancel confirmation dialog */}
       {confirmCancelOperation ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="cancel-dialog-title"
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') setConfirmCancelOperation(null)
+          }}
+        >
           <div className="w-full max-w-xl rounded-lg border border-border-dark bg-surface-dark p-6">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h3 className="text-xl font-bold text-text-dark-primary">
+                <h3
+                  id="cancel-dialog-title"
+                  className="text-xl font-bold text-text-dark-primary"
+                >
                   Confirm cancellation
                 </h3>
                 <p className="mt-1 text-sm text-text-dark-secondary">
@@ -609,6 +688,8 @@ const OperationsExplorerView: React.FC = () => {
               <button
                 className="text-text-dark-secondary hover:text-text-dark-primary"
                 onClick={() => setConfirmCancelOperation(null)}
+                aria-label="Close cancel confirmation dialog"
+                ref={cancelDialogCloseRef}
               >
                 <span className="material-symbols-outlined">close</span>
               </button>
@@ -660,7 +741,7 @@ const OperationsExplorerView: React.FC = () => {
                 )}
               </div>
               {cancelSimulation.status === 'error' ? (
-                <p className="mt-2 text-red-300 break-words">
+                <p className="mt-2 text-red-300 wrap-break-word">
                   {cancelSimulation.message}
                 </p>
               ) : null}
@@ -668,7 +749,7 @@ const OperationsExplorerView: React.FC = () => {
 
             {isCancelError && cancelError ? (
               <div className="mt-4 rounded border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
-                {cancelError.message}
+                {formatTxError(cancelError)}
               </div>
             ) : null}
 
@@ -851,7 +932,64 @@ const OperationsExplorerView: React.FC = () => {
         {/* T094: Results count */}
         {!isLoading && !isError ? (
           <div className="text-sm text-text-dark-secondary">
-            Showing {resultsCount.showing} of {resultsCount.total} operations
+            Showing {resultsCount.from}–{resultsCount.to} ({resultsCount.showing}{' '}
+            on this page)
+          </div>
+        ) : null}
+
+        {/* T116: Pagination controls */}
+        {!isLoading && !isError ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-surface-dark p-3">
+            <div className="flex items-center gap-2 text-sm text-text-dark-secondary">
+              <span>Rows per page</span>
+              <select
+                className="h-9 rounded-lg bg-border-dark px-3 text-sm text-text-dark-primary focus:outline-0 focus:ring-0"
+                value={pageSize}
+                onChange={(e) => {
+                  const next = Number(e.target.value)
+                  setPageSize(next)
+                  setPageIndex(0)
+                }}
+                aria-label="Rows per page"
+              >
+                {[25, 50, 100].map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+              <span className="ml-2">
+                Page {pageIndex + 1}
+                {canNextPage ? '+' : ''}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                className={`flex h-9 items-center justify-center rounded-md px-3 text-xs font-bold transition-colors ${
+                  canPrevPage
+                    ? 'bg-border-dark text-text-dark-primary hover:bg-white/10'
+                    : 'bg-border-dark text-text-dark-secondary opacity-50 cursor-not-allowed'
+                }`}
+                onClick={() => canPrevPage && setPageIndex((p) => Math.max(0, p - 1))}
+                disabled={!canPrevPage}
+                aria-label="Previous page"
+              >
+                Prev
+              </button>
+              <button
+                className={`flex h-9 items-center justify-center rounded-md px-3 text-xs font-bold transition-colors ${
+                  canNextPage
+                    ? 'bg-border-dark text-text-dark-primary hover:bg-white/10'
+                    : 'bg-border-dark text-text-dark-secondary opacity-50 cursor-not-allowed'
+                }`}
+                onClick={() => canNextPage && setPageIndex((p) => p + 1)}
+                disabled={!canNextPage}
+                aria-label="Next page"
+              >
+                Next
+              </button>
+            </div>
           </div>
         ) : null}
 
@@ -879,7 +1017,9 @@ const OperationsExplorerView: React.FC = () => {
                 </ul>
                 <details className="text-text-dark-secondary text-xs font-mono bg-background-dark p-3 rounded">
                   <summary className="cursor-pointer font-bold mb-2">Error Details</summary>
-                  <pre className="whitespace-pre-wrap wrap-break-word">{executeError.message}</pre>
+                  <pre className="whitespace-pre-wrap wrap-break-word">
+                    {formatTxError(executeError)}
+                  </pre>
                 </details>
               </div>
             </div>
@@ -966,10 +1106,31 @@ const OperationsExplorerView: React.FC = () => {
 
         {/* Loading State */}
         {isLoading && (
-          <div className="flex items-center justify-center py-12">
-            <div className="flex flex-col items-center gap-4">
-              <div className="h-12 w-12 animate-spin rounded-full border-4 border-border-dark border-t-primary"></div>
-              <p className="text-text-dark-secondary">Loading operations...</p>
+          <div className="rounded-lg bg-surface-dark p-6">
+            <div className="flex items-center justify-between gap-4">
+              <Skeleton className="h-6 w-48" />
+              <Skeleton className="h-6 w-28" />
+            </div>
+            <div className="mt-6 space-y-3">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div
+                  key={`op-skel-${i}`}
+                  className="min-w-[1024px] border-b border-border-dark px-6 py-4"
+                >
+                  <div className="grid grid-cols-7 items-center gap-6">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-4 w-28" />
+                    <Skeleton className="h-4 w-10 justify-self-center" />
+                    <Skeleton className="h-4 w-40" />
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-4 w-28" />
+                    <div className="flex justify-end gap-2">
+                      <Skeleton className="h-9 w-20" />
+                      <Skeleton className="h-9 w-20" />
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -988,96 +1149,207 @@ const OperationsExplorerView: React.FC = () => {
 
         {/* Operations Table */}
         {!isLoading && !isError && clientFilteredOperations.length > 0 && (
-          <div className="w-full overflow-x-auto rounded-lg bg-surface-dark">
-            <table className="w-full min-w-[1024px] text-left text-sm">
-            <thead className="border-b border-border-dark text-xs uppercase text-text-dark-secondary">
-              <tr>
-                <th className="px-6 py-4" scope="col">
-                  <div className="flex items-center gap-1 cursor-pointer">
-                    ID{' '}
-                    <span className="material-symbols-outlined text-base!">
-                      swap_vert
-                    </span>
-                  </div>
-                </th>
-                <th className="px-6 py-4" scope="col">
-                  <div className="flex items-center gap-1 cursor-pointer">
-                    Status{' '}
-                    <span className="material-symbols-outlined text-base!">
-                      swap_vert
-                    </span>
-                  </div>
-                </th>
-                <th className="px-6 py-4 text-center" scope="col">
-                  Calls
-                </th>
-                <th className="px-6 py-4" scope="col">
-                  Targets
-                </th>
-                <th className="px-6 py-4" scope="col">
-                  <div className="flex items-center gap-1 cursor-pointer">
-                    ETA{' '}
-                    <span className="material-symbols-outlined text-base!">
-                      swap_vert
-                    </span>
-                  </div>
-                </th>
-                <th className="px-6 py-4" scope="col">
-                  <div className="flex items-center gap-1 cursor-pointer">
-                    Proposer{' '}
-                    <span className="material-symbols-outlined text-base!">
-                      swap_vert
-                    </span>
-                  </div>
-                </th>
-                <th className="px-6 py-4 text-right" scope="col">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {clientFilteredOperations.map((operation) => (
-                <OperationRow
-                  key={operation.id}
-                  operation={operation}
-                  isExpanded={expandedRowId === operation.id}
-                  onRowClick={handleRowClick}
-                  onExecute={handleExecute}
-                  onCancel={handleCancel}
-                  hasExecutorRole={hasExecutorRole}
-                  isCheckingExecutorRole={isCheckingExecutorRole}
-                  isExecuting={isExecuting}
-                  isExecuteSuccess={isExecuteSuccess}
-                  isExecuteError={isExecuteError}
-                  hasCancellerRole={hasCancellerRole}
-                  isCheckingCancellerRole={isCheckingCancellerRole}
-                  isCancelling={
-                    isCancelling &&
-                    activeCancelOperationId !== null &&
-                    activeCancelOperationId === operation.fullId
-                  }
-                  isCancelSuccess={
-                    isCancelSuccess &&
-                    activeCancelOperationId !== null &&
-                    activeCancelOperationId === operation.fullId
-                  }
-                  isCancelError={
-                    isCancelError &&
-                    activeCancelOperationId !== null &&
-                    activeCancelOperationId === operation.fullId
-                  }
-                  getStatusColor={getStatusColor}
-                  getStatusTextColor={getStatusTextColor}
-                  formatTargets={formatTargets}
-                  formatAbsoluteTime={formatAbsoluteTime}
-                />
-              ))}
-            </tbody>
-          </table>
-        </div>
+          <VirtualizedOperationsList
+            operations={clientFilteredOperations}
+            expandedRowId={expandedRowId}
+            onRowClick={handleRowClick}
+            onExecute={handleExecute}
+            onCancel={handleCancel}
+            hasExecutorRole={hasExecutorRole}
+            isCheckingExecutorRole={isCheckingExecutorRole}
+            isExecuting={isExecuting}
+            isExecuteSuccess={isExecuteSuccess}
+            isExecuteError={isExecuteError}
+            hasCancellerRole={hasCancellerRole}
+            isCheckingCancellerRole={isCheckingCancellerRole}
+            isCancelling={isCancelling}
+            isCancelSuccess={isCancelSuccess}
+            isCancelError={isCancelError}
+            activeCancelOperationId={activeCancelOperationId}
+            getStatusColor={getStatusColor}
+            getStatusTextColor={getStatusTextColor}
+            formatTargets={formatTargets}
+            formatAbsoluteTime={formatAbsoluteTime}
+          />
         )}
       </main>
     </>
+  )
+}
+
+function VirtualizedOperationsList(props: {
+  operations: Operation[]
+  expandedRowId: string | null
+  onRowClick: (id: string) => void
+  onExecute: (id: string) => void
+  onCancel: (operation: Operation) => void
+  hasExecutorRole: boolean
+  isCheckingExecutorRole: boolean
+  isExecuting: boolean
+  isExecuteSuccess: boolean
+  isExecuteError: boolean
+  hasCancellerRole: boolean
+  isCheckingCancellerRole: boolean
+  isCancelling: boolean
+  isCancelSuccess: boolean
+  isCancelError: boolean
+  activeCancelOperationId: `0x${string}` | null
+  getStatusColor: (status: string) => string
+  getStatusTextColor: (status: string) => string
+  formatTargets: (targets: string[]) => string
+  formatAbsoluteTime: (timestamp: bigint) => string
+}) {
+  const parentRef = React.useRef<HTMLDivElement | null>(null)
+  const shouldVirtualize = process.env.NODE_ENV !== 'test'
+
+  const rowVirtualizer = useVirtualizer({
+    count: props.operations.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 72,
+    overscan: 10,
+  })
+
+  return (
+    <div className="w-full overflow-x-auto rounded-lg bg-surface-dark">
+      <div role="table" aria-label="Timelock operations" className="w-full">
+        {/* Header */}
+        <div
+          role="rowgroup"
+          className="min-w-[1024px] border-b border-border-dark text-xs uppercase text-text-dark-secondary"
+        >
+          <div role="row" className="grid grid-cols-7 px-6 py-4">
+            <div role="columnheader" className="flex items-center gap-1">
+              ID <span className="material-symbols-outlined text-base!">swap_vert</span>
+            </div>
+            <div role="columnheader" className="flex items-center gap-1">
+              Status{' '}
+              <span className="material-symbols-outlined text-base!">swap_vert</span>
+            </div>
+            <div role="columnheader" className="text-center">
+              Calls
+            </div>
+            <div role="columnheader">Targets</div>
+            <div role="columnheader" className="flex items-center gap-1">
+              ETA <span className="material-symbols-outlined text-base!">swap_vert</span>
+            </div>
+            <div role="columnheader" className="flex items-center gap-1">
+              Proposer{' '}
+              <span className="material-symbols-outlined text-base!">swap_vert</span>
+            </div>
+            <div role="columnheader" className="text-right">
+              Actions
+            </div>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div
+          ref={parentRef}
+          className="max-h-[70vh] overflow-auto"
+          role="rowgroup"
+        >
+          {shouldVirtualize ? (
+            <div
+              style={{
+                height: `${rowVirtualizer.getTotalSize()}px`,
+                position: 'relative',
+                width: '100%',
+              }}
+            >
+              {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                const operation = props.operations[virtualRow.index]
+                return (
+                  <div
+                    key={operation.fullId}
+                    ref={rowVirtualizer.measureElement}
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '100%',
+                      transform: `translateY(${virtualRow.start}px)`,
+                    }}
+                  >
+                    <OperationRow
+                      operation={operation}
+                      isExpanded={props.expandedRowId === operation.id}
+                      onRowClick={props.onRowClick}
+                      onExecute={props.onExecute}
+                      onCancel={props.onCancel}
+                      hasExecutorRole={props.hasExecutorRole}
+                      isCheckingExecutorRole={props.isCheckingExecutorRole}
+                      isExecuting={props.isExecuting}
+                      isExecuteSuccess={props.isExecuteSuccess}
+                      isExecuteError={props.isExecuteError}
+                      hasCancellerRole={props.hasCancellerRole}
+                      isCheckingCancellerRole={props.isCheckingCancellerRole}
+                      isCancelling={
+                        props.isCancelling &&
+                        props.activeCancelOperationId !== null &&
+                        props.activeCancelOperationId === operation.fullId
+                      }
+                      isCancelSuccess={
+                        props.isCancelSuccess &&
+                        props.activeCancelOperationId !== null &&
+                        props.activeCancelOperationId === operation.fullId
+                      }
+                      isCancelError={
+                        props.isCancelError &&
+                        props.activeCancelOperationId !== null &&
+                        props.activeCancelOperationId === operation.fullId
+                      }
+                      getStatusColor={props.getStatusColor}
+                      getStatusTextColor={props.getStatusTextColor}
+                      formatTargets={props.formatTargets}
+                      formatAbsoluteTime={props.formatAbsoluteTime}
+                    />
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="w-full">
+              {props.operations.map((operation) => (
+                <OperationRow
+                  key={operation.fullId}
+                  operation={operation}
+                  isExpanded={props.expandedRowId === operation.id}
+                  onRowClick={props.onRowClick}
+                  onExecute={props.onExecute}
+                  onCancel={props.onCancel}
+                  hasExecutorRole={props.hasExecutorRole}
+                  isCheckingExecutorRole={props.isCheckingExecutorRole}
+                  isExecuting={props.isExecuting}
+                  isExecuteSuccess={props.isExecuteSuccess}
+                  isExecuteError={props.isExecuteError}
+                  hasCancellerRole={props.hasCancellerRole}
+                  isCheckingCancellerRole={props.isCheckingCancellerRole}
+                  isCancelling={
+                    props.isCancelling &&
+                    props.activeCancelOperationId !== null &&
+                    props.activeCancelOperationId === operation.fullId
+                  }
+                  isCancelSuccess={
+                    props.isCancelSuccess &&
+                    props.activeCancelOperationId !== null &&
+                    props.activeCancelOperationId === operation.fullId
+                  }
+                  isCancelError={
+                    props.isCancelError &&
+                    props.activeCancelOperationId !== null &&
+                    props.activeCancelOperationId === operation.fullId
+                  }
+                  getStatusColor={props.getStatusColor}
+                  getStatusTextColor={props.getStatusTextColor}
+                  formatTargets={props.formatTargets}
+                  formatAbsoluteTime={props.formatAbsoluteTime}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   )
 }
 

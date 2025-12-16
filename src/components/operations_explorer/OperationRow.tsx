@@ -136,28 +136,35 @@ export const OperationRow: React.FC<OperationRowProps> = ({
 
   const eta = getETADisplay()
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      onRowClick(operation.id)
+    }
+  }
+
   return (
     <React.Fragment>
-      {/* Main Row */}
-      <tr
-        className={`border-b border-border-dark transition-colors cursor-pointer ${
-          isExpanded
-            ? 'bg-primary/10 hover:bg-primary/20'
-            : 'hover:bg-white/5'
+      {/* Main Row (div-based for virtualization) */}
+      <div
+        role="row"
+        tabIndex={0}
+        aria-expanded={isExpanded}
+        className={`grid min-w-[1024px] grid-cols-7 items-center border-b border-border-dark px-6 py-4 transition-colors cursor-pointer outline-none ${
+          isExpanded ? 'bg-primary/10 hover:bg-primary/20' : 'hover:bg-white/5'
         }`}
         onClick={() => onRowClick(operation.id)}
+        onKeyDown={handleKeyDown}
       >
-        <td className="px-6 py-4 font-mono text-text-dark-primary">
+        <div role="cell" className="font-mono text-text-dark-primary">
           {operation.id}
-        </td>
-        <td className="px-6 py-4">
+        </div>
+        <div role="cell">
           <div className="flex items-center gap-2">
             <div
               className={`h-2.5 w-2.5 rounded-full ${getStatusColor(displayStatus)}`}
             ></div>
-            <span
-              className={`font-medium ${getStatusTextColor(displayStatus)}`}
-            >
+            <span className={`font-medium ${getStatusTextColor(displayStatus)}`}>
               {displayStatus}
             </span>
             {dangerous ? (
@@ -172,30 +179,28 @@ export const OperationRow: React.FC<OperationRowProps> = ({
               </span>
             ) : null}
           </div>
-        </td>
-        <td className="px-6 py-4 text-center font-medium text-text-dark-primary">
+        </div>
+        <div
+          role="cell"
+          className="text-center font-medium text-text-dark-primary"
+        >
           {operation.calls}
-        </td>
-        <td className="px-6 py-4 font-mono text-text-dark-secondary">
+        </div>
+        <div role="cell" className="font-mono text-text-dark-secondary">
           {formatTargets(operation.targets)}
-        </td>
-        <td className="px-6 py-4">
+        </div>
+        <div role="cell">
           <div className="flex flex-col">
             <span className="font-medium text-text-dark-primary">
               {eta.relative}
             </span>
-            <span className="text-xs text-text-dark-secondary">
-              {eta.absolute}
-            </span>
+            <span className="text-xs text-text-dark-secondary">{eta.absolute}</span>
           </div>
-        </td>
-        <td className="px-6 py-4 font-mono text-text-dark-secondary">
+        </div>
+        <div role="cell" className="font-mono text-text-dark-secondary">
           {operation.proposer}
-        </td>
-        <td
-          className="px-6 py-4"
-          onClick={(e) => e.stopPropagation()}
-        >
+        </div>
+        <div role="cell" onClick={(e) => e.stopPropagation()}>
           <div className="flex justify-end gap-2">
             {displayStatus === 'Ready' && (
               <>
@@ -349,88 +354,66 @@ export const OperationRow: React.FC<OperationRowProps> = ({
               </button>
             )}
           </div>
-        </td>
-      </tr>
+        </div>
+      </div>
 
       {/* Expanded Details Row */}
       {isExpanded && operation.details && (
-        <tr className="bg-primary/5">
-          <td className="p-0" colSpan={7}>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-6 border-b border-border-dark">
-              <div>
-                <h4 className="text-xs font-bold uppercase text-text-dark-secondary mb-2">
-                  Operation Details
-                </h4>
-                <div className="flex flex-col gap-1 text-sm font-mono">
-                  <p>
-                    <span className="text-text-dark-secondary">
-                      ID:
-                    </span>{' '}
-                    <span className="text-text-dark-primary">
-                      {operation.details.fullId}
-                    </span>
-                  </p>
-                  <p>
-                    <span className="text-text-dark-secondary">
-                      Proposer:
-                    </span>{' '}
-                    <span className="text-text-dark-primary">
-                      {operation.details.fullProposer}
-                    </span>
-                  </p>
-                  <p>
-                    <span className="text-text-dark-secondary">
-                      Scheduled:
-                    </span>{' '}
-                    <span className="text-text-dark-primary">
-                      {operation.details.scheduled}
-                    </span>
-                  </p>
-                </div>
-                {dangerous ? (
-                  <div className="mt-3 rounded border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-200">
-                    <div className="font-semibold">
-                      Dangerous function detected
-                    </div>
-                    <div className="mt-1 text-red-200/80">
-                      This operation appears to call{' '}
-                      <span className="font-mono">{dangerous.functionName}</span>
-                      . Double-check the target and calldata before executing.
-                    </div>
-                  </div>
-                ) : null}
+        <div className="min-w-[1024px] bg-primary/5">
+          <div className="grid grid-cols-1 gap-6 p-6 md:grid-cols-3 border-b border-border-dark">
+            <div>
+              <h4 className="text-xs font-bold uppercase text-text-dark-secondary mb-2">
+                Operation Details
+              </h4>
+              <div className="flex flex-col gap-1 text-sm font-mono">
+                <p>
+                  <span className="text-text-dark-secondary">ID:</span>{' '}
+                  <span className="text-text-dark-primary">
+                    {operation.details.fullId}
+                  </span>
+                </p>
+                <p>
+                  <span className="text-text-dark-secondary">Proposer:</span>{' '}
+                  <span className="text-text-dark-primary">
+                    {operation.details.fullProposer}
+                  </span>
+                </p>
+                <p>
+                  <span className="text-text-dark-secondary">Scheduled:</span>{' '}
+                  <span className="text-text-dark-primary">
+                    {operation.details.scheduled}
+                  </span>
+                </p>
               </div>
-              <div className="md:col-span-2">
-                <h4 className="text-xs font-bold uppercase text-text-dark-secondary mb-2">
-                  Calls ({operation.details.callsDetails.length})
-                </h4>
-                <div className="flex flex-col gap-2 text-sm font-mono bg-background-dark p-3 rounded-md">
-                  {operation.details.callsDetails.map(
-                    (call, index) => (
-                      <p key={index}>
-                        <span className="text-primary">
-                          {index + 1}.
-                        </span>{' '}
-                        <span className="text-text-dark-secondary">
-                          Target:
-                        </span>{' '}
-                        <span className="text-text-dark-primary">
-                          {call.target}
-                        </span>{' '}
-                        <span className="text-text-dark-secondary">
-                          Value:
-                        </span>{' '}
-                        <span className="text-text-dark-primary">
-                          {call.value}
-                        </span>
-                      </p>
-                    )
-                  )}
+              {dangerous ? (
+                <div className="mt-3 rounded border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-200">
+                  <div className="font-semibold">Dangerous function detected</div>
+                  <div className="mt-1 text-red-200/80">
+                    This operation appears to call{' '}
+                    <span className="font-mono">{dangerous.functionName}</span>.
+                    Double-check the target and calldata before executing.
+                  </div>
                 </div>
+              ) : null}
+            </div>
+            <div className="md:col-span-2">
+              <h4 className="text-xs font-bold uppercase text-text-dark-secondary mb-2">
+                Calls ({operation.details.callsDetails.length})
+              </h4>
+              <div className="flex flex-col gap-2 text-sm font-mono bg-background-dark p-3 rounded-md">
+                {operation.details.callsDetails.map((call, index) => (
+                  <p key={index}>
+                    <span className="text-primary">{index + 1}.</span>{' '}
+                    <span className="text-text-dark-secondary">Target:</span>{' '}
+                    <span className="text-text-dark-primary">{call.target}</span>{' '}
+                    <span className="text-text-dark-secondary">Value:</span>{' '}
+                    <span className="text-text-dark-primary">{call.value}</span>
+                  </p>
+                ))}
               </div>
             </div>
-          </td>
-        </tr>
+          </div>
+        </div>
       )}
     </React.Fragment>
   )

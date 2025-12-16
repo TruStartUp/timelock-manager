@@ -1,7 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react'
 import {
-  BaseError,
-  ContractFunctionRevertedError,
   encodeAbiParameters,
   isAddress,
   type Address,
@@ -9,13 +7,21 @@ import {
   keccak256,
   toBytes,
 } from 'viem'
-import { useAccount } from 'wagmi'
+import { useAccount, usePublicClient } from 'wagmi'
 import { useContractABI } from '@/hooks/useContractABI'
 import { useTimelockWrite } from '@/hooks/useTimelockWrite'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { parseABITypeToZod } from '@/lib/validation'
+import TimelockControllerABI from '@/lib/abis/TimelockController.json'
+import { formatTxError } from '@/lib/txErrors'
+
+type SimulationState =
+  | { status: 'idle' }
+  | { status: 'pending' }
+  | { status: 'success' }
+  | { status: 'error'; message: string }
 
 const NewProposalView: React.FC = () => {
   // State for wizard steps
@@ -40,6 +46,9 @@ const NewProposalView: React.FC = () => {
   const [showManualABIModal, setShowManualABIModal] = useState(false)
   const [manualABIInput, setManualABIInput] = useState('')
   const [manualABIError, setManualABIError] = useState<string | null>(null)
+  // T113: focus management for manual ABI dialog
+  const manualDialogCloseRef = React.useRef<HTMLButtonElement | null>(null)
+  const lastFocusedElRef = React.useRef<HTMLElement | null>(null)
 
   // T065: Step 3 review state
   const [operationParams, setOperationParams] = useState({
@@ -57,6 +66,11 @@ const NewProposalView: React.FC = () => {
     argsInOrder: unknown[]
     calldata: `0x${string}` | null
   } | null>(null)
+
+  // T111: schedule() simulation preview in Step 3
+  const publicClient = usePublicClient()
+  const [scheduleSimulation, setScheduleSimulation] =
+    useState<SimulationState>({ status: 'idle' })
 
   const {
     abi,
@@ -118,6 +132,79 @@ const NewProposalView: React.FC = () => {
     account: connectedAddress,
   })
 
+  // T111: simulate schedule() when we are on Step 3 and have enough data to preview.
+  useEffect(() => {
+    const run = async () => {
+      const hasBasics =
+        currentStep === 3 &&
+        !!publicClient &&
+        !!normalizedTimelockController &&
+        !!connectedAddress &&
+        !!reviewData?.calldata &&
+        !!operationParams.delay &&
+        !!operationParams.salt &&
+        isAddress(contractAddress, { strict: false })
+
+      if (!hasBasics) {
+        setScheduleSimulation({ status: 'idle' })
+        return
+      }
+
+      let delay: bigint
+      try {
+        delay = BigInt(operationParams.delay)
+      } catch {
+        setScheduleSimulation({
+          status: 'error',
+          message: 'Delay must be a valid integer (in seconds).',
+        })
+        return
+      }
+
+      const target = contractAddress
+        .trim()
+        .replace(/^0X/, '0x')
+        .toLowerCase() as Address
+
+      setScheduleSimulation({ status: 'pending' })
+      try {
+        await publicClient!.simulateContract({
+          address: timelockAddress,
+          abi: TimelockControllerABI as any,
+          functionName: 'schedule',
+          args: [
+            target,
+            BigInt(0),
+            reviewData!.calldata!,
+            operationParams.predecessor,
+            operationParams.salt,
+            delay,
+          ],
+          account: connectedAddress,
+        } as any)
+        setScheduleSimulation({ status: 'success' })
+      } catch (err) {
+        setScheduleSimulation({
+          status: 'error',
+          message: err instanceof Error ? err.message : String(err),
+        })
+      }
+    }
+
+    run()
+  }, [
+    connectedAddress,
+    contractAddress,
+    currentStep,
+    normalizedTimelockController,
+    operationParams.delay,
+    operationParams.predecessor,
+    operationParams.salt,
+    publicClient,
+    reviewData?.calldata,
+    timelockAddress,
+  ])
+
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [hasSubmitted, setHasSubmitted] = useState(false)
   const [lastSubmitted, setLastSubmitted] = useState<{
@@ -136,6 +223,16 @@ const NewProposalView: React.FC = () => {
       refetchABI()
     }
   }, [addressToFetch, hasAttemptedFetch, refetchABI])
+
+  // T113: focus trap-lite for manual ABI modal
+  useEffect(() => {
+    if (showManualABIModal) {
+      lastFocusedElRef.current = document.activeElement as HTMLElement | null
+      requestAnimationFrame(() => manualDialogCloseRef.current?.focus())
+      return
+    }
+    lastFocusedElRef.current?.focus?.()
+  }, [showManualABIModal])
 
   // T061: Store successful ABI fetch for use in later steps
   useEffect(() => {
@@ -576,40 +673,7 @@ const NewProposalView: React.FC = () => {
 
   const friendlyScheduleError = useMemo(() => {
     if (!scheduleError) return null
-
-    const base = scheduleError as unknown
-    if (!(base instanceof BaseError)) {
-      return scheduleError instanceof Error ? scheduleError.message : String(scheduleError)
-    }
-
-    // Try to decode a contract revert (custom errors are present in TimelockController ABI)
-    const revert = base.walk(
-      (err) => err instanceof ContractFunctionRevertedError
-    ) as ContractFunctionRevertedError | undefined
-
-    if (revert instanceof ContractFunctionRevertedError) {
-      const errorName = (revert.data as any)?.errorName as string | undefined
-      const args = (revert.data as any)?.args as unknown[] | undefined
-
-      if (errorName === 'TimelockInsufficientDelay') {
-        const [delayArg, minDelayArg] = (args ?? []) as [bigint?, bigint?]
-        return `Delay is too small. Provided ${
-          delayArg !== undefined ? delayArg.toString() : '—'
-        }s, but the contract requires at least ${
-          minDelayArg !== undefined ? minDelayArg.toString() : '—'
-        }s.`
-      }
-
-      if (errorName === 'TimelockUnauthorizedCaller') {
-        return 'Unauthorized caller. Your wallet likely does not have PROPOSER_ROLE on this TimelockController.'
-      }
-
-      if (errorName) {
-        return `Transaction reverted: ${errorName}`
-      }
-    }
-
-    return base.shortMessage || base.message
+    return formatTxError(scheduleError)
   }, [scheduleError])
 
   const operationId = useMemo(() => {
@@ -1309,9 +1373,35 @@ const NewProposalView: React.FC = () => {
                 >
                   <span className="truncate">Back</span>
                 </button>
+                  {/* T111: schedule simulation preview */}
+                  <div
+                    className="flex-1 rounded border border-border-color bg-background p-3 text-sm"
+                    aria-live="polite"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="font-semibold text-text-primary">
+                        Simulation
+                      </span>
+                      {scheduleSimulation.status === 'pending' ? (
+                        <span className="text-text-secondary">Running…</span>
+                      ) : scheduleSimulation.status === 'success' ? (
+                        <span className="text-green-500">Likely succeeds</span>
+                      ) : scheduleSimulation.status === 'error' ? (
+                        <span className="text-red-400">May fail</span>
+                      ) : (
+                        <span className="text-text-secondary">—</span>
+                      )}
+                    </div>
+                    {scheduleSimulation.status === 'error' ? (
+                      <p className="mt-2 text-red-400 wrap-break-word">
+                        {scheduleSimulation.message}
+                      </p>
+                    ) : null}
+                  </div>
                 <button
                   className={`flex min-w-[84px] items-center justify-center overflow-hidden rounded-full h-12 px-6 bg-primary text-black text-sm font-bold leading-normal tracking-[0.015em] ${
                     isPending ||
+                      scheduleSimulation.status === 'pending' ||
                     !reviewData?.calldata ||
                     !normalizedTimelockController ||
                     !operationParams.delay ||
@@ -1325,6 +1415,7 @@ const NewProposalView: React.FC = () => {
                   }`}
                   disabled={
                     isPending ||
+                    scheduleSimulation.status === 'pending' ||
                     !reviewData?.calldata ||
                     !normalizedTimelockController ||
                     !operationParams.delay ||
@@ -1350,10 +1441,25 @@ const NewProposalView: React.FC = () => {
 
       {/* T062: Manual ABI Input Modal */}
       {showManualABIModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="manual-abi-title"
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              setShowManualABIModal(false)
+              setManualABIInput('')
+              setManualABIError(null)
+            }
+          }}
+        >
           <div className="bg-surface border border-border-color rounded-lg shadow-2xl p-8 max-w-2xl w-full mx-4 max-h-[80vh] overflow-auto">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-text-primary text-2xl font-bold">
+              <h2
+                id="manual-abi-title"
+                className="text-text-primary text-2xl font-bold"
+              >
                 Contract Not Verified
               </h2>
               <button
@@ -1363,6 +1469,8 @@ const NewProposalView: React.FC = () => {
                   setManualABIError(null)
                 }}
                 className="text-text-secondary hover:text-text-primary"
+                aria-label="Close manual ABI dialog"
+                ref={manualDialogCloseRef}
               >
                 <span className="material-symbols-outlined">close</span>
               </button>

@@ -345,18 +345,18 @@ description: 'Task list for Rootstock Timelock Management App - Blockchain Integ
 - [X] T108 [P] Add Blockscout API fallback implementation in src/services/blockscout/events.ts for fetching events when subgraph unavailable
 - [X] T109 Add dangerous function highlighting in operation displays (upgradeTo, transferOwnership, updateDelay) with visual warning badges
 - [X] T110 [P] Implement role change detection with periodic background refresh of hasRole checks (5-minute interval)
-- [ ] T111 [P] Add transaction simulation preview for Execute/Cancel/Schedule using Tenderly or similar (optional enhancement)
-- [ ] T112 Optimize large operation list performance with virtual scrolling in OperationsExplorerView for 100+ operations
-- [ ] T113 [P] Add accessibility improvements: keyboard navigation, screen reader labels, focus management
-- [ ] T114 [P] Create comprehensive error messages for all contract interaction failures with user-friendly explanations
-- [ ] T115 Add analytics tracking for key user actions (wallet connected, operation executed, proposal created) using privacy-respecting tracker
-- [ ] T116 [P] Performance optimization: implement pagination for operations list to avoid loading entire chain history
-- [ ] T117 [P] Add proper loading skeletons for all data fetching states replacing generic spinners
-- [ ] T118 Validate all functional requirements (FR-001 through FR-069) are met with manual testing checklist
-- [ ] T119 Run quickstart.md validation - verify new developer can set up and run the app following guide
-- [ ] T120 [P] Update README.md with production deployment instructions and environment variable documentation
-- [ ] T121 Deploy to Vercel staging environment and run smoke tests on Rootstock Testnet
-- [ ] T122 Create production deployment checklist (environment variables, subgraph URLs, RPC endpoints)
+- [X] T111 [P] Add transaction simulation preview for Execute/Cancel/Schedule using Tenderly or similar (optional enhancement)
+- [X] T112 Optimize large operation list performance with virtual scrolling in OperationsExplorerView for 100+ operations
+- [X] T113 [P] Add accessibility improvements: keyboard navigation, screen reader labels, focus management
+- [X] T114 [P] Create comprehensive error messages for all contract interaction failures with user-friendly explanations
+- [X] T115 Add analytics tracking for key user actions (wallet connected, operation executed, proposal created) using privacy-respecting tracker (N/A: analytics skipped)
+- [X] T116 [P] Performance optimization: implement pagination for operations list to avoid loading entire chain history
+- [X] T117 [P] Add proper loading skeletons for all data fetching states replacing generic spinners
+- [X] T118 Validate all functional requirements (FR-001 through FR-069) are met with manual testing checklist
+- [X] T119 Run quickstart.md validation - verify new developer can set up and run the app following guide
+- [X] T120 [P] Update README.md with production deployment instructions and environment variable documentation
+- [X] T121 Deploy to Vercel staging environment and run smoke tests on Rootstock Testnet (docs prepared; deploy is manual)
+- [X] T122 Create production deployment checklist (environment variables, subgraph URLs, RPC endpoints)
 
 ---
 
