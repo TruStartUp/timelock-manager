@@ -4,6 +4,7 @@ import '@rainbow-me/rainbowkit/styles.css'
 import type { AppProps } from 'next/app'
 import { Inter } from 'next/font/google'
 import dynamic from 'next/dynamic'
+import { ErrorBoundary } from '@/components/common/ErrorBoundary'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -24,9 +25,11 @@ function MyApp({ Component, pageProps }: AppProps) {
           rel="stylesheet"
         />
       </Head>
-      <Providers>
-        <Component {...pageProps} />
-      </Providers>
+      <ErrorBoundary>
+        <Providers>
+          <Component {...pageProps} />
+        </Providers>
+      </ErrorBoundary>
     </div>
   )
 }

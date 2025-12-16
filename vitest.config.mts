@@ -3,6 +3,9 @@ import react from '@vitejs/plugin-react'
 import path from 'path'
 
 export default defineConfig({
+  // In this repo, `.env.local` is typically gitignored and may be blocked in sandboxed
+  // environments. For tests, load env files from a separate directory instead.
+  envDir: path.resolve(__dirname, './tests/env'),
   plugins: [react()],
   test: {
     environment: 'jsdom',

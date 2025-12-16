@@ -338,13 +338,13 @@ description: 'Task list for Rootstock Timelock Management App - Blockchain Integ
 
 **Purpose**: Improvements that affect multiple user stories and production readiness
 
-- [ ] T104 [P] Add network mismatch detection in src/components/common/Layout.tsx with "Wrong network" banner when wallet on non-Rootstock chain
-- [ ] T105 [P] Implement automatic network switching using wagmi useSwitchChain when user on wrong network
-- [ ] T106 [P] Add global error boundary in src/pages/_app.tsx to catch and display React errors gracefully
-- [ ] T107 [P] Implement subgraph health check in src/services/subgraph/client.ts with automatic fallback to Blockscout API
-- [ ] T108 [P] Add Blockscout API fallback implementation in src/services/blockscout/events.ts for fetching events when subgraph unavailable
-- [ ] T109 Add dangerous function highlighting in operation displays (upgradeTo, transferOwnership, updateDelay) with visual warning badges
-- [ ] T110 [P] Implement role change detection with periodic background refresh of hasRole checks (5-minute interval)
+- [X] T104 [P] Add network mismatch detection in src/components/common/Layout.tsx with "Wrong network" banner when wallet on non-Rootstock chain
+- [X] T105 [P] Implement automatic network switching using wagmi useSwitchChain when user on wrong network
+- [X] T106 [P] Add global error boundary in src/pages/_app.tsx to catch and display React errors gracefully
+- [X] T107 [P] Implement subgraph health check in src/services/subgraph/client.ts with automatic fallback to Blockscout API
+- [X] T108 [P] Add Blockscout API fallback implementation in src/services/blockscout/events.ts for fetching events when subgraph unavailable
+- [X] T109 Add dangerous function highlighting in operation displays (upgradeTo, transferOwnership, updateDelay) with visual warning badges
+- [X] T110 [P] Implement role change detection with periodic background refresh of hasRole checks (5-minute interval)
 - [ ] T111 [P] Add transaction simulation preview for Execute/Cancel/Schedule using Tenderly or similar (optional enhancement)
 - [ ] T112 Optimize large operation list performance with virtual scrolling in OperationsExplorerView for 100+ operations
 - [ ] T113 [P] Add accessibility improvements: keyboard navigation, screen reader labels, focus management

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import { type Address, formatEther, isAddress } from 'viem'
-import { useAccount, useChainId } from 'wagmi'
+import { useAccount, useChainId, usePublicClient } from 'wagmi'
 import { useQueryClient } from '@tanstack/react-query'
 import { useOperations } from '@/hooks/useOperations'
 import { useHasRole } from '@/hooks/useHasRole'
@@ -8,6 +8,7 @@ import { useTimelockWrite } from '@/hooks/useTimelockWrite'
 import { TIMELOCK_ROLES } from '@/lib/constants'
 import { type Operation as SubgraphOperation, type OperationStatus as SubgraphOperationStatus } from '@/types/operation'
 import { OperationRow } from './OperationRow'
+import TimelockControllerABI from '@/lib/abis/TimelockController.json'
 
 type OperationStatus = 'All' | 'Pending' | 'Ready' | 'Executed' | 'Canceled'
 
@@ -41,6 +42,12 @@ interface Operation {
   }
 }
 
+type SimulationState =
+  | { status: 'idle' }
+  | { status: 'pending' }
+  | { status: 'success' }
+  | { status: 'error'; message: string }
+
 const OperationsExplorerView: React.FC = () => {
   const [selectedFilter, setSelectedFilter] = useState<OperationStatus>('All')
   const [searchQuery, setSearchQuery] = useState('')
@@ -52,6 +59,15 @@ const OperationsExplorerView: React.FC = () => {
   const [activeCancelOperationId, setActiveCancelOperationId] = useState<
     `0x${string}` | null
   >(null)
+
+  // T111: Simulation previews
+  const publicClient = usePublicClient()
+  const [confirmExecuteOperation, setConfirmExecuteOperation] =
+    useState<Operation | null>(null)
+  const [executeSimulation, setExecuteSimulation] =
+    useState<SimulationState>({ status: 'idle' })
+  const [cancelSimulation, setCancelSimulation] =
+    useState<SimulationState>({ status: 'idle' })
 
   // State for selected timelock contract address
   // Using the actual deployed TimelockController on Rootstock Testnet
@@ -103,6 +119,77 @@ const OperationsExplorerView: React.FC = () => {
     timelockController: timelockAddress ?? ('0x0000000000000000000000000000000000000000' as Address),
     account: connectedAccount,
   })
+
+  // T111: simulate execute() when the confirm modal opens
+  useEffect(() => {
+    const run = async () => {
+      if (
+        !publicClient ||
+        !timelockAddress ||
+        !confirmExecuteOperation ||
+        !confirmExecuteOperation.target ||
+        confirmExecuteOperation.value === null ||
+        !confirmExecuteOperation.data
+      ) {
+        setExecuteSimulation({ status: 'idle' })
+        return
+      }
+
+      setExecuteSimulation({ status: 'pending' })
+      try {
+        await publicClient.simulateContract({
+          address: timelockAddress,
+          abi: TimelockControllerABI as any,
+          functionName: 'execute',
+          args: [
+            confirmExecuteOperation.target,
+            confirmExecuteOperation.value,
+            confirmExecuteOperation.data,
+            confirmExecuteOperation.predecessor,
+            confirmExecuteOperation.salt,
+          ],
+          value: confirmExecuteOperation.value,
+          account: connectedAccount,
+        } as any)
+
+        setExecuteSimulation({ status: 'success' })
+      } catch (err) {
+        setExecuteSimulation({
+          status: 'error',
+          message: err instanceof Error ? err.message : String(err),
+        })
+      }
+    }
+    run()
+  }, [confirmExecuteOperation, connectedAccount, publicClient, timelockAddress])
+
+  // T111: simulate cancel(id) when cancel confirmation dialog opens
+  useEffect(() => {
+    const run = async () => {
+      if (!publicClient || !timelockAddress || !confirmCancelOperation) {
+        setCancelSimulation({ status: 'idle' })
+        return
+      }
+
+      setCancelSimulation({ status: 'pending' })
+      try {
+        await publicClient.simulateContract({
+          address: timelockAddress,
+          abi: TimelockControllerABI as any,
+          functionName: 'cancel',
+          args: [confirmCancelOperation.fullId],
+          account: connectedAccount,
+        } as any)
+        setCancelSimulation({ status: 'success' })
+      } catch (err) {
+        setCancelSimulation({
+          status: 'error',
+          message: err instanceof Error ? err.message : String(err),
+        })
+      }
+    }
+    run()
+  }, [confirmCancelOperation, connectedAccount, publicClient, timelockAddress])
 
   // Map UI filter to subgraph status filter
   const statusFilter: SubgraphOperationStatus | undefined = useMemo(() => {
@@ -370,14 +457,8 @@ const OperationsExplorerView: React.FC = () => {
       return
     }
 
-    // Execute the operation using useTimelockWrite
-    execute({
-      target: operation.target,
-      value: operation.value,
-      data: operation.data,
-      predecessor: operation.predecessor,
-      salt: operation.salt,
-    })
+    // T111: Open simulation preview first
+    setConfirmExecuteOperation(operation)
   }
 
   const handleCancel = (operation: Operation) => {
@@ -394,6 +475,19 @@ const OperationsExplorerView: React.FC = () => {
     setConfirmCancelOperation(null)
   }
 
+  const confirmExecute = () => {
+    if (!confirmExecuteOperation) return
+    // Execute the operation using useTimelockWrite
+    execute({
+      target: confirmExecuteOperation.target!,
+      value: confirmExecuteOperation.value!,
+      data: confirmExecuteOperation.data!,
+      predecessor: confirmExecuteOperation.predecessor,
+      salt: confirmExecuteOperation.salt,
+    })
+    setConfirmExecuteOperation(null)
+  }
+
   const formatTargets = (targets: string[]) => {
     if (targets.length <= 1) return targets[0] || ''
     return `${targets[0]}, +${targets.length - 1} more`
@@ -401,6 +495,104 @@ const OperationsExplorerView: React.FC = () => {
 
   return (
     <>
+      {/* T111: Execute simulation preview dialog */}
+      {confirmExecuteOperation ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-xl rounded-lg border border-border-dark bg-surface-dark p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-xl font-bold text-text-dark-primary">
+                  Confirm execution
+                </h3>
+                <p className="mt-1 text-sm text-text-dark-secondary">
+                  We’ll run a simulation (eth_call) first to preview whether the
+                  transaction is likely to succeed.
+                </p>
+              </div>
+              <button
+                className="text-text-dark-secondary hover:text-text-dark-primary"
+                onClick={() => setConfirmExecuteOperation(null)}
+                aria-label="Close execute confirmation dialog"
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            <div className="mt-5 space-y-3 rounded-md bg-background-dark p-4 font-mono text-sm">
+              <div className="flex justify-between gap-3">
+                <span className="text-text-dark-secondary">Operation ID</span>
+                <span className="text-text-dark-primary break-all">
+                  {confirmExecuteOperation.details?.fullId ??
+                    confirmExecuteOperation.fullId}
+                </span>
+              </div>
+              <div className="flex justify-between gap-3">
+                <span className="text-text-dark-secondary">Target</span>
+                <span className="text-text-dark-primary break-all">
+                  {confirmExecuteOperation.target ?? '—'}
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-4 rounded border border-border-dark bg-background-dark p-4 text-sm">
+              <div className="flex items-center justify-between gap-3">
+                <span className="font-semibold text-text-dark-primary">
+                  Simulation
+                </span>
+                {executeSimulation.status === 'pending' ? (
+                  <span className="text-text-dark-secondary">Running…</span>
+                ) : executeSimulation.status === 'success' ? (
+                  <span className="text-green-300">Likely succeeds</span>
+                ) : executeSimulation.status === 'error' ? (
+                  <span className="text-red-300">May fail</span>
+                ) : (
+                  <span className="text-text-dark-secondary">—</span>
+                )}
+              </div>
+              {executeSimulation.status === 'error' ? (
+                <p className="mt-2 text-red-300 break-words">
+                  {executeSimulation.message}
+                </p>
+              ) : null}
+            </div>
+
+            <div className="mt-6 flex items-center justify-end gap-3">
+              <button
+                className="rounded-md border border-border-dark bg-transparent px-4 py-2 text-sm font-semibold text-text-dark-secondary hover:bg-white/5"
+                onClick={() => setConfirmExecuteOperation(null)}
+                disabled={isExecuting}
+              >
+                Close
+              </button>
+              <button
+                className={`rounded-md px-4 py-2 text-sm font-semibold ${
+                  isExecuting
+                    ? 'bg-primary/20 text-primary cursor-wait'
+                    : hasExecutorRole
+                      ? 'bg-status-ready/20 text-status-ready hover:bg-status-ready/30'
+                      : 'bg-border-dark text-text-dark-secondary cursor-not-allowed opacity-50'
+                }`}
+                onClick={confirmExecute}
+                disabled={!hasExecutorRole || isCheckingExecutorRole || isExecuting}
+                title={
+                  isExecuting
+                    ? 'Transaction pending...'
+                    : isCheckingExecutorRole
+                      ? 'Checking permissions...'
+                      : !hasExecutorRole
+                        ? 'Your wallet does not have the EXECUTOR_ROLE'
+                        : executeSimulation.status === 'pending'
+                          ? 'Waiting for simulation...'
+                          : 'Execute this operation'
+                }
+              >
+                {isExecuting ? 'Executing…' : 'Execute operation'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {/* T082: Cancel confirmation dialog */}
       {confirmCancelOperation ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
@@ -449,6 +641,29 @@ const OperationsExplorerView: React.FC = () => {
                   {confirmCancelOperation.targets.join(', ') || '—'}
                 </span>
               </div>
+            </div>
+
+            {/* T111: cancel simulation */}
+            <div className="mt-4 rounded border border-border-dark bg-background-dark p-4 text-sm">
+              <div className="flex items-center justify-between gap-3">
+                <span className="font-semibold text-text-dark-primary">
+                  Simulation
+                </span>
+                {cancelSimulation.status === 'pending' ? (
+                  <span className="text-text-dark-secondary">Running…</span>
+                ) : cancelSimulation.status === 'success' ? (
+                  <span className="text-green-300">Likely succeeds</span>
+                ) : cancelSimulation.status === 'error' ? (
+                  <span className="text-red-300">May fail</span>
+                ) : (
+                  <span className="text-text-dark-secondary">—</span>
+                )}
+              </div>
+              {cancelSimulation.status === 'error' ? (
+                <p className="mt-2 text-red-300 break-words">
+                  {cancelSimulation.message}
+                </p>
+              ) : null}
             </div>
 
             {isCancelError && cancelError ? (

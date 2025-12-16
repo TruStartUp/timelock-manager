@@ -232,6 +232,73 @@ export async function checkSubgraphHealth(chainId: ChainId): Promise<{
   }
 }
 
+export type SubgraphAvailability = {
+  ok: boolean
+  checkedAtMs: number
+  blockNumber?: number
+  error?: string
+}
+
+const subgraphAvailabilityCache = new Map<ChainId, SubgraphAvailability>()
+
+/**
+ * Cached subgraph availability check (T107)
+ *
+ * This is used to decide whether queries should hit the subgraph or fall back to
+ * an alternative data source (e.g. Blockscout events).
+ */
+export async function getSubgraphAvailability(
+  chainId: ChainId,
+  opts: { ttlMs?: number; timeoutMs?: number; force?: boolean } = {}
+): Promise<SubgraphAvailability> {
+  const { ttlMs = 30_000, timeoutMs = 5000, force = false } = opts
+
+  const cached = subgraphAvailabilityCache.get(chainId)
+  if (!force && cached && Date.now() - cached.checkedAtMs < ttlMs) {
+    return cached
+  }
+
+  // Prefer a short timeout for the health check so we fail fast into fallback mode.
+  const health = await (async () => {
+    try {
+      const query = `
+        query SubgraphHealth {
+          _meta {
+            block { number timestamp }
+            hasIndexingErrors
+          }
+        }
+      `
+      const result = await executeGraphQLQuery<{
+        _meta: {
+          block: { number: number; timestamp: number }
+          hasIndexingErrors: boolean
+        }
+      }>(query, {}, chainId, timeoutMs)
+      return {
+        healthy: !result._meta.hasIndexingErrors,
+        synced: true,
+        blockNumber: result._meta.block.number,
+      }
+    } catch (error) {
+      return {
+        healthy: false,
+        synced: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      }
+    }
+  })()
+  const availability: SubgraphAvailability = {
+    ok: Boolean(health.healthy && health.synced),
+    checkedAtMs: Date.now(),
+    blockNumber: health.blockNumber,
+    error: health.error,
+  }
+
+  subgraphAvailabilityCache.set(chainId, availability)
+  return availability
+}
+
 /**
  * Pagination parameters for queries
  */

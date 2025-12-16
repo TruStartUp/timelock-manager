@@ -13,6 +13,19 @@ vi.mock('@rainbow-me/rainbowkit', () => ({
   ConnectButton: () => <div>Connect</div>,
 }))
 
+vi.mock('wagmi', () => ({
+  useAccount: () => ({ isConnected: false }),
+  useChainId: () => 30,
+  useSwitchChain: () => ({
+    switchChain: vi.fn(),
+    isPending: false,
+    chains: [
+      { id: 30, name: 'Rootstock' },
+      { id: 31, name: 'Rootstock Testnet' },
+    ],
+  }),
+}))
+
 describe('Layout', () => {
   test('renders header, footer and children correctly', () => {
     render(

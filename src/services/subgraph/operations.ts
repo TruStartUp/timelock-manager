@@ -15,12 +15,14 @@ import { type Address } from 'viem'
 import {
   executeGraphQLQuery,
   executeGraphQLQueryWithRetry,
+  getSubgraphAvailability,
   type ChainId,
   type PaginationParams,
   DEFAULT_PAGE_SIZE,
   GraphQLError,
 } from './client'
 import { type Operation, type Call, type OperationStatus } from '@/types/operation'
+import { fetchOperationsFromBlockscoutEvents } from '@/services/blockscout/events'
 
 /**
  * Filters for querying operations
@@ -187,6 +189,24 @@ export async function fetchOperations(
 ): Promise<Operation[]> {
   const { first = DEFAULT_PAGE_SIZE, skip = 0 } = pagination
   const targetLower = filters.target?.toLowerCase()
+  const canFallback = Boolean(filters.timelockController)
+
+  // T107/T108: If the subgraph is unhealthy/unreachable, fall back to Blockscout events.
+  if (canFallback) {
+    const availability = await getSubgraphAvailability(chainId, {
+      ttlMs: 30_000,
+      timeoutMs: 4_000,
+    })
+    if (!availability.ok) {
+      return await fetchOperationsFromBlockscoutEvents({
+        chainId,
+        timelockController: filters.timelockController!,
+        status: filters.status,
+        target: filters.target,
+        limit: first,
+      })
+    }
+  }
 
   const runQuery = async (includeCallTargetFilter: boolean) => {
     const whereClause = buildWhereClause(filters, { includeCallTargetFilter })
@@ -271,9 +291,18 @@ export async function fetchOperations(
       return filtered.map(transformOperation)
     }
 
-    if (err instanceof GraphQLError) {
-      throw err
+    // Any other subgraph failure: best-effort Blockscout fallback (requires timelockController filter).
+    if (canFallback) {
+      return await fetchOperationsFromBlockscoutEvents({
+        chainId,
+        timelockController: filters.timelockController!,
+        status: filters.status,
+        target: filters.target,
+        limit: first,
+      })
     }
+
+    if (err instanceof GraphQLError) throw err
     throw err
   }
 }

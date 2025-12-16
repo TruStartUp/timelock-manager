@@ -251,7 +251,7 @@ describe('OperationsExplorerView', () => {
     render(<OperationsExplorerView />, { wrapper: TestWrapper })
 
     const searchInput = screen.getByPlaceholderText(
-      /Search by ID, proposer\.\.\./i
+      /Search by ID, or paste an address/i
     )
     expect(searchInput).toBeInTheDocument()
   })
@@ -325,7 +325,7 @@ describe('OperationsExplorerView', () => {
     render(<OperationsExplorerView />, { wrapper: TestWrapper })
 
     const searchInput = screen.getByPlaceholderText(
-      /Search by ID, proposer\.\.\./i
+      /Search by ID, or paste an address/i
     ) as HTMLInputElement
     fireEvent.change(searchInput, { target: { value: '0xab' } })
 
@@ -406,9 +406,6 @@ describe('OperationsExplorerView', () => {
   test('CANCEL button is clickable', () => {
     render(<OperationsExplorerView />, { wrapper: TestWrapper })
 
-    // Mock console.log before clicking
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
-
     const cancelButtons = screen.getAllByRole('button', { name: /^CANCEL$/i })
     // There are action CANCEL buttons and filter buttons
     // Click the first action button (which should be in the table)
@@ -420,12 +417,11 @@ describe('OperationsExplorerView', () => {
     expect(actionCancelButton).toBeDefined()
     if (actionCancelButton) {
       fireEvent.click(actionCancelButton)
-      // Just verify the handler was called with some operation ID
-      expect(consoleSpy).toHaveBeenCalledTimes(1)
-      expect(consoleSpy.mock.calls[0][0]).toBe('Cancel operation:')
+      // Clicking cancel should open confirmation dialog (T082)
+      expect(
+        screen.getByRole('heading', { name: /Confirm cancellation/i })
+      ).toBeInTheDocument()
     }
-
-    consoleSpy.mockRestore()
   })
 
   test('displays relative ETA for operations', () => {

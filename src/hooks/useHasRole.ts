@@ -91,6 +91,9 @@ export function useHasRole({
       enabled: !!account, // Only run query if account is defined
       staleTime: CACHE_TTL.ROLE, // 5 minutes cache from constants
       gcTime: CACHE_TTL.ROLE, // Keep in cache for 5 minutes
+      // T110: Periodic background refresh to detect role changes during a session.
+      refetchInterval: CACHE_TTL.ROLE,
+      refetchIntervalInBackground: true,
     },
   })
 

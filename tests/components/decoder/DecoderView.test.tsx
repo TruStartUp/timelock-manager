@@ -1,7 +1,43 @@
-import { render, screen } from '@testing-library/react'
-import { expect, test, describe } from 'vitest'
+import { fireEvent, render, screen } from '@testing-library/react'
+import { expect, test, describe, vi } from 'vitest'
 import DecoderView from '@/components/decoder/DecoderView'
 import React from 'react'
+
+vi.mock('wagmi', () => ({
+  useChainId: () => 31,
+  usePublicClient: () => ({ request: vi.fn() }),
+}))
+
+vi.mock('@/hooks/useContractABI', () => ({
+  useContractABI: () => ({
+    abi: null,
+    source: null,
+    confidence: null,
+    isLoading: false,
+    isError: false,
+    error: null,
+  }),
+}))
+
+vi.mock('@/lib/decoder', () => ({
+  decodeCalldata: vi.fn(async () => ({
+    selector: '0xa9059cbb',
+    functionName: 'transfer',
+    signature: 'transfer(address to,uint256 amount)',
+    params: [
+      {
+        name: 'to',
+        type: 'address',
+        value: '0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D',
+      },
+      { name: 'amount', type: 'uint256', value: 1000000000000000000n },
+    ],
+    source: 'BLOCKSCOUT',
+    confidence: 'HIGH',
+    warnings: [],
+    children: [],
+  })),
+}))
 
 describe('DecoderView', () => {
   test('renders decoder elements correctly', () => {
@@ -37,19 +73,7 @@ describe('DecoderView', () => {
     expect(
       screen.getByRole('heading', { name: /^Output$/i })
     ).toBeInTheDocument()
-    expect(
-      screen.getByRole('heading', { name: /Decoded Function/i })
-    ).toBeInTheDocument()
-    expect(screen.getByText(/Verified/i)).toBeInTheDocument()
-
-    // Check for function display elements - using getAllByText for non-unique text
-    const functionLabels = screen.getAllByText(/Function/i)
-    expect(functionLabels.length).toBeGreaterThan(0)
-    const signatureLabels = screen.getAllByText(/Signature/i)
-    expect(signatureLabels.length).toBeGreaterThan(0)
-    expect(
-      screen.getByRole('heading', { name: /Parameters/i })
-    ).toBeInTheDocument()
+    expect(screen.getByText(/Awaiting input to decode/i)).toBeInTheDocument()
   })
 
   test('renders input fields with correct placeholders', () => {
@@ -65,20 +89,27 @@ describe('DecoderView', () => {
     ).toBeInTheDocument()
   })
 
-  test('renders example decoded output', () => {
+  test('decodes calldata and renders decoded output', async () => {
     render(<DecoderView />)
 
-    // Check for example function name
+    const textarea = screen.getByLabelText(/Calldata \(0x\.\.\.\)/i)
+    const decodeButton = screen.getByRole('button', { name: /Decode/i })
+
+    // Minimal ERC20 transfer calldata shape: selector + 32-byte padded args (dummy)
+    fireEvent.change(textarea, {
+      target: { value: '0xa9059cbb' + '0'.repeat(128) },
+    })
+
+    fireEvent.click(decodeButton)
+
+    expect(
+      await screen.findByRole('heading', { name: /Decoded Function/i })
+    ).toBeInTheDocument()
     expect(screen.getByText(/transfer/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/0xa9059cbb/i).length).toBeGreaterThan(0)
 
-    // Check for example signature
-    expect(screen.getByText(/0xa9059cbb/i)).toBeInTheDocument()
-
-    // Check for example parameters - multiple instances may exist
-    const toParams = screen.getAllByText(/^to$/i)
-    expect(toParams.length).toBeGreaterThan(0)
-    const amountParams = screen.getAllByText(/^amount$/i)
-    expect(amountParams.length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/^to$/i).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/^amount$/i).length).toBeGreaterThan(0)
     expect(
       screen.getByText(/0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D/i)
     ).toBeInTheDocument()

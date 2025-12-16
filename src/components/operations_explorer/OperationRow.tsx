@@ -8,6 +8,7 @@
 import React from 'react'
 import { type Address } from 'viem'
 import { useOperationStatus } from '@/hooks/useOperationStatus'
+import { getDangerousCallFromCalldata } from '@/lib/dangerous'
 
 interface Operation {
   id: string
@@ -79,6 +80,10 @@ export const OperationRow: React.FC<OperationRowProps> = ({
   formatTargets,
   formatAbsoluteTime,
 }) => {
+  const dangerous = React.useMemo(() => {
+    return getDangerousCallFromCalldata(operation.data)
+  }, [operation.data])
+
   // Get live operation status with countdown timer
   const {
     status: liveStatus,
@@ -155,6 +160,17 @@ export const OperationRow: React.FC<OperationRowProps> = ({
             >
               {displayStatus}
             </span>
+            {dangerous ? (
+              <span
+                className="inline-flex items-center rounded-full border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-[11px] font-semibold text-red-300"
+                title={`Dangerous function detected: ${dangerous.functionName}`}
+              >
+                <span className="material-symbols-outlined mr-1 text-[14px] leading-none">
+                  warning
+                </span>
+                {dangerous.functionName}
+              </span>
+            ) : null}
           </div>
         </td>
         <td className="px-6 py-4 text-center font-medium text-text-dark-primary">
@@ -371,6 +387,18 @@ export const OperationRow: React.FC<OperationRowProps> = ({
                     </span>
                   </p>
                 </div>
+                {dangerous ? (
+                  <div className="mt-3 rounded border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-200">
+                    <div className="font-semibold">
+                      Dangerous function detected
+                    </div>
+                    <div className="mt-1 text-red-200/80">
+                      This operation appears to call{' '}
+                      <span className="font-mono">{dangerous.functionName}</span>
+                      . Double-check the target and calldata before executing.
+                    </div>
+                  </div>
+                ) : null}
               </div>
               <div className="md:col-span-2">
                 <h4 className="text-xs font-bold uppercase text-text-dark-secondary mb-2">

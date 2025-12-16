@@ -2,6 +2,8 @@ import React from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
+import { useAccount, useChainId, useSwitchChain } from 'wagmi'
+import { ROOTSTOCK_CHAINS } from '@/lib/constants'
 
 interface LayoutProps {
   children: React.ReactNode
@@ -9,6 +11,22 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const router = useRouter()
+  const { isConnected } = useAccount()
+  const chainId = useChainId()
+  const { switchChain, isPending: isSwitchingChain, chains } = useSwitchChain()
+
+  const supportedRootstockChains = React.useMemo(() => {
+    const wanted = new Set<number>([
+      ROOTSTOCK_CHAINS.MAINNET,
+      ROOTSTOCK_CHAINS.TESTNET,
+    ])
+    return (chains ?? []).filter((c) => wanted.has(c.id))
+  }, [chains])
+
+  const isOnSupportedRootstockChain = React.useMemo(() => {
+    if (!isConnected) return true
+    return supportedRootstockChains.some((c) => c.id === chainId)
+  }, [chainId, isConnected, supportedRootstockChains])
 
   const routeTitleMap: Record<string, string> = {
     '/': 'Dashboard',
@@ -155,6 +173,47 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             <ConnectButton showBalance />
           </div>
         </header>
+
+        {/* T104/T105: Network mismatch banner + one-click switching */}
+        {isConnected && !isOnSupportedRootstockChain ? (
+          <div className="border-b border-yellow-500/30 bg-yellow-500/10 px-6 py-3 text-sm text-yellow-200">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-2">
+                <span className="material-symbols-outlined text-base leading-5">
+                  warning
+                </span>
+                <div className="flex flex-col">
+                  <span className="font-semibold">Wrong network</span>
+                  <span className="text-yellow-200/80">
+                    Switch to Rootstock to enable actions (execute, cancel,
+                    schedule).
+                  </span>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {supportedRootstockChains.length === 0 ? (
+                  <span className="text-yellow-200/80">
+                    Rootstock chains are not enabled in this app configuration.
+                  </span>
+                ) : (
+                  supportedRootstockChains.map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      className="rounded-full bg-yellow-500/20 px-3 py-1 text-xs font-semibold text-yellow-100 hover:bg-yellow-500/30 disabled:cursor-not-allowed disabled:opacity-50"
+                      onClick={() => switchChain({ chainId: c.id })}
+                      disabled={isSwitchingChain}
+                      title={`Switch to ${c.name}`}
+                    >
+                      {isSwitchingChain ? 'Switching…' : `Switch to ${c.name}`}
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        ) : null}
+
         <main className="flex-1 overflow-y-auto p-6 lg:p-8">{children}</main>
       </div>
     </div>
