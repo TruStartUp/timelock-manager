@@ -13,37 +13,37 @@ Use this checklist to manually validate the feature against the functional requi
 - [X] FR-002: System MUST support exactly two networks: Rootstock mainnet (chainId 30) and Rootstock testnet (chainId 31)
 - [X] FR-003: System MUST display a "Wrong network" banner when connected wallet is on an unsupported network
 - [ ] FR-004: System MUST disable all transaction buttons (execute, cancel, schedule) when user is on wrong network while maintaining read-only functionality
-- [ ] FR-005: System MUST prompt users to add Rootstock network configuration to their wallet using wallet_addEthereumChain when network is not present
-- [ ] FR-006: System MUST load RPC URLs from environment variables (NEXT_PUBLIC_RSK_MAINNET_RPC_URL and NEXT_PUBLIC_RSK_TESTNET_RPC_URL)
+- [X] FR-005: System MUST prompt users to add Rootstock network configuration to their wallet using wallet_addEthereumChain when network is not present
+- [X] FR-006: System MUST load RPC URLs from environment variables (NEXT_PUBLIC_RSK_MAINNET_RPC_URL and NEXT_PUBLIC_RSK_TESTNET_RPC_URL)
 
 ## Contract Discovery & Validation
 
 - [ ] FR-007: System MUST accept TimelockController contract addresses as input for exploration
-- [ ] FR-008: System MUST validate TimelockController contracts by checking supportsInterface or presence of functions: getMinDelay, hashOperation, schedule, execute
-- [ ] FR-009: System MUST retrieve and display the current minDelay value from TimelockController via getMinDelay()
-- [ ] FR-010: System MUST identify whether roles are stored locally on the Timelock (AccessControl) or on an external AccessManager contract
+- [X] FR-008: System MUST validate TimelockController contracts by checking supportsInterface or presence of functions: getMinDelay, hashOperation, schedule, execute
+- [X] FR-009: System MUST retrieve and display the current minDelay value from TimelockController via getMinDelay()
+- [X] FR-010: System MUST identify whether roles are stored locally on the Timelock (AccessControl) or on an external AccessManager contract
 
 ## Role & Permission Management
 
-- [ ] FR-011: System MUST display the four standard TimelockController roles: PROPOSER_ROLE (0xb09aa5aeb3702cfd50b6b62bc4532604938f21248a27a1d5ca736082b6819cc1), EXECUTOR_ROLE (0xd8aa0f3194971a2a116679f7c2090f6939c8d4e01a2a8d7e41d55e5351469e63), CANCELLER_ROLE (0xfd643c72710c63c0180259aba6b2d05451e3591a24e58b6223913e945f67199f), DEFAULT_ADMIN_ROLE (0x0000000000000000000000000000000000000000000000000000000000000000)
-- [ ] FR-012: System MUST fetch role member lists by querying The Graph subgraph for RoleGranted and RoleRevoked events emitted by the TimelockController
-- [ ] FR-013: System MUST verify current user's role permissions in real-time using RPC calls to hasRole(role, userAddress) before enabling action buttons
-- [ ] FR-014: System MUST display a link to AccessManager contract when DEFAULT_ADMIN_ROLE is held by a contract implementing IAccessManager
-- [ ] FR-015: System MUST show role grant/revoke history with action type, target address, transaction hash, and timestamp for each role
+- [X] FR-011: System MUST display the four standard TimelockController roles: PROPOSER_ROLE (0xb09aa5aeb3702cfd50b6b62bc4532604938f21248a27a1d5ca736082b6819cc1), EXECUTOR_ROLE (0xd8aa0f3194971a2a116679f7c2090f6939c8d4e01a2a8d7e41d55e5351469e63), CANCELLER_ROLE (0xfd643c72710c63c0180259aba6b2d05451e3591a24e58b6223913e945f67199f), DEFAULT_ADMIN_ROLE (0x0000000000000000000000000000000000000000000000000000000000000000)
+- [X] FR-012: System MUST fetch role member lists by querying The Graph subgraph for RoleGranted and RoleRevoked events emitted by the TimelockController
+- [X] FR-013: System MUST verify current user's role permissions in real-time using RPC calls to hasRole(role, userAddress) before enabling action buttons
+- [X] FR-014: System MUST display a link to AccessManager contract when DEFAULT_ADMIN_ROLE is held by a contract implementing IAccessManager
+- [X] FR-015: System MUST show role grant/revoke history with action type, target address, transaction hash, and timestamp for each role
 
 ## Operations Explorer
 
-- [ ] FR-016: System MUST fetch operation data primarily from The Graph subgraphs indexing TimelockController events (CallScheduled, CallExecuted, Cancelled)
-- [ ] FR-017: System MUST fall back to Rootstock Blockscout API when subgraph is unavailable
-- [ ] FR-018: System MUST calculate and display operation status as: Pending (scheduled but timestamp < ETA and not cancelled), Ready (timestamp ≥ ETA and not done/cancelled), Executed (isOperationDone returns true), Canceled (Cancelled event emitted)
-- [ ] FR-019: System MUST display operations list with columns: Operation ID, Status, Number of calls, Targets (truncated with "+ N more" for multiple), ETA, Scheduled timestamp, Proposer address
-- [ ] FR-020: System MUST provide filter tabs/chips for: All, Pending, Ready, Executed, Canceled statuses
-- [ ] FR-021: System MUST provide search/filter by: Status, Target address, Proposer address, Executor address, Date range, Function name/selector
-- [ ] FR-022: System MUST display operation detail view showing: Status, ETA, delay, scheduled timestamp, operation ID, predecessor, salt, current minDelay
-- [ ] FR-023: System MUST display all calls in an operation with: Target address, Value in rBTC, Raw calldata
-- [ ] FR-024: System MUST decode calldata when ABI is available, showing function name, signature, and typed arguments
-- [ ] FR-025: System MUST display ABI confidence indicator: ✅ "Verified contract" (green) for Blockscout-verified contracts, ⚠️ "Unverified - showing raw hex" (yellow) for unverified contracts
-- [ ] FR-026: System MUST provide a link from operation details to the Decoder view with calldata preloaded
+- [X] FR-016: System MUST fetch operation data primarily from The Graph subgraphs indexing TimelockController events (CallScheduled, CallExecuted, Cancelled)
+- [X] FR-017: System MUST fall back to Rootstock Blockscout API when subgraph is unavailable
+- [X] FR-018: System MUST calculate and display operation status as: Pending (scheduled but timestamp < ETA and not cancelled), Ready (timestamp ≥ ETA and not done/cancelled), Executed (isOperationDone returns true), Canceled (Cancelled event emitted)
+- [X] FR-019: System MUST display operations list with columns: Operation ID, Status, Number of calls, Targets (truncated with "+ N more" for multiple), ETA, Scheduled timestamp, Proposer address
+- [X] FR-020: System MUST provide filter tabs/chips for: All, Pending, Ready, Executed, Canceled statuses
+- [X] FR-021: System MUST provide search/filter by: Status, Target address, Proposer address, Executor address, Date range, Function name/selector
+- [X] FR-022: System MUST display operation detail view showing: Status, ETA, delay, scheduled timestamp, operation ID, predecessor, salt, current minDelay
+- [X] FR-023: System MUST display all calls in an operation with: Target address, Value in rBTC, Raw calldata
+- [X] FR-024: System MUST decode calldata when ABI is available, showing function name, signature, and typed arguments
+- [X] FR-025: System MUST display ABI confidence indicator: ✅ "Verified contract" (green) for Blockscout-verified contracts, ⚠️ "Unverified - showing raw hex" (yellow) for unverified contracts
+- [X] FR-026: System MUST provide a link from operation details to the Decoder view with calldata preloaded
 
 ## Operation Execution & Cancellation
 

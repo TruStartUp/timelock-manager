@@ -69,6 +69,12 @@ export interface Operation {
 
   /** Canceller who cancelled (null if not cancelled) */
   cancelledBy: `0x${string}` | null
+
+  /**
+   * Calls associated with this operation (especially for scheduleBatch()).
+   * When present, each call includes the target + calldata needed for decoding.
+   */
+  calls?: Call[]
 }
 
 /**

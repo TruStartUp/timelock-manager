@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { type Address, isAddress, type Abi } from 'viem'
 import { useChainId, usePublicClient } from 'wagmi'
 import { useContractABI } from '@/hooks/useContractABI'
@@ -17,6 +17,21 @@ const DecoderView: React.FC = () => {
   const chainId = useChainId()
   const publicClient = usePublicClient()
   const network = CHAIN_TO_NETWORK[chainId]
+
+  // FR-026: preload calldata (+ optional contract) from query params.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    const qCalldata = params.get('calldata') || params.get('data')
+    const qContract =
+      params.get('contractAddress') || params.get('target') || params.get('contract')
+
+    // Only preload if the user hasn't started typing.
+    if (qCalldata && !calldata) setCalldata(qCalldata)
+    if (qContract && !contractAddress) setContractAddress(qContract)
+    // Do not auto-decode; just preload inputs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const normalizedContractAddress = useMemo(() => {
     const trimmed = contractAddress.trim().replace(/^0X/, '0x')

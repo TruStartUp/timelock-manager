@@ -132,7 +132,7 @@ function buildWhereClause(
 function transformOperation(
   raw: OperationsQueryResponse['operations'][0]
 ): Operation {
-  return {
+  const base: Operation = {
     id: raw.id as `0x${string}`,
     index: BigInt(raw.index),
     timelockController: raw.timelockController as `0x${string}`,
@@ -153,6 +153,13 @@ function transformOperation(
     cancelledAt: raw.cancelledAt ? BigInt(raw.cancelledAt) : null,
     cancelledTx: raw.cancelledTx as `0x${string}` | null,
     cancelledBy: raw.cancelledBy as `0x${string}` | null,
+  }
+
+  // Include calls when the subgraph returns them (needed for batch ops + calldata decoding).
+  const calls = (raw.calls || []).map((c) => transformCall(c, raw.id))
+  return {
+    ...base,
+    calls,
   }
 }
 

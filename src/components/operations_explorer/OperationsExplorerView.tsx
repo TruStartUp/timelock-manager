@@ -28,6 +28,8 @@ interface Operation {
   timelockAddress: Address
   cancelledAt: bigint | null
   executedAt: bigint | null
+  delay: bigint
+  scheduledAt: bigint
   // Execution parameters (from subgraph)
   target: `0x${string}` | null
   value: bigint | null
@@ -41,6 +43,8 @@ interface Operation {
     callsDetails: Array<{
       target: string
       value: string
+      data?: `0x${string}` | null
+      signature?: string | null
     }>
   }
 }
@@ -126,6 +130,7 @@ const OperationsExplorerView: React.FC = () => {
     cancelError,
     cancelTxHash,
     resetCancel,
+    minDelay,
   } = useTimelockWrite({
     timelockController: timelockAddress ?? ('0x0000000000000000000000000000000000000000' as Address),
     account: connectedAccount,
@@ -359,9 +364,25 @@ const OperationsExplorerView: React.FC = () => {
     if (!subgraphOperations) return []
 
     return subgraphOperations.map((op: SubgraphOperation) => {
-      // Determine targets - either from calls array or single target
-      const targets: string[] = op.target ? [op.target] : []
-      const callsCount = op.target ? 1 : 0 // Will be updated when calls relationship is available
+      const subgraphCalls = (op.calls || []) as Array<{
+        target: `0x${string}`
+        value: bigint
+        data: `0x${string}`
+        signature: string | null
+      }>
+
+      const isBatch = subgraphCalls.length > 0
+      const primaryTarget = op.target ?? (subgraphCalls[0]?.target ?? null)
+      const primaryValue = op.value ?? (subgraphCalls[0]?.value ?? null)
+      const primaryData = op.data ?? (subgraphCalls[0]?.data ?? null)
+
+      // Determine targets - prefer calls relationship (batch) otherwise single target
+      const targets: string[] = isBatch
+        ? subgraphCalls.map((c) => c.target)
+        : primaryTarget
+          ? [primaryTarget]
+          : []
+      const callsCount = isBatch ? subgraphCalls.length : primaryTarget ? 1 : 0
 
       // Format operation for UI
       const uiOperation: Operation = {
@@ -374,20 +395,38 @@ const OperationsExplorerView: React.FC = () => {
         timelockAddress: timelockAddress!,
         cancelledAt: op.cancelledAt,
         executedAt: op.executedAt,
+        delay: op.delay ?? BigInt(0),
+        scheduledAt: op.scheduledAt ?? BigInt(0),
         // Execution parameters for useTimelockWrite
-        target: op.target ?? null,
-        value: op.value ?? null,
-        data: op.data ?? null,
+        target: primaryTarget,
+        value: primaryValue,
+        data: primaryData,
         predecessor: op.predecessor ?? ZERO_BYTES32,
         salt: op.salt ?? ZERO_BYTES32,
         details: {
           fullId: op.id,
           fullProposer: op.scheduledBy,
           scheduled: formatAbsoluteTime(op.scheduledAt),
-          callsDetails: op.target && op.value !== null ? [{
-            target: op.target,
-            value: op.value > BigInt(0) ? `${formatEther(op.value)} RBTC` : '0',
-          }] : [],
+          callsDetails: isBatch
+            ? subgraphCalls.map((c) => ({
+                target: c.target,
+                value: c.value > BigInt(0) ? `${formatEther(c.value)} RBTC` : '0',
+                data: c.data,
+                signature: c.signature,
+              }))
+            : primaryTarget && primaryValue !== null
+              ? [
+                  {
+                    target: primaryTarget,
+                    value:
+                      primaryValue > BigInt(0)
+                        ? `${formatEther(primaryValue)} RBTC`
+                        : '0',
+                    data: primaryData,
+                    signature: null,
+                  },
+                ]
+              : [],
         },
       }
 
@@ -1166,6 +1205,7 @@ const OperationsExplorerView: React.FC = () => {
             isCancelSuccess={isCancelSuccess}
             isCancelError={isCancelError}
             activeCancelOperationId={activeCancelOperationId}
+            minDelay={minDelay}
             getStatusColor={getStatusColor}
             getStatusTextColor={getStatusTextColor}
             formatTargets={formatTargets}
@@ -1194,6 +1234,7 @@ function VirtualizedOperationsList(props: {
   isCancelSuccess: boolean
   isCancelError: boolean
   activeCancelOperationId: `0x${string}` | null
+  minDelay?: bigint
   getStatusColor: (status: string) => string
   getStatusTextColor: (status: string) => string
   formatTargets: (targets: string[]) => string
@@ -1208,6 +1249,13 @@ function VirtualizedOperationsList(props: {
     estimateSize: () => 72,
     overscan: 10,
   })
+
+  // When an accordion row expands/collapses, its height changes.
+  // Ensure the virtualizer recalculates offsets so rows don't overlap.
+  React.useLayoutEffect(() => {
+    if (!shouldVirtualize) return
+    rowVirtualizer.measure()
+  }, [props.expandedRowId, rowVirtualizer, shouldVirtualize])
 
   return (
     <div className="w-full overflow-x-auto rounded-lg bg-surface-dark">
@@ -1260,8 +1308,9 @@ function VirtualizedOperationsList(props: {
                 const operation = props.operations[virtualRow.index]
                 return (
                   <div
-                    key={operation.fullId}
+                    key={virtualRow.key}
                     ref={rowVirtualizer.measureElement}
+                    data-index={virtualRow.index}
                     style={{
                       position: 'absolute',
                       top: 0,
@@ -1298,6 +1347,7 @@ function VirtualizedOperationsList(props: {
                         props.activeCancelOperationId !== null &&
                         props.activeCancelOperationId === operation.fullId
                       }
+                      minDelay={props.minDelay}
                       getStatusColor={props.getStatusColor}
                       getStatusTextColor={props.getStatusTextColor}
                       formatTargets={props.formatTargets}
@@ -1339,6 +1389,7 @@ function VirtualizedOperationsList(props: {
                     props.activeCancelOperationId !== null &&
                     props.activeCancelOperationId === operation.fullId
                   }
+                  minDelay={props.minDelay}
                   getStatusColor={props.getStatusColor}
                   getStatusTextColor={props.getStatusTextColor}
                   formatTargets={props.formatTargets}
