@@ -24,6 +24,7 @@ import {
 import { type ChainId } from '@/services/subgraph/client'
 import { type RoleAssignment } from '@/types/role'
 import { TIMELOCK_ROLES, ROLE_NAMES, CACHE_TTL } from '@/lib/constants'
+import { useNetworkConfig } from './useNetworkConfig'
 
 /**
  * Extended role information with current members
@@ -116,6 +117,7 @@ export function useRoles(
   } & UseRolesOptions = { timelockController: undefined }
 ): UseRolesResult {
   const chainId = useChainId() as ChainId
+  const { subgraphUrl } = useNetworkConfig()
   const {
     timelockController,
     enabled = true,
@@ -123,14 +125,17 @@ export function useRoles(
     refetchInterval = CACHE_TTL.ROLE,
   } = options
 
+  // T011: Use dynamic subgraphUrl from context
+  const urlOrChainId = subgraphUrl ?? chainId
+
   // Fetch roles summary (includes current members via event-sourcing)
   const rolesQuery = useQuery({
-    queryKey: ['roles', chainId, timelockController],
+    queryKey: ['roles', subgraphUrl ?? chainId, timelockController],
     queryFn: async () => {
       if (!timelockController) return null
-      return await getRolesSummary(timelockController, chainId)
+      return await getRolesSummary(timelockController, urlOrChainId as ChainId | string)
     },
-    enabled: enabled && !!chainId && !!timelockController,
+    enabled: enabled && (!!subgraphUrl || !!chainId) && !!timelockController,
     staleTime,
     refetchInterval,
     retry: false, // Don't retry - fail fast for tests
@@ -138,10 +143,10 @@ export function useRoles(
 
   // Fetch role history for all standard roles
   const historyQuery = useQuery({
-    queryKey: ['role-history', chainId, timelockController],
+    queryKey: ['role-history', subgraphUrl ?? chainId, timelockController],
     queryFn: async () => {
       if (!timelockController) return []
-      
+
       // Fetch history for all 4 standard roles
       const roleHashes: `0x${string}`[] = [
         TIMELOCK_ROLES.PROPOSER_ROLE,
@@ -151,7 +156,7 @@ export function useRoles(
       ]
 
       const allHistory: RoleAssignment[] = []
-      
+
       // Fetch assignments for each role
       for (const roleHash of roleHashes) {
         try {
@@ -159,7 +164,7 @@ export function useRoles(
             roleHash,
             timelockController,
             { first: 1000 }, // Get up to 1000 events per role
-            chainId
+            urlOrChainId as ChainId | string
           )
           allHistory.push(...assignments)
         } catch (error) {
@@ -178,7 +183,7 @@ export function useRoles(
         return 0
       })
     },
-    enabled: enabled && !!chainId && !!timelockController,
+    enabled: enabled && (!!subgraphUrl || !!chainId) && !!timelockController,
     staleTime,
     refetchInterval,
     retry: false, // Don't retry - fail fast for tests

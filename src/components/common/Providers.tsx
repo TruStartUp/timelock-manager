@@ -7,6 +7,8 @@ import { RainbowKitProvider } from '@rainbow-me/rainbowkit'
 import { makeWagmiConfig } from '../../wagmi'
 import { useNetworkConfig } from '@/hooks/useNetworkConfig'
 
+import { TimelockProvider } from '@/context/TimelockContext'
+
 const client = new QueryClient()
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -30,7 +32,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={client}>
-        <RainbowKitProvider>{mounted && children}</RainbowKitProvider>
+        <RainbowKitProvider>
+          <TimelockProvider>{mounted && children}</TimelockProvider>
+        </RainbowKitProvider>
       </QueryClientProvider>
     </WagmiProvider>
   )

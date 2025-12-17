@@ -44,6 +44,10 @@ const NewProposalView: React.FC = () => {
   const [addressToFetch, setAddressToFetch] = useState<Address | undefined>()
   const [fetchError, setFetchError] = useState<string | null>(null)
   const [hasAttemptedFetch, setHasAttemptedFetch] = useState(false)
+  // Step 1: used to ensure we only auto-advance/open modals in response to an explicit Fetch ABI click,
+  // not due to navigation (e.g., Step 2 -> Back -> Step 1).
+  const [step1FetchNonce, setStep1FetchNonce] = useState(0)
+  const lastHandledStep1FetchNonceRef = React.useRef(0)
   // Keep empty by default so we can auto-select the first available write function once ABI loads.
   const [selectedFunction, setSelectedFunction] = useState('')
 
@@ -63,6 +67,14 @@ const NewProposalView: React.FC = () => {
   // T113: focus management for manual ABI dialog
   const manualDialogCloseRef = React.useRef<HTMLButtonElement | null>(null)
   const lastFocusedElRef = React.useRef<HTMLElement | null>(null)
+
+  const closeManualABIModal = () => {
+    // Mark the current fetch as handled so the modal doesn't immediately reopen.
+    lastHandledStep1FetchNonceRef.current = step1FetchNonce
+    setShowManualABIModal(false)
+    setManualABIInput('')
+    setManualABIError(null)
+  }
 
   // Batch operations state
   const [operations, setOperations] = useState<BatchOperation[]>([])
@@ -302,7 +314,13 @@ const NewProposalView: React.FC = () => {
       setFetchedABIData(abiData)
 
       // Initialize operations[0] with the first operation
-      if (hasAttemptedFetch && currentStep === 1 && addressToFetch) {
+      const shouldHandleStep1Fetch =
+        currentStep === 1 &&
+        hasAttemptedFetch &&
+        !!addressToFetch &&
+        step1FetchNonce > lastHandledStep1FetchNonceRef.current
+
+      if (shouldHandleStep1Fetch && addressToFetch) {
         const normalizedAddress = addressToFetch.toLowerCase()
 
         // Store ABI in cache
@@ -320,6 +338,7 @@ const NewProposalView: React.FC = () => {
         }])
 
         // UX: after an explicit Fetch ABI succeeds, automatically advance to Step 2.
+        lastHandledStep1FetchNonceRef.current = step1FetchNonce
         setCurrentStep(2)
       }
     } else if (
@@ -328,8 +347,15 @@ const NewProposalView: React.FC = () => {
       addressToFetch &&
       (!abi || abi.length === 0)
     ) {
-      // T062: Unverified contract - show manual ABI modal
-      setShowManualABIModal(true)
+      const shouldHandleStep1Fetch =
+        currentStep === 1 &&
+        step1FetchNonce > lastHandledStep1FetchNonceRef.current
+
+      if (shouldHandleStep1Fetch) {
+        // T062: Unverified contract - show manual ABI modal (Step 1 only, once per Fetch click)
+        lastHandledStep1FetchNonceRef.current = step1FetchNonce
+        setShowManualABIModal(true)
+      }
     }
   }, [
     abi,
@@ -342,6 +368,7 @@ const NewProposalView: React.FC = () => {
     hasAttemptedFetch,
     addressToFetch,
     currentStep,
+    step1FetchNonce,
   ])
 
   const functionCount = useMemo(() => {
@@ -417,6 +444,7 @@ const NewProposalView: React.FC = () => {
 
   // Handler for Fetch ABI button
   const handleFetchAbi = () => {
+    setStep1FetchNonce(n => n + 1)
     setFetchError(null)
     setHasAttemptedFetch(true)
     setFetchedABIData(null) // T061: Reset ABI data on new fetch
@@ -795,12 +823,12 @@ const NewProposalView: React.FC = () => {
         }])
 
         // Advance to Step 2
+        lastHandledStep1FetchNonceRef.current = step1FetchNonce
         setCurrentStep(2)
       }
 
       // Close modal and clear input
-      setShowManualABIModal(false)
-      setManualABIInput('')
+      closeManualABIModal()
     } catch (err) {
       setManualABIError(
         err instanceof Error ? err.message : 'Invalid JSON format'
@@ -1878,7 +1906,7 @@ const NewProposalView: React.FC = () => {
                         )}
                       </div>
                       {scheduleSimulation.status === 'error' ? (
-                        <p className="mt-2 text-red-400 text-xs break-words overflow-wrap-anywhere">
+                        <p className="mt-2 text-red-400 text-xs wrap-break-word overflow-wrap-anywhere">
                           {scheduleSimulation.message}
                         </p>
                       ) : null}
@@ -1929,9 +1957,7 @@ const NewProposalView: React.FC = () => {
           aria-labelledby="manual-abi-title"
           onKeyDown={(e) => {
             if (e.key === 'Escape') {
-              setShowManualABIModal(false)
-              setManualABIInput('')
-              setManualABIError(null)
+              closeManualABIModal()
             }
           }}
         >
@@ -1945,9 +1971,7 @@ const NewProposalView: React.FC = () => {
               </h2>
               <button
                 onClick={() => {
-                  setShowManualABIModal(false)
-                  setManualABIInput('')
-                  setManualABIError(null)
+                  closeManualABIModal()
                 }}
                 className="text-text-secondary hover:text-text-primary"
                 aria-label="Close manual ABI dialog"
@@ -1986,9 +2010,7 @@ const NewProposalView: React.FC = () => {
             <div className="flex items-center justify-end gap-4">
               <button
                 onClick={() => {
-                  setShowManualABIModal(false)
-                  setManualABIInput('')
-                  setManualABIError(null)
+                  closeManualABIModal()
                 }}
                 className="px-6 py-3 rounded-full bg-surface border border-border-color text-text-primary hover:bg-border-color transition-colors"
               >

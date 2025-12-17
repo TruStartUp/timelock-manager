@@ -186,27 +186,28 @@ function transformCall(
  *
  * @param filters - Operation filters
  * @param pagination - Pagination parameters
- * @param chainId - Network chain ID
+ * @param chainIdOrSubgraphUrl - Network chain ID or direct subgraph URL
  * @returns Array of operations with their calls
  */
 export async function fetchOperations(
   filters: OperationFilters = {},
   pagination: PaginationParams = {},
-  chainId: ChainId
+  chainIdOrSubgraphUrl: ChainId | string
 ): Promise<Operation[]> {
   const { first = DEFAULT_PAGE_SIZE, skip = 0 } = pagination
   const targetLower = filters.target?.toLowerCase()
   const canFallback = Boolean(filters.timelockController)
 
   // T107/T108: If the subgraph is unhealthy/unreachable, fall back to Blockscout events.
-  if (canFallback) {
-    const availability = await getSubgraphAvailability(chainId, {
+  // Only use fallback when using chainId (not custom subgraph URL)
+  if (canFallback && typeof chainIdOrSubgraphUrl === 'number') {
+    const availability = await getSubgraphAvailability(chainIdOrSubgraphUrl, {
       ttlMs: 30_000,
       timeoutMs: 4_000,
     })
     if (!availability.ok) {
       return await fetchOperationsFromBlockscoutEvents({
-        chainId,
+        chainId: chainIdOrSubgraphUrl,
         timelockController: filters.timelockController!,
         status: filters.status,
         target: filters.target,
@@ -267,7 +268,7 @@ export async function fetchOperations(
     return await executeGraphQLQueryWithRetry<OperationsQueryResponse>(
       query,
       variables,
-      chainId
+      chainIdOrSubgraphUrl
     )
   }
 
@@ -299,9 +300,10 @@ export async function fetchOperations(
     }
 
     // Any other subgraph failure: best-effort Blockscout fallback (requires timelockController filter).
-    if (canFallback) {
+    // Only use fallback when using chainId (not custom subgraph URL)
+    if (canFallback && typeof chainIdOrSubgraphUrl === 'number') {
       return await fetchOperationsFromBlockscoutEvents({
-        chainId,
+        chainId: chainIdOrSubgraphUrl,
         timelockController: filters.timelockController!,
         status: filters.status,
         target: filters.target,
@@ -318,12 +320,12 @@ export async function fetchOperations(
  * Fetch a single operation by ID
  *
  * @param operationId - Operation ID (bytes32 hash)
- * @param chainId - Network chain ID
+ * @param chainIdOrSubgraphUrl - Network chain ID or direct subgraph URL
  * @returns Operation with calls, or null if not found
  */
 export async function fetchOperationById(
   operationId: `0x${string}`,
-  chainId: ChainId
+  chainIdOrSubgraphUrl: ChainId | string
 ): Promise<Operation | null> {
   const query = `
     query GetOperation($id: Bytes!) {
@@ -367,7 +369,7 @@ export async function fetchOperationById(
   const response = await executeGraphQLQueryWithRetry<OperationQueryResponse>(
     query,
     variables,
-    chainId
+    chainIdOrSubgraphUrl
   )
 
   return response.operation ? transformOperation(response.operation) : null
@@ -456,12 +458,12 @@ export async function getOperationCount(
  * Get operations summary counts for dashboard
  *
  * @param timelockController - TimelockController contract address
- * @param chainId - Network chain ID
+ * @param chainIdOrSubgraphUrl - Network chain ID or direct subgraph URL
  * @returns Count of operations by status
  */
 export async function getOperationsSummary(
   timelockController: Address,
-  chainId: ChainId
+  chainIdOrSubgraphUrl: ChainId | string
 ): Promise<{
   pending: number
   ready: number
@@ -499,7 +501,7 @@ export async function getOperationsSummary(
     executed: Array<{ id: string }>
     cancelled: Array<{ id: string }>
     all: Array<{ id: string }>
-  }>(query, variables, chainId)
+  }>(query, variables, chainIdOrSubgraphUrl)
 
   return {
     pending: response.pending.length,

@@ -4,6 +4,7 @@ import { rootstock, rootstockTestnet } from 'wagmi/chains'
 import { useChainId } from 'wagmi'
 import { useNetworkConfig } from '@/hooks/useNetworkConfig'
 import { useABIManager } from '@/hooks/useABIManager'
+import { TimelockSettings } from '@/components/timelock/TimelockSettings'
 
 const SettingsView = () => {
   const connectedChainId = useChainId()
@@ -148,6 +149,13 @@ const SettingsView = () => {
             </p>
           </div>
         </div>
+
+        {/* T015: Timelock Configurations Section */}
+        <TimelockSettings />
+
+        {/* Divider */}
+        <div className="my-12 h-px w-full bg-[#3a3227]"></div>
+
         <section className="flex flex-col gap-6">
           <h2 className="text-white text-[22px] font-bold leading-tight tracking-[-0.015em] pb-3 border-b border-[#3a3227]">
             Network Configuration

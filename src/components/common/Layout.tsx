@@ -4,9 +4,21 @@ import { useRouter } from 'next/router'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { useAccount, useChainId, useSwitchChain } from 'wagmi'
 import { ROOTSTOCK_CHAINS } from '@/lib/constants'
+import { TimelockSelector } from '@/components/timelock/TimelockSelector'
+import rootstockLogo from '@/assets/rootstock-logo.svg'
 
 interface LayoutProps {
   children: React.ReactNode
+}
+
+const getStaticAssetUrl = (asset: unknown): string => {
+  // Next static imports (png/svg/etc.) typically come through as { src: string, ... }.
+  if (typeof asset === 'string') return asset
+  if (asset && typeof asset === 'object' && 'src' in asset) {
+    const src = (asset as any).src
+    if (typeof src === 'string') return src
+  }
+  return ''
 }
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
@@ -14,6 +26,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { isConnected } = useAccount()
   const chainId = useChainId()
   const { switchChain, isPending: isSwitchingChain, chains } = useSwitchChain()
+  const [isMobileNavOpen, setIsMobileNavOpen] = React.useState(false)
 
   const supportedRootstockChains = React.useMemo(() => {
     const wanted = new Set<number>([
@@ -42,6 +55,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     return router.pathname.startsWith(href)
   }
 
+  React.useEffect(() => {
+    // Close the mobile drawer on navigation.
+    setIsMobileNavOpen(false)
+  }, [router.pathname])
+
   const getCurrentViewTitle = () => {
     const direct = routeTitleMap[router.pathname]
     if (direct) return direct
@@ -54,27 +72,52 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   return (
     <div className="flex min-h-screen">
-      {/* SideNavBar */}
-      <aside className="flex w-64 flex-col bg-surface-dark p-4">
+      {/* Mobile overlay + drawer */}
+      {isMobileNavOpen ? (
+        <div
+          className="fixed inset-0 z-40 bg-black/60 lg:hidden"
+          onClick={() => setIsMobileNavOpen(false)}
+          aria-hidden="true"
+        />
+      ) : null}
+
+      <aside
+        className={`${
+          isMobileNavOpen ? 'translate-x-0' : '-translate-x-full'
+        } fixed left-0 top-0 z-50 flex h-full w-72 flex-col bg-surface-dark p-4 transition-transform duration-200 ease-out lg:static lg:z-auto lg:h-auto lg:w-64 lg:translate-x-0`}
+        aria-label="Primary navigation"
+      >
         <div className="flex flex-col gap-4">
-          <div className="flex items-center gap-3">
-            <div
-              className="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10"
-              data-alt="Rootstock logo"
-              style={{
-                backgroundImage:
-                  'url("https://lh3.googleusercontent.com/aida-public/AB6AXuBQfbqnbkXwR5hjsDFW9byKS85w8p01NGY6StRlX2xZIvOn_cNV1ctxWQ2Ql0qvGOGQmqGA-5_ps8b3RR_m3jM_iijanP12sul7PGKCGOuhfWQrydVW_6Lhdq3KoANJkOHZn2DziX5vmSz5_vI8YLOY8uK3px2gUheBH-r0HDCkrRtqGehRbxlQI4jJxkZtP9bGR685FENaDEBfy3aQ8p7dr70SPd3R2h-JJFqpdfHVShpCKn8BcQPkV1DKVDk1lI5OHg18ZnelkZY3")',
-              }}
-            ></div>
-            <div className="flex flex-col">
-              <h1 className="text-white text-base font-medium leading-normal">
-                Rootstock
-              </h1>
-              <p className="text-text-dark text-sm font-normal leading-normal">
-                Timelock Management
-              </p>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div
+                className="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10"
+                data-alt="Rootstock logo"
+                style={{
+                  backgroundImage:
+                    `url(${getStaticAssetUrl(rootstockLogo)})`,
+                }}
+              ></div>
+              <div className="flex flex-col">
+                <h1 className="text-white text-base font-medium leading-normal">
+                  Rootstock
+                </h1>
+                <p className="text-text-dark text-sm font-normal leading-normal">
+                  Timelock Management
+                </p>
+              </div>
             </div>
+
+            <button
+              type="button"
+              className="rounded-full p-2 text-text-light hover:bg-surface-dark lg:hidden"
+              onClick={() => setIsMobileNavOpen(false)}
+              aria-label="Close navigation menu"
+            >
+              <span className="material-symbols-outlined">close</span>
+            </button>
           </div>
+
           <nav className="flex flex-col gap-2 mt-4">
             <Link
               href="/"
@@ -161,15 +204,24 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         </div>
       </aside>
       <div className="flex flex-col flex-1 h-screen overflow-hidden">
-        <header className="h-16 bg-surface-dark/50 backdrop-blur-md border-b border-white/5 flex items-center justify-between px-6 lg:px-8 z-10 sticky top-0">
-          <div className="flex items-center gap-2 text-text-dark text-sm">
+        <header className="min-h-16 bg-surface-dark/50 backdrop-blur-md border-b border-white/5 flex flex-wrap items-center justify-between gap-3 px-4 sm:px-6 lg:px-8 z-10 sticky top-0 py-3">
+          <div className="flex items-center gap-2 text-text-dark text-sm min-w-0">
+            <button
+              type="button"
+              className="rounded-full p-2 text-text-light hover:bg-white/5 lg:hidden"
+              onClick={() => setIsMobileNavOpen(true)}
+              aria-label="Open navigation menu"
+            >
+              <span className="material-symbols-outlined">menu</span>
+            </button>
             <span className="material-symbols-outlined text-base">home</span>
             <span>/</span>
-            <span className="text-text-light font-medium">
+            <span className="text-text-light font-medium truncate">
               {getCurrentViewTitle()}
             </span>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-3 justify-end">
+            <TimelockSelector />
             <ConnectButton showBalance />
           </div>
         </header>

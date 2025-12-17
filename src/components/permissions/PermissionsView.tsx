@@ -4,9 +4,11 @@ import { useAccount, useChainId } from 'wagmi'
 import { useRoles } from '@/hooks/useRoles'
 import { useHasRole } from '@/hooks/useHasRole'
 import { useIsAccessManager } from '@/hooks/useIsAccessManager'
+import { useTimelocks } from '@/hooks/useTimelocks'
 import { TIMELOCK_ROLES, ROLE_NAMES } from '@/lib/constants'
 import { getBlockscoutExplorerUrl } from '@/services/blockscout/client'
 import { getAddress } from 'viem'
+import { ClientPageRoot } from 'next/dist/client/components/client-page'
 
 // Helper to format timestamp
 const formatTimestamp = (timestamp: bigint): string => {
@@ -123,6 +125,8 @@ const PermissionsView = () => {
   const { address: connectedAddress } = useAccount()
   const chainId = useChainId()
   const blockscoutUrl = getBlockscoutExplorerUrl(chainId)
+  const { selected } = useTimelocks()
+
 
   // Clear copied state after 2 seconds
   useEffect(() => {
@@ -144,11 +148,7 @@ const PermissionsView = () => {
     }
   }, [copiedHistoryAddress])
   
-  // State for selected timelock contract address
-  // Using the actual deployed TimelockController on Rootstock Testnet
-  const [timelockAddress] = useState<Address | undefined>(
-    '0x09a3fa8b0706829ad2b66719b851793a7b20d08a' as Address
-  )
+  const timelockAddress = (selected?.address as Address | undefined) ?? undefined
   
   // Fetch roles and history
   const { roles, roleHistory, isLoading, isError } = useRoles({

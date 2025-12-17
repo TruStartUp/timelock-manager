@@ -73,7 +73,7 @@ function getSubgraphUrl(chainId: ChainId): string {
  *
  * @param query - GraphQL query string
  * @param variables - Query variables
- * @param chainId - Network chain ID (defaults to testnet)
+ * @param chainIdOrSubgraphUrl - Either a ChainId enum or a direct subgraph URL (defaults to testnet)
  * @param timeout - Request timeout in milliseconds (defaults to 10000)
  * @returns Query response data
  * @throws GraphQLError if query fails or returns errors
@@ -81,10 +81,13 @@ function getSubgraphUrl(chainId: ChainId): string {
 export async function executeGraphQLQuery<T>(
   query: string,
   variables?: Record<string, unknown>,
-  chainId: ChainId = ChainId.ROOTSTOCK_TESTNET,
+  chainIdOrSubgraphUrl: ChainId | string = ChainId.ROOTSTOCK_TESTNET,
   timeout = 10000
 ): Promise<T> {
-  const url = getSubgraphUrl(chainId)
+  const url =
+    typeof chainIdOrSubgraphUrl === 'string'
+      ? chainIdOrSubgraphUrl
+      : getSubgraphUrl(chainIdOrSubgraphUrl)
 
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), timeout)
@@ -155,7 +158,7 @@ export async function executeGraphQLQuery<T>(
 export async function executeGraphQLQueryWithRetry<T>(
   query: string,
   variables?: Record<string, unknown>,
-  chainId: ChainId = ChainId.ROOTSTOCK_TESTNET,
+  chainIdOrSubgraphUrl: ChainId | string = ChainId.ROOTSTOCK_TESTNET,
   options: {
     maxRetries?: number
     retryDelay?: number
@@ -168,7 +171,7 @@ export async function executeGraphQLQueryWithRetry<T>(
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
-      return await executeGraphQLQuery<T>(query, variables, chainId, timeout)
+      return await executeGraphQLQuery<T>(query, variables, chainIdOrSubgraphUrl, timeout)
     } catch (error) {
       lastError = error as Error
 

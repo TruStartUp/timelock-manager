@@ -1,13 +1,16 @@
 /**
  * useNetworkConfig
  *
- * Stores and retrieves user-provided RPC overrides.
+ * Stores and retrieves user-provided RPC overrides and dynamic timelock configuration.
  * Per spec/tasks:
  * - T095: localStorage persistence
  * - Used by SettingsView and Providers to reload wagmi config (T102)
+ * - T010: Dynamic timelock configuration from TimelockContext
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import type { Address } from 'viem'
+import { TimelockContext } from '@/context/TimelockContext'
 
 export type NetworkConfig = {
   /** Whether to use the custom RPC transport */
@@ -23,6 +26,45 @@ export type NetworkConfig = {
 const STORAGE_KEY = 'network_config_v1'
 const UPDATED_AT_KEY = 'network_config_updated_at_ms'
 const UPDATE_EVENT = 'networkConfigUpdated'
+
+function getSafeStorage(): Storage | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const storage = window.localStorage
+    // Some test environments provide a partial mock.
+    if (
+      !storage ||
+      typeof storage.getItem !== 'function' ||
+      typeof storage.setItem !== 'function' ||
+      typeof storage.removeItem !== 'function'
+    ) {
+      return null
+    }
+    return storage
+  } catch {
+    return null
+  }
+}
+
+function safeGetItem(key: string): string | null {
+  const storage = getSafeStorage()
+  if (!storage) return null
+  try {
+    return storage.getItem(key)
+  } catch {
+    return null
+  }
+}
+
+function safeSetItem(key: string, value: string) {
+  const storage = getSafeStorage()
+  if (!storage) return
+  try {
+    storage.setItem(key, value)
+  } catch {
+    // ignore
+  }
+}
 
 function safeParse<T>(raw: string | null): T | null {
   if (!raw) return null
@@ -43,7 +85,7 @@ function readNetworkConfig(): NetworkConfig {
     }
   }
 
-  const stored = safeParse<Partial<NetworkConfig>>(localStorage.getItem(STORAGE_KEY))
+  const stored = safeParse<Partial<NetworkConfig>>(safeGetItem(STORAGE_KEY))
   return {
     enabled: Boolean(stored?.enabled),
     rpcUrl: typeof stored?.rpcUrl === 'string' ? stored.rpcUrl : '',
@@ -55,20 +97,24 @@ function readNetworkConfig(): NetworkConfig {
 
 function writeNetworkConfig(next: NetworkConfig) {
   if (typeof window === 'undefined') return
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
-  localStorage.setItem(UPDATED_AT_KEY, String(next.updatedAtMs))
+  safeSetItem(STORAGE_KEY, JSON.stringify(next))
+  safeSetItem(UPDATED_AT_KEY, String(next.updatedAtMs))
   window.dispatchEvent(new Event(UPDATE_EVENT))
 }
 
 export function getNetworkConfigUpdatedAtMs(): number {
   if (typeof window === 'undefined') return 0
-  const raw = localStorage.getItem(UPDATED_AT_KEY)
+  const raw = safeGetItem(UPDATED_AT_KEY)
   const n = raw ? Number(raw) : 0
   return Number.isFinite(n) ? n : 0
 }
 
 export function useNetworkConfig() {
   const [config, setConfig] = useState<NetworkConfig>(() => readNetworkConfig())
+
+  // T010: Safely access TimelockContext (may be undefined if called before provider is mounted)
+  const timelockContext = useContext(TimelockContext)
+  const selected = timelockContext?.selected ?? null
 
   // Keep multiple hook instances in sync (same-tab + cross-tab).
   useEffect(() => {
@@ -121,12 +167,38 @@ export function useNetworkConfig() {
     [config.enabled, config.rpcUrl]
   )
 
+  // T010: Dynamic timelock configuration from context
+  const timelockAddress = useMemo<Address | null>(
+    () => selected?.address ?? null,
+    [selected]
+  )
+
+  const subgraphUrl = useMemo<string | null>(
+    () => selected?.subgraphUrl ?? null,
+    [selected]
+  )
+
+  const selectedNetwork = useMemo<'rsk_mainnet' | 'rsk_testnet' | null>(
+    () => selected?.network ?? null,
+    [selected]
+  )
+
+  const hasSelectedTimelock = useMemo(
+    () => Boolean(selected),
+    [selected]
+  )
+
   return {
     config,
     hasCustomRpc,
     setEnabled,
     saveRpc,
     reset,
+    // Dynamic timelock configuration
+    timelockAddress,
+    subgraphUrl,
+    selectedNetwork,
+    hasSelectedTimelock,
   }
 }
 
