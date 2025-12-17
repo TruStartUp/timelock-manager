@@ -1,0 +1,44 @@
+# This file was generated from .env.example
+# It is used to configure the environment for Google Cloud App Hosting.
+#
+# For more information, see:
+# https://cloud.google.com/app-hosting/docs/configuration
+
+run:
+  # The command to start the application.
+  # For Next.js, this is 'npm run start'.
+  # App Hosting will automatically set the PORT environment variable.
+  command: npm run start
+
+env:
+  # Wallet Connect Project ID (Required)
+  # This should be a secret.
+  - variable: NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID
+    secret: projects/876632802800/secrets/wallet-connect-project-id
+
+  # Rootstock RPC URLs (Optional - defaults to public nodes)
+  - variable: NEXT_PUBLIC_RSK_MAINNET_RPC_URL
+    value: "https://public-node.rsk.co"
+  - variable: NEXT_PUBLIC_RSK_TESTNET_RPC_URL
+    value: "https://public-node.testnet.rsk.co"
+
+  # The Graph Subgraph URLs (Required after deploying subgraphs)
+  # These should be secrets as they may contain sensitive information.
+  - variable: NEXT_PUBLIC_RSK_MAINNET_SUBGRAPH_URL
+    value: "https://api.studio.thegraph.com/query/46125/rootstock-timelock-mainnet/version/latest"
+  - variable: NEXT_PUBLIC_RSK_TESTNET_SUBGRAPH_URL
+    value: "https://api.studio.thegraph.com/query/46125/rootstock-timelock-testnet/version/latest"
+
+  # Rootstock Blockscout v2 APIs (Defaults provided, can override)
+  - variable: NEXT_PUBLIC_RSK_MAINNET_BLOCKSCOUT_URL
+    value: "https://rootstock.blockscout.com/api/v2"
+  - variable: NEXT_PUBLIC_RSK_TESTNET_BLOCKSCOUT_URL
+    value: "https://rootstock-testnet.blockscout.com/api/v2"
+
+  # 4byte Directory (Default provided)
+  - variable: NEXT_PUBLIC_4BYTE_DIRECTORY_URL
+    value: "https://www.4byte.directory/api/v1/"
+
+  # Optional: Enable testnet by default
+  - variable: NEXT_PUBLIC_ENABLE_TESTNETS
+    value: "true"
