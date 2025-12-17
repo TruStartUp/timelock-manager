@@ -1,7 +1,8 @@
-import React, { useState } from 'react'
+import React from 'react'
 import { type Address } from 'viem'
 import { useChainId } from 'wagmi'
 import { rootstock, rootstockTestnet } from 'wagmi/chains'
+import Link from 'next/link'
 import { useOperationsSummary } from '@/hooks/useOperations'
 import { useRoles } from '@/hooks/useRoles'
 import { ROLE_NAMES } from '@/lib/constants'
@@ -10,13 +11,8 @@ import { useTimelocks } from '@/hooks/useTimelocks'
 
 const DashboardView: React.FC = () => {
   const chainId = useChainId()
-  const { selected } = useTimelocks();
-  
-  // State for selected timelock contract address
-  // Using the actual deployed TimelockController on Rootstock Testnet
-  const [timelockAddress, setTimelockAddress] = useState<Address | undefined>(
-    selected?.address as Address // Selected timelock
-  )
+  const { configurations, selected } = useTimelocks()
+  const timelockAddress = (selected?.address as Address | undefined) ?? undefined
 
   // Fetch operations summary from subgraph
   const { data: summary, isLoading, isError } = useOperationsSummary(timelockAddress)
@@ -33,34 +29,95 @@ const DashboardView: React.FC = () => {
     ? 'Rootstock Testnet' 
     : 'Unknown Network'
 
+  if (configurations.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16">
+        <div className="w-full max-w-2xl rounded-lg border border-border-color bg-surface p-8 text-center">
+          <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <span className="material-symbols-outlined text-2xl">
+              playlist_add
+            </span>
+          </div>
+          <h2 className="text-text-primary text-2xl font-bold">
+            No timelocks configured yet
+          </h2>
+          <p className="mt-2 text-text-secondary">
+            Add a timelock configuration in Settings to start exploring operations and roles.
+          </p>
+          <div className="mt-6 flex justify-center">
+            <Link
+              href="/settings"
+              className="rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-black hover:bg-primary/80 transition-colors"
+            >
+              Go to Settings
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!selected) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16">
+        <div className="w-full max-w-2xl rounded-lg border border-border-color bg-surface p-8 text-center">
+          <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-yellow-500/10 text-yellow-500">
+            <span className="material-symbols-outlined text-2xl">
+              warning
+            </span>
+          </div>
+          <h2 className="text-text-primary text-2xl font-bold">
+            Select a timelock to view the dashboard
+          </h2>
+          <p className="mt-2 text-text-secondary">
+            Choose an active timelock from the selector in the header.
+          </p>
+          <div className="mt-6 flex justify-center">
+            <Link
+              href="/settings"
+              className="rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-black hover:bg-primary/80 transition-colors"
+            >
+              Manage timelocks in Settings
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <>
       {/* Top Section: Contract Selector & Network Status */}
       <div className="flex flex-wrap items-start justify-between gap-6">
-        {/* TextField as Contract Selector */}
+        {/* Active Timelock (read-only) */}
         <div className="flex flex-col min-w-80 flex-1">
           <label
             className="text-text-primary text-base font-medium leading-normal pb-2"
             htmlFor="timelock-contract"
           >
-            Timelock Contract
+            Active Timelock
           </label>
-          <select
-            className="form-select flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded text-text-primary focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-border-color bg-surface h-12 placeholder:text-text-secondary px-4 text-base font-normal leading-normal appearance-none bg-no-repeat bg-right"
+          <div
+            className="flex w-full min-w-0 flex-1 items-center overflow-hidden rounded border border-border-color bg-surface h-12 px-4"
             id="timelock-contract"
-            value={timelockAddress}
-            onChange={(e) => setTimelockAddress(e.target.value as Address)}
-            style={{
-              backgroundImage:
-                'url("https://lh3.googleusercontent.com/aida-public/AB6AXuBbm7BqvtrYyzpJI6ttwu0AnSuggWCWF8N_1bJ7ZkCJjxg1D2rvAYQKqoeR7FZDmampY9M2vwqzOic8RjPKnbOtf80cHrIayTWsd5d8IgARI5Yh-rbxwVjomNK0qFqsJwdxN76JR7sQI_VIKTGs4DbKxW0rELKIr3QcUmf8huvb_TsXcqEPB4H7E_Xouhj8eBOE2tSIoPAxvLWQfJ7mQRZIPni8FTAAYe_sYdOkLJ0v2msCBdUlOsYjXlNrCNJMYNHmTn1G1CqJLFxf")',
-              backgroundPosition: 'right 0.5rem center',
-              backgroundSize: '1.5em 1.5em',
-            }}
           >
-            <option value={timelockAddress}>
-              TimelockController - {networkName} ({timelockAddress})
-            </option>
-          </select>
+            <div className="flex min-w-0 flex-col">
+              <span className="text-text-primary text-sm font-semibold truncate">
+                {selected.name} ({selected.network === 'rsk_mainnet' ? 'Mainnet' : 'Testnet'})
+              </span>
+              <span className="text-text-secondary text-xs font-mono truncate" title={selected.address}>
+                {selected.address}
+              </span>
+            </div>
+            <div className="ml-auto pl-3">
+              <Link
+                href="/settings"
+                className="text-sm font-semibold text-primary hover:underline underline-offset-4"
+              >
+                Change
+              </Link>
+            </div>
+          </div>
         </div>
         {/* Chips as Network Status Indicator */}
         <div className="flex items-center gap-3 pt-9">

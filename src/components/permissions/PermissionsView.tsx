@@ -125,7 +125,7 @@ const PermissionsView = () => {
   const { address: connectedAddress } = useAccount()
   const chainId = useChainId()
   const blockscoutUrl = getBlockscoutExplorerUrl(chainId)
-  const { selected } = useTimelocks();
+  const { selected } = useTimelocks()
 
 
   // Clear copied state after 2 seconds
@@ -148,12 +148,7 @@ const PermissionsView = () => {
     }
   }, [copiedHistoryAddress])
   
-  // State for selected timelock contract address
-  // Using the actual deployed TimelockController on Rootstock Testnet
-  const [timelockAddress] = useState<Address | undefined>(
-    selected?.address || '0x09a3fa8b0706829ad2b66719b851793a7b20d08a' as Address // Selected timelock
-  )
-  console.log("Timelock", timelockAddress)
+  const timelockAddress = (selected?.address as Address | undefined) ?? undefined
   
   // Fetch roles and history
   const { roles, roleHistory, isLoading, isError } = useRoles({

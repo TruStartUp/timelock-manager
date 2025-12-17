@@ -32,10 +32,10 @@
 
 ### Implementation for User Story 1
 
-- [ ] T008 [P] [US1] Create the `TimelockSelector` UI component in `src/components/timelock/TimelockSelector.tsx`. It should use the `useTimelocks` hook to display configurations and allow selection.
-- [ ] T009 [US1] Integrate the `TimelockSelector` component into the main application header in `src/components/common/Layout.tsx`.
-- [ ] T010 [US1] Refactor `useNetworkConfig` hook in `src/hooks/useNetworkConfig.ts` to source the current `timelockAddress` and `subgraphUrl` from the `useTimelocks` hook's `selected` value, instead of environment variables. This is a critical step to make the app dynamic.
-- [ ] T011 [US1] Verify that all data-fetching hooks (e.g., `useOperations`, `useRoles`) correctly use the dynamically provided configuration from the refactored `useNetworkConfig`.
+- [X] T008 [P] [US1] Create the `TimelockSelector` UI component in `src/components/timelock/TimelockSelector.tsx`. It should use the `useTimelocks` hook to display configurations and allow selection.
+- [X] T009 [US1] Integrate the `TimelockSelector` component into the main application header in `src/components/common/Layout.tsx`.
+- [X] T010 [US1] Refactor `useNetworkConfig` hook in `src/hooks/useNetworkConfig.ts` to source the current `timelockAddress` and `subgraphUrl` from the `useTimelocks` hook's `selected` value, instead of environment variables. This is a critical step to make the app dynamic.
+- [X] T011 [US1] Verify that all data-fetching hooks (e.g., `useOperations`, `useRoles`) correctly use the dynamically provided configuration from the refactored `useNetworkConfig`.
 
 ---
 
@@ -47,10 +47,10 @@
 
 ### Implementation for User Story 2
 
-- [ ] T012 [P] [US2] Create the `TimelockSettings` UI component in `src/components/timelock/TimelockSettings.tsx`.
-- [ ] T013 [US2] Inside `TimelockSettings.tsx`, implement a form (using `react-hook-form`) for adding a new `TimelockConfiguration`. The form should use the `addConfig` function from the `useTimelocks` hook.
-- [ ] T014 [US2] Inside `TimelockSettings.tsx`, implement a list view of all current `configurations`, with a "Remove" button for each that calls the `removeConfig` function from the `useTimelocks` hook.
-- [ ] T015 [US2] Add the `TimelockSettings` component to the Settings page at `src/pages/settings.tsx`.
+- [X] T012 [P] [US2] Create the `TimelockSettings` UI component in `src/components/timelock/TimelockSettings.tsx`.
+- [X] T013 [US2] Inside `TimelockSettings.tsx`, implement a form (using `react-hook-form`) for adding a new `TimelockConfiguration`. The form should use the `addConfig` function from the `useTimelocks` hook.
+- [X] T014 [US2] Inside `TimelockSettings.tsx`, implement a list view of all current `configurations`, with a "Remove" button for each that calls the `removeConfig` function from the `useTimelocks` hook.
+- [X] T015 [US2] Add the `TimelockSettings` component to the Settings page at `src/pages/settings.tsx`.
 
 ---
 
@@ -58,10 +58,10 @@
 
 **Purpose**: Final improvements for usability and robustness.
 
-- [ ] T016 [P] Implement a user-friendly empty state in `TimelockSelector.tsx` and the main dashboard that guides the user to the settings page if no timelocks are configured.
-- [ ] T017 [P] Add robust error handling in `TimelockContext.tsx` for `localStorage` access errors (e.g., in private browsing mode) or JSON parsing/validation failures.
-- [ ] T018 [US1] [US2] Ensure all new UI components are responsive and adhere to the project's styling conventions.
-- [ ] T019 Run `quickstart.md` validation to ensure the implemented solution matches the developer documentation.
+- [X] T016 [P] Implement a user-friendly empty state in `TimelockSelector.tsx` and the main dashboard that guides the user to the settings page if no timelocks are configured.
+- [X] T017 [P] Add robust error handling in `TimelockContext.tsx` for `localStorage` access errors (e.g., in private browsing mode) or JSON parsing/validation failures.
+- [X] T018 [US1] [US2] Ensure all new UI components are responsive and adhere to the project's styling conventions.
+- [X] T019 Run `quickstart.md` validation to ensure the implemented solution matches the developer documentation.
 
 ---
 

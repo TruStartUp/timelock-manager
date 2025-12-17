@@ -5,6 +5,64 @@ import { v4 as uuidv4 } from 'uuid';
 import { TimelockConfiguration } from '@/types/timelock';
 import { timelockConfigurationsArraySchema } from '@/lib/validation';
 
+const STORAGE_KEY = 'timelock-manager:configurations'
+
+function getSafeStorage(): Storage | null {
+  if (typeof window === 'undefined') return null
+  try {
+    return window.localStorage
+  } catch {
+    return null
+  }
+}
+
+function safeGetItem(key: string): { value: string | null; error: string | null } {
+  const storage = getSafeStorage()
+  if (!storage) {
+    return { value: null, error: 'Local storage is unavailable in this environment.' }
+  }
+  try {
+    return { value: storage.getItem(key), error: null }
+  } catch (err) {
+    return {
+      value: null,
+      error: err instanceof Error ? err.message : 'Failed to read from local storage.',
+    }
+  }
+}
+
+function safeSetItem(key: string, value: string): { ok: boolean; error: string | null } {
+  const storage = getSafeStorage()
+  if (!storage) {
+    return { ok: false, error: 'Local storage is unavailable in this environment.' }
+  }
+  try {
+    storage.setItem(key, value)
+    return { ok: true, error: null }
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : 'Failed to write to local storage.',
+    }
+  }
+}
+
+function safeRemoveItem(key: string): { ok: boolean; error: string | null } {
+  const storage = getSafeStorage()
+  if (!storage) {
+    return { ok: false, error: 'Local storage is unavailable in this environment.' }
+  }
+  try {
+    storage.removeItem(key)
+    return { ok: true, error: null }
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : 'Failed to clear local storage.',
+    }
+  }
+}
+
 // Define the shape of the context state and actions
 interface TimelockContextType {
   configurations: TimelockConfiguration[];
@@ -28,40 +86,79 @@ export const TimelockProvider: React.FC<React.PropsWithChildren<{}>> = ({ childr
 
   // Initial load from localStorage
   useEffect(() => {
-    // This check is to prevent error "localStorage is not defined" on server side
-    if (typeof window !== 'undefined') {
-      try {
-        const storedConfigs = localStorage.getItem('timelock-manager:configurations');
-        if (storedConfigs) {
-          const parsedConfigs = JSON.parse(storedConfigs);
-          const validatedConfigs = timelockConfigurationsArraySchema.parse(parsedConfigs);
-          setConfigurations(validatedConfigs);
-          // Set a default selected configuration if available
-          if (validatedConfigs.length > 0) {
-            setSelected(validatedConfigs[0]);
-          }
-        }
-      } catch (e) {
-        console.error('Failed to load or parse timelock configurations from localStorage', e);
-        setError('Failed to load timelock configurations.');
-        setConfigurations([]);
-      } finally {
-        setIsLoading(false);
+    if (typeof window === 'undefined') {
+      setIsLoading(false)
+      return
+    }
+
+    try {
+      const { value: storedConfigs, error: readError } = safeGetItem(STORAGE_KEY)
+      if (readError) {
+        setError(`Unable to access local storage. ${readError}`)
+        setConfigurations([])
+        setSelected(null)
+        return
       }
-    } else {
-        setIsLoading(false);
+
+      if (!storedConfigs) {
+        setConfigurations([])
+        setSelected(null)
+        setError(null)
+        return
+      }
+
+      let parsed: unknown
+      try {
+        parsed = JSON.parse(storedConfigs)
+      } catch (err) {
+        console.error('Failed to parse timelock configurations from localStorage', err)
+        setError(
+          'Timelock configurations in local storage are corrupted. They were cleared so you can re-add them in Settings.'
+        )
+        setConfigurations([])
+        setSelected(null)
+        safeRemoveItem(STORAGE_KEY)
+        return
+      }
+
+      const validated = timelockConfigurationsArraySchema.safeParse(parsed)
+      if (!validated.success) {
+        console.error(
+          'Timelock configurations in localStorage failed validation',
+          validated.error
+        )
+        setError(
+          'Timelock configurations in local storage are invalid. They were cleared so you can re-add them in Settings.'
+        )
+        setConfigurations([])
+        setSelected(null)
+        safeRemoveItem(STORAGE_KEY)
+        return
+      }
+
+      setConfigurations(validated.data)
+      setSelected(validated.data[0] ?? null)
+      setError(null)
+    } finally {
+      setIsLoading(false)
     }
   }, []);
 
   // Save to localStorage whenever configurations change
   useEffect(() => {
-    if (!isLoading && typeof window !== 'undefined') { // Only save after initial load and on client side
-      try {
-        localStorage.setItem('timelock-manager:configurations', JSON.stringify(configurations));
-      } catch (e) {
-        console.error('Failed to save timelock configurations to localStorage', e);
-        setError('Failed to save timelock configurations.');
-      }
+    if (isLoading) return
+    if (typeof window === 'undefined') return // client only
+
+    const payload = JSON.stringify(configurations)
+    const result = safeSetItem(STORAGE_KEY, payload)
+    if (!result.ok) {
+      console.error('Failed to save timelock configurations to localStorage', result.error)
+      setError(
+        `Could not save timelock configurations to local storage. Your changes may not persist. ${result.error ?? ''}`.trim()
+      )
+    } else {
+      // Clear storage-related errors once we successfully persist again.
+      setError(null)
     }
   }, [configurations, isLoading]);
 
@@ -71,6 +168,7 @@ export const TimelockProvider: React.FC<React.PropsWithChildren<{}>> = ({ childr
     if (!selected) { // Automatically select if it's the first one
       setSelected(newConfig);
     }
+    setError(null)
   }, [selected]);
 
   const removeConfig = useCallback((id: string) => {
@@ -82,16 +180,19 @@ export const TimelockProvider: React.FC<React.PropsWithChildren<{}>> = ({ childr
         }
         return newConfigs;
     });
+    setError(null)
   }, [selected]);
 
   const select = useCallback((id: string | null) => {
-    if (id === null) {
+    if (id === null || id === '') {
       setSelected(null);
+      setError(null)
       return;
     }
     const configToSelect = configurations.find(config => config.id === id);
     if (configToSelect) {
       setSelected(configToSelect);
+      setError(null)
     } else {
       console.error(`Configuration with ID ${id} not found.`);
       setError(`Configuration with ID ${id} not found.`);

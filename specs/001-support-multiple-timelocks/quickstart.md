@@ -43,7 +43,7 @@ This custom hook is the primary way for components to interact with the timelock
 | `selected` | `TimelockConfiguration \| null` | The currently active timelock configuration. |
 | `addConfig` | `(config: Omit<TimelockConfiguration, 'id'>) => void` | Adds a new configuration to the list. |
 | `removeConfig` | `(id: string) => void` | Removes a configuration by its ID. |
-| `select` | `(id: string) => void` | Sets a configuration as the active one. |
+| `select` | `(id: string \| null) => void` | Sets a configuration as the active one (or clears selection). |
 
 **Usage**:
 

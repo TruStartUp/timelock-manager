@@ -89,13 +89,8 @@ const OperationsExplorerView: React.FC = () => {
   const lastFocusedElRef = useRef<HTMLElement | null>(null)
   const executeDialogCloseRef = useRef<HTMLButtonElement | null>(null)
   const cancelDialogCloseRef = useRef<HTMLButtonElement | null>(null)
-  const { selected } = useTimelocks();
-
-  // State for selected timelock contract address
-  // Using the actual deployed TimelockController on Rootstock Testnet
-  const [timelockAddress] = useState<Address | undefined>(
-    selected?.address as Address // Timelock contract
-  )
+  const { selected } = useTimelocks()
+  const timelockAddress = (selected?.address as Address | undefined) ?? undefined
 
   // Get connected wallet address
   const { address: connectedAccount } = useAccount()

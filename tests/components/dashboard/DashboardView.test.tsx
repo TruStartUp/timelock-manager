@@ -8,6 +8,32 @@ import React from 'react'
 import * as useOperationsModule from '@/hooks/useOperations'
 import * as useRolesModule from '@/hooks/useRoles'
 
+vi.mock('@/hooks/useTimelocks', () => ({
+  useTimelocks: () => ({
+    configurations: [
+      {
+        id: 'test-1',
+        name: 'Test Timelock',
+        address: '0x0000000000000000000000000000000000000001',
+        network: 'rsk_mainnet',
+        subgraphUrl: 'https://example.com/subgraph',
+      },
+    ],
+    selected: {
+      id: 'test-1',
+      name: 'Test Timelock',
+      address: '0x0000000000000000000000000000000000000001',
+      network: 'rsk_mainnet',
+      subgraphUrl: 'https://example.com/subgraph',
+    },
+    addConfig: vi.fn(),
+    removeConfig: vi.fn(),
+    select: vi.fn(),
+    isLoading: false,
+    error: null,
+  }),
+}))
+
 // Mock the useOperationsSummary hook
 vi.mock('@/hooks/useOperations', () => ({
   useOperationsSummary: vi.fn(() => ({
@@ -68,11 +94,9 @@ describe('DashboardView', () => {
       </WagmiProvider>
     )
 
-    // Check for the "Timelock Contract" label and select
-    expect(screen.getByLabelText(/Timelock Contract/i)).toBeInTheDocument()
-    expect(
-      screen.getByRole('combobox', { name: /Timelock Contract/i })
-    ).toBeInTheDocument()
+    // Active timelock panel (now read-only, not a combobox)
+    expect(screen.getByText(/Active Timelock/i)).toBeInTheDocument()
+    expect(screen.getByText(/Test Timelock/i)).toBeInTheDocument()
 
     // Check for network status
     expect(screen.getByText(/Connected to:/i)).toBeInTheDocument()
