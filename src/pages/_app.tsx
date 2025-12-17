@@ -20,6 +20,8 @@ function MyApp({ Component, pageProps }: AppProps) {
   return (
     <div className={inter.className}>
       <Head>
+      <title>Rootstock Timelock Manager</title>
+      <link rel="icon" href="/favicon.svg" type="image/svg+xml" />        
         <link
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined"
           rel="stylesheet"
