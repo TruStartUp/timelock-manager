@@ -5,9 +5,20 @@ import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { useAccount, useChainId, useSwitchChain } from 'wagmi'
 import { ROOTSTOCK_CHAINS } from '@/lib/constants'
 import { TimelockSelector } from '@/components/timelock/TimelockSelector'
+import rootstockLogo from '@/assets/rootstock-logo.svg'
 
 interface LayoutProps {
   children: React.ReactNode
+}
+
+const getStaticAssetUrl = (asset: unknown): string => {
+  // Next static imports (png/svg/etc.) typically come through as { src: string, ... }.
+  if (typeof asset === 'string') return asset
+  if (asset && typeof asset === 'object' && 'src' in asset) {
+    const src = (asset as any).src
+    if (typeof src === 'string') return src
+  }
+  return ''
 }
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
@@ -84,7 +95,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 data-alt="Rootstock logo"
                 style={{
                   backgroundImage:
-                    'url("https://lh3.googleusercontent.com/aida-public/AB6AXuBQfbqnbkXwR5hjsDFW9byKS85w8p01NGY6StRlX2xZIvOn_cNV1ctxWQ2Ql0qvGOGQmqGA-5_ps8b3RR_m3jM_iijanP12sul7PGKCGOuhfWQrydVW_6Lhdq3KoANJkOHZn2DziX5vmSz5_vI8YLOY8uK3px2gUheBH-r0HDCkrRtqGehRbxlQI4jJxkZtP9bGR685FENaDEBfy3aQ8p7dr70SPd3R2h-JJFqpdfHVShpCKn8BcQPkV1DKVDk1lI5OHg18ZnelkZY3")',
+                    `url(${getStaticAssetUrl(rootstockLogo)})`,
                 }}
               ></div>
               <div className="flex flex-col">

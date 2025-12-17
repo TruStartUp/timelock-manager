@@ -87,51 +87,6 @@ const DashboardView: React.FC = () => {
 
   return (
     <>
-      {/* Top Section: Contract Selector & Network Status */}
-      <div className="flex flex-wrap items-start justify-between gap-6">
-        {/* Active Timelock (read-only) */}
-        <div className="flex flex-col min-w-80 flex-1">
-          <label
-            className="text-text-primary text-base font-medium leading-normal pb-2"
-            htmlFor="timelock-contract"
-          >
-            Active Timelock
-          </label>
-          <div
-            className="flex w-full min-w-0 flex-1 items-center overflow-hidden rounded border border-border-color bg-surface h-12 px-4"
-            id="timelock-contract"
-          >
-            <div className="flex min-w-0 flex-col">
-              <span className="text-text-primary text-sm font-semibold truncate">
-                {selected.name} ({selected.network === 'rsk_mainnet' ? 'Mainnet' : 'Testnet'})
-              </span>
-              <span className="text-text-secondary text-xs font-mono truncate" title={selected.address}>
-                {selected.address}
-              </span>
-            </div>
-            <div className="ml-auto pl-3">
-              <Link
-                href="/settings"
-                className="text-sm font-semibold text-primary hover:underline underline-offset-4"
-              >
-                Change
-              </Link>
-            </div>
-          </div>
-        </div>
-        {/* Chips as Network Status Indicator */}
-        <div className="flex items-center gap-3 pt-9">
-          <div className="flex h-8 shrink-0 items-center justify-center gap-x-2 rounded-full bg-surface border border-border-color px-3">
-            <div className="w-2.5 h-2.5 rounded-full bg-success"></div>
-            <p className="text-text-secondary text-sm font-medium leading-normal">
-              Connected to:{' '}
-              <span className="text-text-primary font-semibold">
-                {networkName}
-              </span>
-            </p>
-          </div>
-        </div>
-      </div>
       {/* Main Content Grid */}
       <div className="flex flex-col gap-8">
         {/* SectionHeader for Operations */}

@@ -165,7 +165,7 @@ describe('NewProposalView', () => {
     fireEvent.click(fetchButton)
 
     // After successful ABI load, UX should auto-navigate to Step 2
-    await screen.findByText(/Step 2: Configure Function Call/i)
+    await screen.findByText(/Step 2: Configure Operations/i)
     await screen.findByText(/Select Function/i)
   })
 
@@ -178,11 +178,11 @@ describe('NewProposalView', () => {
 
     // Check for Step 2 heading
     expect(
-      screen.getByText(/Step 2: Configure Function Call/i)
+      screen.getByText(/Step 2: Configure Operations/i)
     ).toBeInTheDocument()
     expect(
       screen.getByText(
-        /Select a function from the ABI and provide the required arguments/i
+        /Configure each operation in the batch\. Add multiple operations to execute them atomically\./i
       )
     ).toBeInTheDocument()
 
@@ -248,13 +248,11 @@ describe('NewProposalView', () => {
 
     // Review screen should render
     await screen.findByText(/Step 3: Review Operation/i)
-    expect(
-      screen.getByText(/Encoded calldata preview/i)
-    ).toBeInTheDocument()
+    expect(screen.getByText(/Encoded Calldata/i)).toBeInTheDocument()
 
     // Calldata should be encoded (starts with 0x)
     const calldataBox = screen.getByLabelText(
-      /Encoded calldata preview/i
+      /Calldata for operation 1/i
     ) as HTMLTextAreaElement
     expect(calldataBox.value.startsWith('0x')).toBe(true)
   })
@@ -533,16 +531,19 @@ describe('NewProposalView', () => {
     expect(select.value).toBe('setOwner(address)')
   })
 
-  test('Back button navigates to previous step', async () => {
+  test('Back from Step 2 (after Fetch ABI) stays on Step 1 (no re-advance bounce)', async () => {
     render(<NewProposalView />)
 
-    // Navigate to Step 2
-    const step2Link = screen.getByText(/2\. Function/i)
-    fireEvent.click(step2Link)
+    // Step 1: set target contract and fetch ABI (auto-advances to Step 2)
+    fireEvent.change(screen.getByLabelText(/Target Contract Address/i), {
+      target: { value: '0x0000000000000000000000000000000000000002' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Fetch ABI/i }))
+    await screen.findByText(/Step 2: Configure Operations/i)
 
     // Verify we're on Step 2
     expect(
-      screen.getByText(/Step 2: Configure Function Call/i)
+      screen.getByText(/Step 2: Configure Operations/i)
     ).toBeInTheDocument()
     await screen.findByText(/Select Function/i)
 
@@ -550,13 +551,15 @@ describe('NewProposalView', () => {
     const backButton = screen.getByRole('button', { name: /^Back$/i })
     fireEvent.click(backButton)
 
-    // Should show only Step 1 content (Step 2 should not be visible)
-    expect(
-      screen.getByText(/Step 1: Select Target Contract/i)
-    ).toBeInTheDocument()
-    expect(
-      screen.queryByText(/Step 2: Configure Function Call/i)
-    ).not.toBeInTheDocument()
+    // Should show only Step 1 content and remain there (Step 2 should not re-render)
+    await waitFor(() => {
+      expect(
+        screen.getByText(/Step 1: Select Target Contract/i)
+      ).toBeInTheDocument()
+      expect(
+        screen.queryByText(/Step 2: Configure Operations/i)
+      ).not.toBeInTheDocument()
+    })
   })
 
   test('Next button navigates to next step (validates Step 2 before advancing)', async () => {
@@ -620,6 +623,6 @@ describe('NewProposalView', () => {
     // Advance to Step 3
     fireEvent.click(screen.getByRole('button', { name: /Next: Review/i }))
     await screen.findByText(/Step 3: Review Operation/i)
-    expect(screen.getByText(/Encoded calldata preview/i)).toBeInTheDocument()
+    expect(screen.getByText(/Encoded Calldata/i)).toBeInTheDocument()
   })
 })
