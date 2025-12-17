@@ -17,6 +17,7 @@ import { decodeCalldata, type DecodedCall } from '@/lib/decoder'
 import { CHAIN_TO_NETWORK } from '@/services/blockscout/client'
 import { ABISource, ABIConfidence } from '@/services/blockscout/abi'
 import Link from 'next/link'
+import { useRouter } from 'next/router'
 import { useTimelocks } from '@/hooks/useTimelocks'
 
 type OperationStatus = 'All' | 'Pending' | 'Ready' | 'Executed' | 'Canceled'
@@ -62,6 +63,7 @@ type SimulationState =
   | { status: 'error'; message: string }
 
 const OperationsExplorerView: React.FC = () => {
+  const router = useRouter()
   const [selectedFilter, setSelectedFilter] = useState<OperationStatus>('All')
   const [searchQuery, setSearchQuery] = useState('')
   const [dateFrom, setDateFrom] = useState('')
@@ -91,6 +93,30 @@ const OperationsExplorerView: React.FC = () => {
   const cancelDialogCloseRef = useRef<HTMLButtonElement | null>(null)
   const { selected } = useTimelocks()
   const timelockAddress = (selected?.address as Address | undefined) ?? undefined
+
+  // Initialize status filter from URL query param (e.g. /operations_explorer?status=pending)
+  useEffect(() => {
+    if (!router.isReady) return
+    const raw = router.query.status
+    const value =
+      typeof raw === 'string'
+        ? raw
+        : Array.isArray(raw) && typeof raw[0] === 'string'
+          ? raw[0]
+          : ''
+
+    const status = value.trim().toLowerCase()
+    const next: OperationStatus | null =
+      status === 'pending'
+        ? 'Pending'
+        : status === 'ready'
+          ? 'Ready'
+          : status === 'executed'
+            ? 'Executed'
+            : null
+
+    if (next && next !== selectedFilter) setSelectedFilter(next)
+  }, [router.isReady, router.query.status, selectedFilter])
 
   // Get connected wallet address
   const { address: connectedAccount } = useAccount()
