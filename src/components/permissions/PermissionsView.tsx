@@ -9,6 +9,7 @@ import { TIMELOCK_ROLES, ROLE_NAMES } from '@/lib/constants'
 import { getBlockscoutExplorerUrl } from '@/services/blockscout/client'
 import { getAddress } from 'viem'
 import { ClientPageRoot } from 'next/dist/client/components/client-page'
+import { useRouter } from 'next/router'
 
 // Helper to format timestamp
 const formatTimestamp = (timestamp: bigint): string => {
@@ -119,6 +120,7 @@ const RoleMemberRow = ({ member, isDefaultAdmin, connectedAddress, blockscoutUrl
 }
 
 const PermissionsView = () => {
+  const router = useRouter()
   const [searchValue, setSearchValue] = useState('')
   const [copiedAddress, setCopiedAddress] = useState<Address | null>(null)
   const [copiedHistoryAddress, setCopiedHistoryAddress] = useState<string | null>(null)
@@ -147,6 +149,25 @@ const PermissionsView = () => {
       return () => clearTimeout(timer)
     }
   }, [copiedHistoryAddress])
+
+  // Initialize role filter/selection from URL query param (e.g. /permissions?role=0x...)
+  useEffect(() => {
+    if (!router.isReady) return
+    const raw = router.query.role
+    const value =
+      typeof raw === 'string'
+        ? raw
+        : Array.isArray(raw) && typeof raw[0] === 'string'
+          ? raw[0]
+          : ''
+
+    const roleHash = value.trim().toLowerCase()
+    if (!/^0x[a-f0-9]{64}$/.test(roleHash)) return
+
+    // Show all roles in the left column; just pre-select/highlight the requested role.
+    setSearchValue('')
+    setSelectedRoleHash(roleHash as `0x${string}`)
+  }, [router.isReady, router.query.role])
   
   const timelockAddress = (selected?.address as Address | undefined) ?? undefined
   

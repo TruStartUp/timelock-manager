@@ -22,6 +22,49 @@ import { useTimelocks } from '@/hooks/useTimelocks'
 
 type OperationStatus = 'All' | 'Pending' | 'Ready' | 'Executed' | 'Canceled'
 
+const STATUS_TOOLTIPS: Record<Exclude<OperationStatus, 'All'>, string> = {
+  Pending:
+    'This action is scheduled, but it’s still waiting for the required time to pass.',
+  Ready: 'The waiting time has passed. This action can be executed now.',
+  Executed: 'This action has already been executed.',
+  Canceled: 'This action was canceled and won’t be executed.',
+}
+
+function TooltipIcon(props: { text: string; ariaLabel: string }) {
+  const { text, ariaLabel } = props
+  return (
+    <span className="relative inline-flex items-center">
+      <span
+        role="button"
+        tabIndex={0}
+        aria-label={ariaLabel}
+        className="group inline-flex size-4 items-center justify-center rounded-full border border-current/30 bg-black/10 text-[11px] font-bold leading-none text-current/80 outline-none hover:text-current focus-visible:ring-2 focus-visible:ring-primary/50"
+        onClick={(e) => {
+          // Do not toggle the surrounding filter
+          e.preventDefault()
+          e.stopPropagation()
+        }}
+        onKeyDown={(e) => {
+          // Avoid triggering parent button via keyboard
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            e.stopPropagation()
+          }
+        }}
+      >
+        ?
+        <span className="pointer-events-none absolute left-1/2 top-full z-50 mt-2 w-72 -translate-x-1/2 rounded-md border border-border-dark bg-background-dark px-3 py-2 text-xs font-medium text-text-dark-primary opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+          {text}
+          <span className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-full">
+            <span className="block size-0 border-x-8 border-b-8 border-x-transparent border-b-border-dark" />
+            <span className="relative -top-[7px] block size-0 border-x-7 border-b-7 border-x-transparent border-b-background-dark" />
+          </span>
+        </span>
+      </span>
+    </span>
+  )
+}
+
 const ZERO_BYTES32 =
   '0x0000000000000000000000000000000000000000000000000000000000000000' as const
 
@@ -1099,17 +1142,30 @@ const OperationsExplorerView: React.FC = () => {
                 'Canceled',
               ] as OperationStatus[]
             ).map((filter) => (
-              <button
+              <div
                 key={filter}
-                className={`flex h-9 shrink-0 items-center justify-center gap-x-2 rounded-full px-4 text-sm font-medium leading-normal transition-colors ${
+                className={`flex h-9 shrink-0 items-center justify-center gap-x-2 rounded-full text-sm font-medium leading-normal transition-colors ${
                   selectedFilter === filter
                     ? 'bg-primary text-background-dark'
                     : 'bg-border-dark text-text-dark-primary hover:bg-white/10'
                 }`}
-                onClick={() => setSelectedFilter(filter)}
               >
-                {filter}
-              </button>
+                <button
+                  type="button"
+                  className="flex h-full items-center gap-x-2 rounded-full px-4 outline-none"
+                  onClick={() => setSelectedFilter(filter)}
+                >
+                  {filter}
+                </button>
+                {filter !== 'All' ? (
+                  <span className="pr-2">
+                    <TooltipIcon
+                      ariaLabel={`What does ${filter} mean?`}
+                      text={STATUS_TOOLTIPS[filter]}
+                    />
+                  </span>
+                ) : null}
+              </div>
             ))}
           </div>
 
@@ -1267,7 +1323,7 @@ const OperationsExplorerView: React.FC = () => {
                 </p>
                 <ul className="text-text-dark-secondary text-sm list-disc list-inside mb-4 space-y-1">
                   <li>Insufficient permissions (missing EXECUTOR_ROLE)</li>
-                  <li>Operation not yet ready (ETA not reached)</li>
+                  <li>Operation not yet ready (waiting period not finished)</li>
                   <li>Network congestion or gas issues</li>
                   <li>Contract state changed since operation was scheduled</li>
                 </ul>
@@ -1495,7 +1551,7 @@ function VirtualizedOperationsList(props: {
             </div>
             <div role="columnheader">Targets</div>
             <div role="columnheader" className="flex items-center gap-1">
-              ETA <span className="material-symbols-outlined text-base!">swap_vert</span>
+              Ready at <span className="material-symbols-outlined text-base!">swap_vert</span>
             </div>
             <div role="columnheader" className="flex items-center gap-1">
               Proposer{' '}

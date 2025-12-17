@@ -211,7 +211,13 @@ const DashboardView: React.FC = () => {
                         {roleHashDisplay}
                       </td>
                       <td className="whitespace-nowrap px-6 py-4 text-right text-text-primary">
-                        {role.memberCount}
+                        <Link
+                          href={`/permissions?role=${role.roleHash}`}
+                          className="hover:underline focus-visible:underline underline-offset-4"
+                          aria-label={`View ${displayName} role in Permissions`}
+                        >
+                          {role.memberCount}
+                        </Link>
                       </td>
                     </tr>
                   )
