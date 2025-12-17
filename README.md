@@ -64,6 +64,67 @@ You will need to fill in the required environment variables, such as `NEXT_PUBLI
 - `NEXT_PUBLIC_RSK_MAINNET_BLOCKSCOUT_URL`, `NEXT_PUBLIC_RSK_TESTNET_BLOCKSCOUT_URL`
 - `NEXT_PUBLIC_4BYTE_DIRECTORY_URL`
 
+## Subgraph deployment (The Graph Studio)
+
+This repo includes two subgraphs (one per network) under `subgraph/`. Deploy them to [The Graph Studio](https://thegraph.com/studio/) and then point the app at the resulting Query URL.
+
+### 1) Choose the network subgraph
+
+- Testnet: `subgraph/rootstock-timelock-testnet/`
+- Mainnet: `subgraph/rootstock-timelock-mainnet/`
+
+### 2) Configure the TimelockController address + start block
+
+For the network you’re deploying, update **both** files below (keep them in sync):
+
+- `subgraph/<...>/networks.json`
+  - Set `TimelockController.address` to your timelock contract address
+  - Set `TimelockController.startBlock` to the deployment block (or earliest block you want indexed)
+- `subgraph/<...>/subgraph.yaml`
+  - Set `dataSources[0].source.address` to the same address
+  - Set `dataSources[0].source.startBlock` to the same start block
+
+Note: the current deploy scripts in this repo do **not** auto-apply `networks.json`, so `subgraph.yaml` must be updated manually as well.
+
+### 3) Deploy to The Graph Studio
+
+From the selected subgraph folder:
+
+```bash
+cd subgraph/rootstock-timelock-testnet
+npm install
+npm run codegen
+npm run build
+```
+
+Authenticate (once per machine) using your Studio deploy key:
+
+```bash
+npx graph auth --studio <DEPLOY_KEY>
+```
+
+Deploy:
+
+```bash
+npm run deploy
+```
+
+#### Subgraph “slug” / name
+
+The deploy scripts are currently configured to deploy as:
+- `rootstock-timelock-testnet`
+- `rootstock-timelock-mainnet`
+
+If your Studio subgraph slug is different, either:
+- Edit `subgraph/<...>/package.json` and update the `deploy` script, or
+- Run `npx graph deploy --node https://api.studio.thegraph.com/deploy/ <your-subgraph-slug>`
+
+### 4) Point the app at your deployed subgraph
+
+Copy the Studio **Query URL** and set it in `.env.local`:
+- `NEXT_PUBLIC_RSK_TESTNET_SUBGRAPH_URL` for testnet (chainId 31)
+- `NEXT_PUBLIC_RSK_MAINNET_SUBGRAPH_URL` for mainnet
+
 
 ### 4. Run the Development Server
 
