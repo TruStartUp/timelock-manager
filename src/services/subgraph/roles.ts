@@ -109,12 +109,12 @@ function transformRoleAssignment(
  * Fetch all roles for a TimelockController
  *
  * @param timelockController - TimelockController contract address
- * @param chainId - Network chain ID
+ * @param chainIdOrSubgraphUrl - Network chain ID or direct subgraph URL
  * @returns Array of roles
  */
 export async function fetchRoles(
   timelockController: Address,
-  chainId: ChainId
+  chainIdOrSubgraphUrl: ChainId | string
 ): Promise<Role[]> {
   const query = `
     query GetRoles($timelockController: Bytes!) {
@@ -138,7 +138,7 @@ export async function fetchRoles(
   const response = await executeGraphQLQueryWithRetry<RolesQueryResponse>(
     query,
     variables,
-    chainId
+    chainIdOrSubgraphUrl
   )
 
   return response.roles.map(transformRole)
@@ -149,13 +149,13 @@ export async function fetchRoles(
  *
  * @param roleHash - Role hash (bytes32)
  * @param timelockController - TimelockController contract address
- * @param chainId - Network chain ID
+ * @param chainIdOrSubgraphUrl - Network chain ID or direct subgraph URL
  * @returns Role or null if not found
  */
 export async function fetchRoleByHash(
   roleHash: `0x${string}`,
   timelockController: Address,
-  chainId: ChainId
+  chainIdOrSubgraphUrl: ChainId | string
 ): Promise<Role | null> {
   const query = `
     query GetRole($id: Bytes!) {
@@ -176,7 +176,7 @@ export async function fetchRoleByHash(
   const response = await executeGraphQLQueryWithRetry<RoleQueryResponse>(
     query,
     variables,
-    chainId
+    chainIdOrSubgraphUrl
   )
 
   return response.role ? transformRole(response.role) : null
@@ -188,21 +188,21 @@ export async function fetchRoleByHash(
  * @param roleHash - Role hash
  * @param timelockController - TimelockController contract address
  * @param pagination - Pagination parameters
- * @param chainId - Network chain ID
+ * @param chainIdOrSubgraphUrl - Network chain ID or direct subgraph URL
  * @returns Array of role assignments ordered by timestamp descending
  */
 export async function fetchRoleAssignments(
   roleHash: `0x${string}`,
   timelockController: Address,
   pagination: PaginationParams = {},
-  chainId: ChainId
+  chainIdOrSubgraphUrl: ChainId | string
 ): Promise<RoleAssignment[]> {
   const { first = DEFAULT_PAGE_SIZE, skip = 0 } = pagination
 
   const query = `
     query GetRoleAssignments($roleHash: Bytes!, $timelockController: Bytes!, $first: Int!, $skip: Int!) {
       roleAssignments(
-        where: { 
+        where: {
           role_: { id: $roleHash, timelockController: $timelockController }
         }
         first: $first
@@ -235,7 +235,7 @@ export async function fetchRoleAssignments(
     await executeGraphQLQueryWithRetry<RoleAssignmentsQueryResponse>(
       query,
       variables,
-      chainId
+      chainIdOrSubgraphUrl
     )
 
   return response.roleAssignments.map(transformRoleAssignment)
@@ -246,13 +246,13 @@ export async function fetchRoleAssignments(
  *
  * @param account - Account address
  * @param timelockController - TimelockController contract address
- * @param chainId - Network chain ID
+ * @param chainIdOrSubgraphUrl - Network chain ID or direct subgraph URL
  * @returns Array of role assignments for this account
  */
 export async function fetchRoleAssignmentsByAccount(
   account: Address,
   timelockController: Address,
-  chainId: ChainId
+  chainIdOrSubgraphUrl: ChainId | string
 ): Promise<RoleAssignment[]> {
   const query = `
     query GetRoleAssignmentsByAccount($account: Bytes!, $timelockController: Bytes!) {
@@ -288,7 +288,7 @@ export async function fetchRoleAssignmentsByAccount(
     await executeGraphQLQueryWithRetry<RoleAssignmentsQueryResponse>(
       query,
       variables,
-      chainId
+      chainIdOrSubgraphUrl
     )
 
   return response.roleAssignments.map(transformRoleAssignment)
@@ -299,20 +299,20 @@ export async function fetchRoleAssignmentsByAccount(
  *
  * @param roleHash - Role hash
  * @param timelockController - TimelockController contract address
- * @param chainId - Network chain ID
+ * @param chainIdOrSubgraphUrl - Network chain ID or direct subgraph URL
  * @returns Array of current member addresses
  */
 export async function getCurrentRoleMembers(
   roleHash: `0x${string}`,
   timelockController: Address,
-  chainId: ChainId
+  chainIdOrSubgraphUrl: ChainId | string
 ): Promise<Address[]> {
   // Fetch all assignments for this role
   // Role ID is just the role hash (bytes32)
   const query = `
     query GetAllRoleAssignments($roleHash: Bytes!, $timelockController: Bytes!) {
       roleAssignments(
-        where: { 
+        where: {
           role_: { id: $roleHash, timelockController: $timelockController }
         }
         orderBy: blockNumber
@@ -335,7 +335,7 @@ export async function getCurrentRoleMembers(
     await executeGraphQLQueryWithRetry<RoleAssignmentsQueryResponse>(
       query,
       variables,
-      chainId
+      chainIdOrSubgraphUrl
     )
 
   // Event-source: replay grants and revokes
@@ -358,12 +358,12 @@ export async function getCurrentRoleMembers(
  * Get role summary for dashboard
  *
  * @param timelockController - TimelockController contract address
- * @param chainId - Network chain ID
+ * @param chainIdOrSubgraphUrl - Network chain ID or direct subgraph URL
  * @returns Summary of all standard roles with member counts
  */
 export async function getRolesSummary(
   timelockController: Address,
-  chainId: ChainId
+  chainIdOrSubgraphUrl: ChainId | string
 ): Promise<
   Array<{
     roleHash: `0x${string}`
@@ -383,7 +383,7 @@ export async function getRolesSummary(
   // Try to fetch roles from subgraph, but don't fail if none exist yet
   let roles: Role[] = []
   try {
-    roles = await fetchRoles(timelockController, chainId)
+    roles = await fetchRoles(timelockController, chainIdOrSubgraphUrl)
   } catch (error) {
     // If fetchRoles fails (e.g., no roles indexed yet), continue with empty array
     // We'll still return the standard roles with empty members
@@ -406,7 +406,7 @@ export async function getRolesSummary(
         members = await getCurrentRoleMembers(
           roleHash,
           timelockController,
-          chainId
+          chainIdOrSubgraphUrl
         )
       } catch (error) {
         // If getCurrentRoleMembers fails, just use empty array
@@ -467,7 +467,7 @@ export async function getRolesSummary(
         members = await getCurrentRoleMembers(
           role.roleHash,
           timelockController,
-          chainId
+          chainIdOrSubgraphUrl
         )
       } catch (error) {
         if (process.env.NODE_ENV !== 'test') {

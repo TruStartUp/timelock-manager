@@ -5,14 +5,17 @@ import { rootstock, rootstockTestnet } from 'wagmi/chains'
 import { useOperationsSummary } from '@/hooks/useOperations'
 import { useRoles } from '@/hooks/useRoles'
 import { ROLE_NAMES } from '@/lib/constants'
+import { useTimelocks } from '@/hooks/useTimelocks'
+
 
 const DashboardView: React.FC = () => {
   const chainId = useChainId()
+  const { selected } = useTimelocks();
   
   // State for selected timelock contract address
   // Using the actual deployed TimelockController on Rootstock Testnet
   const [timelockAddress, setTimelockAddress] = useState<Address | undefined>(
-    '0x09a3fa8b0706829ad2b66719b851793a7b20d08a' as Address // Real testnet contract
+    selected?.address as Address // Selected timelock
   )
 
   // Fetch operations summary from subgraph
@@ -54,8 +57,8 @@ const DashboardView: React.FC = () => {
               backgroundSize: '1.5em 1.5em',
             }}
           >
-            <option value="0x09a3fa8b0706829ad2b66719b851793a7b20d08a">
-              TimelockController - Testnet (0x09a3...d08a)
+            <option value={timelockAddress}>
+              TimelockController - {networkName} ({timelockAddress})
             </option>
           </select>
         </div>

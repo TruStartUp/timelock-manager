@@ -4,6 +4,7 @@ import { useRouter } from 'next/router'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { useAccount, useChainId, useSwitchChain } from 'wagmi'
 import { ROOTSTOCK_CHAINS } from '@/lib/constants'
+import { TimelockSelector } from '@/components/timelock/TimelockSelector'
 
 interface LayoutProps {
   children: React.ReactNode
@@ -170,6 +171,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             </span>
           </div>
           <div className="flex items-center gap-4">
+            <TimelockSelector />
             <ConnectButton showBalance />
           </div>
         </header>

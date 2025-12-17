@@ -17,6 +17,7 @@ import { decodeCalldata, type DecodedCall } from '@/lib/decoder'
 import { CHAIN_TO_NETWORK } from '@/services/blockscout/client'
 import { ABISource, ABIConfidence } from '@/services/blockscout/abi'
 import Link from 'next/link'
+import { useTimelocks } from '@/hooks/useTimelocks'
 
 type OperationStatus = 'All' | 'Pending' | 'Ready' | 'Executed' | 'Canceled'
 
@@ -88,11 +89,12 @@ const OperationsExplorerView: React.FC = () => {
   const lastFocusedElRef = useRef<HTMLElement | null>(null)
   const executeDialogCloseRef = useRef<HTMLButtonElement | null>(null)
   const cancelDialogCloseRef = useRef<HTMLButtonElement | null>(null)
+  const { selected } = useTimelocks();
 
   // State for selected timelock contract address
   // Using the actual deployed TimelockController on Rootstock Testnet
   const [timelockAddress] = useState<Address | undefined>(
-    '0x09a3fa8b0706829ad2b66719b851793a7b20d08a' as Address // Real testnet contract
+    selected?.address as Address // Timelock contract
   )
 
   // Get connected wallet address

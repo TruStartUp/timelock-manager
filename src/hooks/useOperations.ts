@@ -28,6 +28,7 @@ import {
 import { type ChainId, type PaginationParams } from '@/services/subgraph/client'
 import { type Operation, type OperationStatus } from '@/types/operation'
 import { useEffect } from 'react'
+import { useNetworkConfig } from './useNetworkConfig'
 
 /**
  * Hook options for useOperations
@@ -70,6 +71,7 @@ export function useOperations(
   options: UseOperationsOptions = {}
 ) {
   const chainId = useChainId() as ChainId
+  const { subgraphUrl } = useNetworkConfig()
   const queryClient = useQueryClient()
   const { data: blockNumber } = useBlockNumber({ watch: true })
 
@@ -80,15 +82,17 @@ export function useOperations(
     pagination = {},
   } = options
 
-  // Build query key with all dependencies
-  const queryKey = ['operations', chainId, filters, pagination]
+  // T011: Use dynamic subgraphUrl from context in query key for proper cache invalidation
+  const queryKey = ['operations', subgraphUrl ?? chainId, filters, pagination]
 
   const query = useQuery({
     queryKey,
     queryFn: async () => {
-      return await fetchOperations(filters, pagination, chainId)
+      // T011: Pass subgraphUrl to fetch function when available, otherwise use chainId
+      const urlOrChainId = subgraphUrl ?? chainId
+      return await fetchOperations(filters, pagination, urlOrChainId as ChainId | string)
     },
-    enabled: enabled && !!chainId,
+    enabled: enabled && (!!subgraphUrl || !!chainId),
     staleTime,
     refetchInterval,
     retry: 2,
@@ -97,9 +101,9 @@ export function useOperations(
   // Invalidate query when new block is mined (for status transitions)
   useEffect(() => {
     if (blockNumber) {
-      queryClient.invalidateQueries({ queryKey: ['operations', chainId] })
+      queryClient.invalidateQueries({ queryKey: ['operations', subgraphUrl ?? chainId] })
     }
-  }, [blockNumber, chainId, queryClient])
+  }, [blockNumber, chainId, subgraphUrl, queryClient])
 
   return query
 }
@@ -126,6 +130,7 @@ export function useOperation(
   options: UseOperationsOptions = {}
 ) {
   const chainId = useChainId() as ChainId
+  const { subgraphUrl } = useNetworkConfig()
   const {
     enabled = true,
     staleTime = 30_000,
@@ -133,12 +138,13 @@ export function useOperation(
   } = options
 
   return useQuery({
-    queryKey: ['operation', chainId, operationId],
+    queryKey: ['operation', subgraphUrl ?? chainId, operationId],
     queryFn: async () => {
       if (!operationId) return null
-      return await fetchOperationById(operationId, chainId)
+      const urlOrChainId = subgraphUrl ?? chainId
+      return await fetchOperationById(operationId, urlOrChainId as ChainId | string)
     },
-    enabled: enabled && !!chainId && !!operationId,
+    enabled: enabled && (!!subgraphUrl || !!chainId) && !!operationId,
     staleTime,
     refetchInterval,
     retry: 2,
@@ -172,6 +178,7 @@ export function useOperationsSummary(
   options: UseOperationsOptions = {}
 ) {
   const chainId = useChainId() as ChainId
+  const { subgraphUrl } = useNetworkConfig()
   const {
     enabled = true,
     staleTime = 60_000, // 1 minute (summary changes less frequently)
@@ -179,12 +186,13 @@ export function useOperationsSummary(
   } = options
 
   return useQuery({
-    queryKey: ['operations-summary', chainId, timelockController],
+    queryKey: ['operations-summary', subgraphUrl ?? chainId, timelockController],
     queryFn: async () => {
       if (!timelockController) return null
-      return await getOperationsSummary(timelockController, chainId)
+      const urlOrChainId = subgraphUrl ?? chainId
+      return await getOperationsSummary(timelockController, urlOrChainId as ChainId | string)
     },
-    enabled: enabled && !!chainId && !!timelockController,
+    enabled: enabled && (!!subgraphUrl || !!chainId) && !!timelockController,
     staleTime,
     refetchInterval,
     retry: 2,

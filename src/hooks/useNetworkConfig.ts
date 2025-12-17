@@ -1,13 +1,16 @@
 /**
  * useNetworkConfig
  *
- * Stores and retrieves user-provided RPC overrides.
+ * Stores and retrieves user-provided RPC overrides and dynamic timelock configuration.
  * Per spec/tasks:
  * - T095: localStorage persistence
  * - Used by SettingsView and Providers to reload wagmi config (T102)
+ * - T010: Dynamic timelock configuration from TimelockContext
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import type { Address } from 'viem'
+import { TimelockContext } from '@/context/TimelockContext'
 
 export type NetworkConfig = {
   /** Whether to use the custom RPC transport */
@@ -70,6 +73,10 @@ export function getNetworkConfigUpdatedAtMs(): number {
 export function useNetworkConfig() {
   const [config, setConfig] = useState<NetworkConfig>(() => readNetworkConfig())
 
+  // T010: Safely access TimelockContext (may be undefined if called before provider is mounted)
+  const timelockContext = useContext(TimelockContext)
+  const selected = timelockContext?.selected ?? null
+
   // Keep multiple hook instances in sync (same-tab + cross-tab).
   useEffect(() => {
     const onUpdate = () => setConfig(readNetworkConfig())
@@ -121,12 +128,38 @@ export function useNetworkConfig() {
     [config.enabled, config.rpcUrl]
   )
 
+  // T010: Dynamic timelock configuration from context
+  const timelockAddress = useMemo<Address | null>(
+    () => selected?.address ?? null,
+    [selected]
+  )
+
+  const subgraphUrl = useMemo<string | null>(
+    () => selected?.subgraphUrl ?? null,
+    [selected]
+  )
+
+  const selectedNetwork = useMemo<'rsk_mainnet' | 'rsk_testnet' | null>(
+    () => selected?.network ?? null,
+    [selected]
+  )
+
+  const hasSelectedTimelock = useMemo(
+    () => Boolean(selected),
+    [selected]
+  )
+
   return {
     config,
     hasCustomRpc,
     setEnabled,
     saveRpc,
     reset,
+    // Dynamic timelock configuration
+    timelockAddress,
+    subgraphUrl,
+    selectedNetwork,
+    hasSelectedTimelock,
   }
 }
 
