@@ -63,6 +63,24 @@ You will need to fill in the required environment variables, such as `NEXT_PUBLI
 - `NEXT_PUBLIC_RSK_MAINNET_RPC_URL`, `NEXT_PUBLIC_RSK_TESTNET_RPC_URL`
 - `NEXT_PUBLIC_RSK_MAINNET_BLOCKSCOUT_URL`, `NEXT_PUBLIC_RSK_TESTNET_BLOCKSCOUT_URL`
 - `NEXT_PUBLIC_4BYTE_DIRECTORY_URL`
+- `NEXT_PUBLIC_ENABLE_TESTNETS`: Optional. If `true`, enables testnet support in the UI.
+
+#### Optional: AI explanations (OpenAI)
+
+This app can generate a plain-English explanation of decoded calls when the user clicks **Explain**.
+
+- `OPENAI_API_KEY`: Required to enable explanations (server-side only; never exposed to the browser).
+- `OPENAI_MODEL`: Optional. Defaults to `gpt-5-nano` if not set.
+
+## AI explanations (what it is + where it’s used)
+
+- **API route**: `src/pages/api/explain_operation.ts` implements `POST /api/explain_operation`.
+  - Calls the OpenAI **Responses API** (`/v1/responses`) and asks the model to return **JSON** with:
+    - `summary`: short plain-English explanation
+    - `perCall`: optional per-call bullets
+- **Used in**:
+  - `src/components/operations_explorer/OperationRow.tsx` (expanded operation → **Explain this operation**)
+  - `src/components/decoder/DecoderView.tsx` (Calldata Decoder output → **Explain**)
 
 ## Subgraph deployment (The Graph Studio)
 
@@ -154,7 +172,3 @@ Notes:
 
 - The app relies on The Graph subgraphs for operations/roles and falls back to Blockscout when the subgraph is unavailable.
 - You must deploy a subgraph per network and point `NEXT_PUBLIC_RSK_*_SUBGRAPH_URL` at those endpoints.
-
-## Learn More
-
-To learn more about the project's detailed specifications and implementation plan, please refer to the documents in the `specs/` directory.

@@ -10,18 +10,34 @@ type ExplainCall = {
     name: string
     type: string
     value: string
-    human?: string
+    display?: string
+    notes?: string
   }>
 }
 
 type ExplainRequestBody = {
   chainId?: number
-  operationId?: string
+  operationId?: string | null
   calls?: ExplainCall[]
 }
 
 function asString(x: unknown): string {
   return typeof x === 'string' ? x : JSON.stringify(x)
+}
+
+function extractOutputText(responseJson: any): string | null {
+  if (typeof responseJson?.output_text === 'string') return responseJson.output_text
+
+  const output = Array.isArray(responseJson?.output) ? responseJson.output : []
+  const parts: string[] = []
+  for (const item of output) {
+    const content = Array.isArray(item?.content) ? item.content : []
+    for (const part of content) {
+      if (typeof part?.text === 'string') parts.push(part.text)
+    }
+  }
+  const joined = parts.join('\n').trim()
+  return joined ? joined : null
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -48,17 +64,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: 'Missing calls' })
   }
 
-  const model = process.env.OPENAI_MODEL || 'gpt-4o-mini'
+  // GPT‑5 via Responses API
+  const model = process.env.OPENAI_MODEL || 'gpt-5-nano'
 
   const system = [
     'You explain blockchain timelock operations to non-technical users.',
     'Be concise, neutral, and avoid jargon.',
     'Focus on what will happen if executed, and what assets/permissions may be affected.',
     'If information is missing, say so.',
+    'IMPORTANT: When a param has a display value, ALWAYS use display in your explanation.',
+    'Treat param.value as the raw on-chain/base-unit value (may not be human-readable).',
     'Return JSON only.',
   ].join(' ')
 
-  const user = {
+  const input = {
     chainId: body.chainId ?? null,
     operationId: body.operationId ?? null,
     calls: calls.map((c) => ({
@@ -71,7 +90,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         name: p.name,
         type: p.type,
         value: p.value,
-        human: p.human,
+        display: p.display,
+        notes: p.notes,
       })),
     })),
     output_format: {
@@ -83,7 +103,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const upstream = await fetch('https://api.openai.com/v1/chat/completions', {
+    const upstream = await fetch('https://api.openai.com/v1/responses', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -91,17 +111,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       },
       body: JSON.stringify({
         model,
-        temperature: 0.2,
-        max_tokens: 450,
-        messages: [
-          { role: 'system', content: system },
-          {
-            role: 'user',
-            content:
-              'Explain this timelock operation. Return JSON only. Input:\n' +
-              JSON.stringify(user),
-          },
-        ],
+        // Lower temperature reduces unit/decimal mistakes.
+        max_output_tokens: 2000,
+        reasoning: { effort: 'low' },
+        // Keep this compatible with the docs example (string input).
+        input:
+          system +
+          '\n\nExplain this timelock operation. Return JSON only. Input:\n' +
+          JSON.stringify(input),
       }),
     })
 
@@ -115,9 +132,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     const data = JSON.parse(text) as any
-    const content = data?.choices?.[0]?.message?.content
-    if (!content || typeof content !== 'string') {
-      return res.status(502).json({ error: 'OpenAI response missing content' })
+    const content = extractOutputText(data)
+    if (!content) {
+      return res.status(502).json({ error: 'OpenAI response missing output_text' })
     }
 
     // Try to parse the model's JSON response
@@ -125,11 +142,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     try {
       parsed = JSON.parse(content)
     } catch {
-      // Some models wrap JSON in fences; attempt to extract first JSON object.
+      // Some models may wrap JSON; attempt to extract first JSON object.
       const match = content.match(/\{[\s\S]*\}/)
-      if (match) {
-        parsed = JSON.parse(match[0])
-      }
+      if (match) parsed = JSON.parse(match[0])
     }
 
     if (!parsed || typeof parsed !== 'object') {

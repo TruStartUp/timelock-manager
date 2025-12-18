@@ -259,6 +259,34 @@ export const OperationRow: React.FC<OperationRowProps> = ({
     | { status: 'error'; message: string }
   >({ status: 'idle' })
 
+  const isSameHumanAmountMap = React.useCallback(
+    (
+      a: typeof humanAmountByIndex,
+      b: typeof humanAmountByIndex
+    ): boolean => {
+      const aKeys = Object.keys(a)
+      const bKeys = Object.keys(b)
+      if (aKeys.length !== bKeys.length) return false
+      for (const k of aKeys) {
+        const ai = a[Number(k)]
+        const bi = b[Number(k)]
+        if (ai === bi) continue
+        if (!ai || !bi) return false
+        if (
+          ai.paramIndex !== bi.paramIndex ||
+          ai.formatted !== bi.formatted ||
+          ai.raw !== bi.raw ||
+          ai.symbol !== bi.symbol ||
+          ai.decimals !== bi.decimals
+        ) {
+          return false
+        }
+      }
+      return true
+    },
+    []
+  )
+
   const getAbiBadge = React.useCallback(
     (decoded: DecodedCall | undefined) => {
       if (!decoded) {
@@ -392,14 +420,16 @@ export const OperationRow: React.FC<OperationRowProps> = ({
         }
       }
 
-      if (!cancelled) setHumanAmountByIndex(next)
+      if (!cancelled) {
+        setHumanAmountByIndex((prev) => (isSameHumanAmountMap(prev, next) ? prev : next))
+      }
     }
 
     run()
     return () => {
       cancelled = true
     }
-  }, [decodedByIndex, getTokenMeta, humanAmountByIndex, isExpanded, operation.details?.callsDetails])
+  }, [decodedByIndex, getTokenMeta, isExpanded, isSameHumanAmountMap, operation.details?.callsDetails])
 
   const requestExplanation = React.useCallback(async () => {
     try {
@@ -423,9 +453,13 @@ export const OperationRow: React.FC<OperationRowProps> = ({
                   name: p.name,
                   type: p.type,
                   value: stringifyValue(p.value),
-                  human:
+                  display:
                     humanAmount && i === humanAmount.paramIndex
                       ? humanAmount.formatted
+                      : undefined,
+                  notes:
+                    humanAmount && i === humanAmount.paramIndex
+                      ? 'display is the human-formatted token amount (decimals applied); value is the raw on-chain/base-unit amount.'
                       : undefined,
                 }))
               : [],

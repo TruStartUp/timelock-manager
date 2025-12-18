@@ -1077,7 +1077,7 @@ const NewProposalView: React.FC = () => {
                     onClick={handleFetchAbi}
                     disabled={isAbiLoading}
                   >
-                    <span className="truncate">Fetch ABI</span>
+                    <span className="truncate">Continue to Step 2</span>
                   </button>
                   {isAbiLoading && (
                     <div className="flex items-center gap-2 text-sm text-text-secondary">
@@ -1246,7 +1246,7 @@ const NewProposalView: React.FC = () => {
                                 onClick={() => handleFetchAbiForOperation(opIndex, operation.contractAddress)}
                                 disabled={!isAddress(operation.contractAddress, { strict: false })}
                               >
-                                <span className="truncate">Fetch ABI</span>
+                                <span className="truncate">Continue</span>
                               </button>
                             </div>
 
