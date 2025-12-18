@@ -193,15 +193,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             </Link>
           </nav>
         </div>
-        <div className="mt-auto flex flex-col gap-1">
-          <a
-            className="flex items-center gap-3 px-3 py-2 text-text-light hover:bg-surface-dark rounded-full"
-            href="#"
-          >
-            <span className="material-symbols-outlined">logout</span>
-            <p className="text-sm font-medium leading-normal">Logout</p>
-          </a>
-        </div>
       </aside>
       <div className="flex flex-col flex-1 h-screen overflow-hidden">
         <header className="min-h-16 bg-surface-dark/50 backdrop-blur-md border-b border-white/5 flex flex-wrap items-center justify-between gap-3 px-4 sm:px-6 lg:px-8 z-10 sticky top-0 py-3">
@@ -214,7 +205,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             >
               <span className="material-symbols-outlined">menu</span>
             </button>
-            <span className="material-symbols-outlined text-base">home</span>
+            <Link
+              href="/"
+              className="rounded-full p-1 text-text-light hover:bg-white/5"
+              aria-label="Go to Dashboard"
+              title="Dashboard"
+            >
+              <span className="material-symbols-outlined text-base">home</span>
+            </Link>
             <span>/</span>
             <span className="text-text-light font-medium truncate">
               {getCurrentViewTitle()}

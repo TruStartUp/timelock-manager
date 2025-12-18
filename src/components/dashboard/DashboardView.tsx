@@ -109,9 +109,13 @@ const DashboardView: React.FC = () => {
             {isLoading ? (
               <div className="h-9 w-16 animate-pulse bg-border-color rounded"></div>
             ) : (
-              <p className="text-text-primary tracking-light text-3xl font-bold leading-tight">
+              <Link
+                href="/operations_explorer?status=pending"
+                className="text-text-primary tracking-light text-3xl font-bold leading-tight hover:underline focus-visible:underline underline-offset-4"
+                aria-label="View pending operations in Operations Explorer"
+              >
                 {summary?.pending ?? 0}
-              </p>
+              </Link>
             )}
           </div>
           <div className="flex flex-col gap-2 rounded border border-border-color p-6 bg-surface">
@@ -121,9 +125,13 @@ const DashboardView: React.FC = () => {
             {isLoading ? (
               <div className="h-9 w-16 animate-pulse bg-border-color rounded"></div>
             ) : (
-              <p className="text-text-primary tracking-light text-3xl font-bold leading-tight">
+              <Link
+                href="/operations_explorer?status=ready"
+                className="text-text-primary tracking-light text-3xl font-bold leading-tight hover:underline focus-visible:underline underline-offset-4"
+                aria-label="View ready operations in Operations Explorer"
+              >
                 {summary?.ready ?? 0}
-              </p>
+              </Link>
             )}
           </div>
           <div className="flex flex-col gap-2 rounded border border-border-color p-6 bg-surface">
@@ -133,9 +141,13 @@ const DashboardView: React.FC = () => {
             {isLoading ? (
               <div className="h-9 w-16 animate-pulse bg-border-color rounded"></div>
             ) : (
-              <p className="text-text-primary tracking-light text-3xl font-bold leading-tight">
+              <Link
+                href="/operations_explorer?status=executed"
+                className="text-text-primary tracking-light text-3xl font-bold leading-tight hover:underline focus-visible:underline underline-offset-4"
+                aria-label="View executed operations in Operations Explorer"
+              >
                 {summary?.executed ?? 0}
-              </p>
+              </Link>
             )}
           </div>
         </div>
@@ -199,7 +211,13 @@ const DashboardView: React.FC = () => {
                         {roleHashDisplay}
                       </td>
                       <td className="whitespace-nowrap px-6 py-4 text-right text-text-primary">
-                        {role.memberCount}
+                        <Link
+                          href={`/permissions?role=${role.roleHash}`}
+                          className="hover:underline focus-visible:underline underline-offset-4"
+                          aria-label={`View ${displayName} role in Permissions`}
+                        >
+                          {role.memberCount}
+                        </Link>
                       </td>
                     </tr>
                   )

@@ -1,10 +1,30 @@
-import React, { useEffect, useMemo, useState } from 'react'
-import { type Address, isAddress, type Abi } from 'viem'
+import React, { useEffect, useMemo, useState, useCallback } from 'react'
+import { type Address, isAddress, type Abi, formatUnits } from 'viem'
 import { useChainId, usePublicClient } from 'wagmi'
 import { useContractABI } from '@/hooks/useContractABI'
 import { CHAIN_TO_NETWORK } from '@/services/blockscout/client'
 import { ABISource, ABIConfidence, setManualABI } from '@/services/blockscout/abi'
 import { decodeCalldata, type DecodedCall } from '@/lib/decoder'
+
+const ERC20_METADATA_ABI = [
+  {
+    type: 'function',
+    name: 'decimals',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'uint8' }],
+  },
+  {
+    type: 'function',
+    name: 'symbol',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'string' }],
+  },
+] as const
+
+type TokenMeta = { decimals: number; symbol: string | null }
+const tokenMetaCache = new Map<string, TokenMeta>()
 
 const DecoderView: React.FC = () => {
   // State for form inputs
@@ -13,6 +33,12 @@ const DecoderView: React.FC = () => {
   const [abi, setAbi] = useState('')
   const [decoded, setDecoded] = useState<DecodedCall | null>(null)
   const [decodeError, setDecodeError] = useState<string | null>(null)
+  const [explainState, setExplainState] = useState<
+    | { status: 'idle' }
+    | { status: 'loading' }
+    | { status: 'success'; summary: string; perCall?: string[] }
+    | { status: 'error'; message: string }
+  >({ status: 'idle' })
 
   const chainId = useChainId()
   const publicClient = usePublicClient()
@@ -183,6 +209,7 @@ const DecoderView: React.FC = () => {
   const handleDecode = async () => {
     setDecodeError(null)
     setDecoded(null)
+    setExplainState({ status: 'idle' })
 
     const cd = calldata.trim().replace(/^0X/, '0x')
     if (!/^0x[0-9a-fA-F]*$/.test(cd)) {
@@ -250,7 +277,160 @@ const DecoderView: React.FC = () => {
     setAbi('')
     setDecoded(null)
     setDecodeError(null)
+    setExplainState({ status: 'idle' })
   }
+
+  const getTokenMeta = useCallback(
+    async (tokenAddress: Address): Promise<TokenMeta | null> => {
+      if (!publicClient) return null
+      const key = `${chainId}:${tokenAddress.toLowerCase()}`
+      const cached = tokenMetaCache.get(key)
+      if (cached) return cached
+
+      try {
+        const decimals = await publicClient.readContract({
+          address: tokenAddress,
+          abi: ERC20_METADATA_ABI as any,
+          functionName: 'decimals',
+          args: [],
+        })
+
+        let symbol: string | null = null
+        try {
+          const s = await publicClient.readContract({
+            address: tokenAddress,
+            abi: ERC20_METADATA_ABI as any,
+            functionName: 'symbol',
+            args: [],
+          })
+          if (typeof s === 'string') symbol = s
+        } catch {
+          symbol = null
+        }
+
+        const meta = { decimals: Number(decimals), symbol }
+        tokenMetaCache.set(key, meta)
+        return meta
+      } catch {
+        return null
+      }
+    },
+    [chainId, publicClient]
+  )
+
+  const flattenCalls = useCallback((root: DecodedCall): DecodedCall[] => {
+    const out: DecodedCall[] = []
+    const walk = (c: DecodedCall) => {
+      out.push(c)
+      for (const child of c.children || []) walk(child)
+    }
+    walk(root)
+    return out
+  }, [])
+
+  const computeDisplayForCall = useCallback(
+    async (call: DecodedCall): Promise<{ displayByParamIndex: Record<number, string> }> => {
+      const fn = (call.functionName || '').toLowerCase()
+      const isErc20Common = fn === 'approve' || fn === 'transfer' || fn === 'transferfrom'
+      if (!isErc20Common) return { displayByParamIndex: {} }
+      if (!call.target || !isAddress(call.target, { strict: false })) {
+        return { displayByParamIndex: {} }
+      }
+
+      // For approve/transfer/transferFrom the amount is typically the last uint256 param.
+      const params = call.params ?? []
+      const amountParamIndex = [...params]
+        .map((p, i) => ({ p, i }))
+        .reverse()
+        .find(({ p }) => String(p.type).toLowerCase().startsWith('uint'))
+        ?.i
+      if (amountParamIndex === undefined) return { displayByParamIndex: {} }
+
+      const rawValue = params[amountParamIndex]?.value as unknown
+      let amount: bigint | null = null
+      if (typeof rawValue === 'bigint') amount = rawValue
+      else if (typeof rawValue === 'string' && /^-?\d+$/.test(rawValue)) {
+        try {
+          amount = BigInt(rawValue)
+        } catch {
+          amount = null
+        }
+      } else if (typeof rawValue === 'number' && Number.isFinite(rawValue)) {
+        try {
+          amount = BigInt(Math.trunc(rawValue))
+        } catch {
+          amount = null
+        }
+      }
+      if (amount === null) return { displayByParamIndex: {} }
+
+      const meta = await getTokenMeta(call.target.toLowerCase() as Address)
+      if (!meta || !Number.isFinite(meta.decimals)) return { displayByParamIndex: {} }
+
+      const formattedUnits = formatUnits(amount, meta.decimals)
+      const formatted = meta.symbol ? `${formattedUnits} ${meta.symbol}` : formattedUnits
+      return { displayByParamIndex: { [amountParamIndex]: formatted } }
+    },
+    [getTokenMeta]
+  )
+
+  const requestExplanation = useCallback(async () => {
+    if (!decoded) return
+    try {
+      setExplainState({ status: 'loading' })
+      const calls = flattenCalls(decoded)
+
+      const displayMaps = await Promise.all(calls.map((c) => computeDisplayForCall(c)))
+
+      const payload = {
+        chainId,
+        operationId: null,
+        calls: calls.map((call, index) => {
+          const displayByParamIndex = displayMaps[index]?.displayByParamIndex ?? {}
+          return {
+            index,
+            target: call.target ?? contractAddress,
+            // Decoder does not have tx native value; use 0 and explain that value is unknown.
+            nativeValue: '0',
+            signature: call.signature || call.functionName || 'unknown',
+            functionName: call.functionName ?? null,
+            params: (call.params ?? []).map((p, i) => ({
+              name: p.name,
+              type: p.type,
+              value: formatValue(p.value),
+              display: displayByParamIndex[i],
+              notes: displayByParamIndex[i]
+                ? 'display is the human-formatted token amount (decimals applied); value is the raw on-chain/base-unit amount.'
+                : undefined,
+            })),
+          }
+        }),
+      }
+
+      const res = await fetch('/api/explain_operation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+
+      if (!res.ok) {
+        const text = await res.text()
+        throw new Error(text || `Request failed (${res.status})`)
+      }
+
+      const data = (await res.json()) as { summary?: string; perCall?: string[] }
+      setExplainState({
+        status: 'success',
+        summary: data.summary || 'Explanation generated.',
+        perCall: data.perCall,
+      })
+    } catch (err) {
+      setExplainState({
+        status: 'error',
+        message: err instanceof Error ? err.message : String(err),
+      })
+    }
+  }, [chainId, computeDisplayForCall, contractAddress, decoded, flattenCalls])
 
   return (
     <>
@@ -351,10 +531,49 @@ const DecoderView: React.FC = () => {
               <div className="flex flex-col gap-6">
                 <div className="flex items-center justify-between">
                   <h4 className="text-lg font-semibold">Decoded Function</h4>
-                  <span className={confidenceBadge(decoded).className}>
-                    {confidenceBadge(decoded).label}
-                  </span>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={requestExplanation}
+                      disabled={explainState.status === 'loading'}
+                      className={`inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-semibold transition-colors ${
+                        explainState.status === 'loading'
+                          ? 'bg-primary/20 text-primary cursor-wait'
+                          : 'bg-border-color text-text-primary hover:bg-border-color/80'
+                      }`}
+                    >
+                      {explainState.status === 'loading' ? 'Explaining…' : 'Explain'}
+                    </button>
+                    <span className={confidenceBadge(decoded).className}>
+                      {confidenceBadge(decoded).label}
+                    </span>
+                  </div>
                 </div>
+
+                {explainState.status === 'success' ? (
+                  <div className="rounded border border-border-color bg-background p-4">
+                    <p className="text-text-secondary text-sm font-semibold">
+                      Human translation
+                    </p>
+                    <p className="text-text-primary mt-2 whitespace-pre-wrap">
+                      {explainState.summary}
+                    </p>
+                    {explainState.perCall && explainState.perCall.length > 0 ? (
+                      <ul className="mt-3 list-disc pl-5 text-text-secondary text-sm space-y-1">
+                        {explainState.perCall.map((line, i) => (
+                          <li key={i}>{line}</li>
+                        ))}
+                      </ul>
+                    ) : null}
+                  </div>
+                ) : null}
+                {explainState.status === 'error' ? (
+                  <div className="rounded border border-red-500/30 bg-red-500/10 p-4">
+                    <p className="text-red-400 text-sm">
+                      Failed to generate explanation: {explainState.message}
+                    </p>
+                  </div>
+                ) : null}
 
                 {/* Function */}
                 <div className="rounded border border-border-color bg-background p-4">
