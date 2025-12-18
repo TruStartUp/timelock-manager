@@ -9,6 +9,7 @@ import { TIMELOCK_ROLES, ROLE_NAMES } from '@/lib/constants'
 import { getBlockscoutExplorerUrl } from '@/services/blockscout/client'
 import { getAddress } from 'viem'
 import { ClientPageRoot } from 'next/dist/client/components/client-page'
+import { useRouter } from 'next/router'
 
 // Helper to format timestamp
 const formatTimestamp = (timestamp: bigint): string => {
@@ -50,8 +51,9 @@ const RoleMemberRow = ({ member, isDefaultAdmin, connectedAddress, blockscoutUrl
   })
   
   return (
-    <div className="flex items-center justify-between p-3 bg-background-dark rounded-lg">
-      <div className="flex items-center gap-3 flex-wrap">
+    <div className="flex items-center justify-between gap-3 rounded-lg bg-background-dark px-4 py-2.5">
+      {/* Left: address + tags */}
+      <div className="flex min-w-0 items-center gap-3 flex-wrap">
         {hasMultipleRoles && (
           <span
             className="text-accent-yellow material-symbols-outlined text-xl"
@@ -63,15 +65,20 @@ const RoleMemberRow = ({ member, isDefaultAdmin, connectedAddress, blockscoutUrl
         {!hasMultipleRoles && (
           <span className="text-transparent material-symbols-outlined text-xl"></span>
         )}
-        <span
-          className={`font-mono text-sm bg-white/10 px-3 py-1 rounded-full ${
+        <a
+          href={`${blockscoutUrl}/address/${member}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`font-mono text-sm bg-white/10 px-3 py-1 rounded-full hover:bg-white/15 transition-colors ${
             isConnectedWallet
               ? 'text-primary border border-primary/50'
               : 'text-text-light'
           }`}
+          title="View address on Blockscout"
         >
-          {truncateAddress(member)}
-        </span>
+          <span className="sm:hidden">{truncateAddress(member)}</span>
+          <span className="hidden sm:inline">{member}</span>
+        </a>
         {isConnectedWallet && (
           <span className="text-xs text-primary">(You)</span>
         )}
@@ -88,37 +95,54 @@ const RoleMemberRow = ({ member, isDefaultAdmin, connectedAddress, blockscoutUrl
           </a>
         )}
       </div>
-      <div className="relative">
-        <button
-          onClick={async () => {
-            try {
-              await navigator.clipboard.writeText(member)
-              onCopy(member)
-            } catch (err) {
-              console.error('Failed to copy:', err)
-            }
-          }}
-          className="text-text-dark hover:text-white transition-colors"
-          title={copiedAddress === member ? 'Copied!' : 'Copy address'}
+
+      {/* Right: actions */}
+      <div className="flex items-center gap-2 shrink-0">
+        <a
+          href={`${blockscoutUrl}/address/${member}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex size-9 items-center justify-center rounded-md text-text-dark hover:text-white hover:bg-white/5 transition-colors"
+          aria-label="Open on Blockscout"
+          title="Open on Blockscout"
         >
-          <span className="material-symbols-outlined text-xl">
-            {copiedAddress === member ? 'check' : 'content_copy'}
-          </span>
-        </button>
-        {copiedAddress === member && (
-          <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-surface-dark text-white text-xs px-2 py-1 rounded shadow-lg whitespace-nowrap z-10">
-            Copied!
-            <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-full">
-              <div className="border-4 border-transparent border-t-surface-dark"></div>
+          <span className="material-symbols-outlined text-xl">open_in_new</span>
+        </a>
+
+        <div className="relative">
+          <button
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(member)
+                onCopy(member)
+              } catch (err) {
+                console.error('Failed to copy:', err)
+              }
+            }}
+            className="inline-flex size-9 items-center justify-center rounded-md text-text-dark hover:text-white hover:bg-white/5 transition-colors"
+            title={copiedAddress === member ? 'Copied!' : 'Copy address'}
+            aria-label={copiedAddress === member ? 'Copied address' : 'Copy address'}
+          >
+            <span className="material-symbols-outlined text-xl">
+              {copiedAddress === member ? 'check' : 'content_copy'}
+            </span>
+          </button>
+          {copiedAddress === member && (
+            <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-surface-dark text-white text-xs px-2 py-1 rounded shadow-lg whitespace-nowrap z-10">
+              Copied!
+              <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-full">
+                <div className="border-4 border-transparent border-t-surface-dark"></div>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   )
 }
 
 const PermissionsView = () => {
+  const router = useRouter()
   const [searchValue, setSearchValue] = useState('')
   const [copiedAddress, setCopiedAddress] = useState<Address | null>(null)
   const [copiedHistoryAddress, setCopiedHistoryAddress] = useState<string | null>(null)
@@ -147,6 +171,25 @@ const PermissionsView = () => {
       return () => clearTimeout(timer)
     }
   }, [copiedHistoryAddress])
+
+  // Initialize role filter/selection from URL query param (e.g. /permissions?role=0x...)
+  useEffect(() => {
+    if (!router.isReady) return
+    const raw = router.query.role
+    const value =
+      typeof raw === 'string'
+        ? raw
+        : Array.isArray(raw) && typeof raw[0] === 'string'
+          ? raw[0]
+          : ''
+
+    const roleHash = value.trim().toLowerCase()
+    if (!/^0x[a-f0-9]{64}$/.test(roleHash)) return
+
+    // Show all roles in the left column; just pre-select/highlight the requested role.
+    setSearchValue('')
+    setSelectedRoleHash(roleHash as `0x${string}`)
+  }, [router.isReady, router.query.role])
   
   const timelockAddress = (selected?.address as Address | undefined) ?? undefined
   
@@ -401,14 +444,11 @@ const PermissionsView = () => {
                           <span
                             className={`inline-flex items-center gap-2 px-2 py-1 rounded-full text-xs font-medium ${
                               event.granted
-                                ? 'text-accent-green bg-accent-green/10'
-                                : 'text-accent-red bg-accent-red/10'
+                                ? 'text-green-300 bg-green-500/10 border border-green-500/20'
+                                : 'text-red-300 bg-red-500/10 border border-red-500/20'
                             }`}
                           >
-                            <span className="material-symbols-outlined text-base">
-                              {event.granted ? 'add_circle' : 'remove_circle'}
-                            </span>
-                            {event.granted ? 'Grant' : 'Revoke'}
+                            {event.granted ? 'Role Granted' : 'Role Revoked'}
                           </span>
                         </td>
                         <td className="p-3">

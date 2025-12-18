@@ -42,3 +42,6 @@ env:
   # Optional: Enable testnet by default
   - variable: NEXT_PUBLIC_ENABLE_TESTNETS
     value: "true"
+
+  - variable: OPENAI_API_KEY
+    secret: projects/876632802800/secrets/open-ai-api-key
