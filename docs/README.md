@@ -6,7 +6,9 @@ Welcome to the comprehensive documentation for **Timelock Manager**, a complete 
 
 Timelock Manager is a Next.js Web3 application that provides a user-friendly interface for managing timelock-based governance operations. It enables governance participants to schedule, review, execute, and cancel operations with full visibility into the governance process.
 
-\[Screenshot placeholder: Dashboard overview showing operations and roles]
+
+
+<figure><img src=".gitbook/assets/Screenshot 2025-12-19 at 4.33.45 PM.png" alt=""><figcaption></figcaption></figure>
 
 ## Key Features
 
@@ -35,7 +37,6 @@ Get up and running in minutes:
 If you're using Timelock Manager to participate in governance, start here:
 
 * [Connecting Your Wallet](user-guide/connecting-wallet.md)
-* [Dashboard Overview](user-guide/dashboard.md)
 * [Operations Explorer Guide](user-guide/operations-explorer.md)
 * [Creating Proposals](user-guide/creating-proposals.md)
 * [Understanding Roles & Permissions](user-guide/understanding-roles.md)
@@ -44,33 +45,9 @@ If you're using Timelock Manager to participate in governance, start here:
 
 If you're setting up or customizing Timelock Manager:
 
-* [Installation Guide](developer-guide/installation.md)
 * [Environment Configuration](developer-guide/environment-configuration.md)
 * [Deploying Subgraphs](subgraph-deployment/subgraph-deployment.md)
-* [Project Structure](developer-guide/project-structure.md)
 * [Architecture Overview](architecture/architecture.md)
-
-### For Security Auditors
-
-For those reviewing governance operations and security:
-
-* [Security Best Practices](security/best-practices.md)
-* [Verifying Operations](security/verifying-operations.md)
-* [Dangerous Operations](security/dangerous-operations.md)
-* [Audit Trail](security/audit-trail.md)
-
-## Common Tasks
-
-### I want to...
-
-* **Execute a ready operation** → [Executing Operations](user-guide/executing-operations.md)
-* **Schedule a new proposal** → [Creating Proposals](user-guide/creating-proposals.md)
-* **Decode unknown calldata** → [Calldata Decoder](user-guide/calldata-decoder.md)
-* **View who has roles** → [Viewing Permissions](user-guide/viewing-permissions.md)
-* **Deploy a subgraph** → [Subgraph Deployment](subgraph-deployment/deploying-testnet.md)
-* **Fix subgraph issues** → [Troubleshooting Subgraphs](troubleshooting/subgraph-issues.md)
-* **Configure custom RPC** → [Custom RPC Endpoints](integrations/custom-rpc-endpoints.md)
-* **Understand the architecture** → [Architecture Overview](architecture/architecture.md)
 
 ## Support
 
@@ -87,8 +64,6 @@ Timelock Manager is built with modern Web3 technologies:
 * **Data**: The Graph, Blockscout API, TanStack Query
 * **Blockchain**: Rootstock (RSK) Mainnet & Testnet
 * **Styling**: Tailwind CSS
-
-For complete tech stack details, see [Tech Stack](developer-guide/tech-stack.md).
 
 ## Next Steps
 

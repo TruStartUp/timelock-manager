@@ -15,7 +15,7 @@ Timelock Manager provides a user-friendly interface to:
 * Manage roles and permissions
 * Decode and verify operation calldata
 
-\[Screenshot placeholder: Dashboard showing operations overview]
+<figure><img src="../.gitbook/assets/Screenshot 2025-12-19 at 4.32.56 PM.png" alt=""><figcaption></figcaption></figure>
 
 ## Why Timelocks Matter
 
