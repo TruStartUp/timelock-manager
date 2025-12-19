@@ -52,7 +52,7 @@ Browse all operations with powerful filtering:
 * Date range filtering
 * View operation details and decoded calldata
 
-\[Screenshot placeholder: Operations Explorer with filters]
+<figure><img src="../.gitbook/assets/Screenshot 2025-12-19 at 4.42.08 PM.png" alt=""><figcaption></figcaption></figure>
 
 ### 2. Proposal Creation Wizard
 
@@ -64,7 +64,7 @@ Step-by-step interface for scheduling operations:
 
 Supports both single operations and batch operations (multiple calls executed atomically).
 
-\[Screenshot placeholder: Proposal wizard Step 2]
+<figure><img src="../.gitbook/assets/Screenshot 2025-12-19 at 4.45.28 PM.png" alt=""><figcaption></figcaption></figure>
 
 ### 3. Calldata Decoder
 
@@ -75,7 +75,9 @@ Decode and verify operation calldata:
 * AI-powered explanations (optional)
 * Human-readable parameter display
 
-\[Screenshot placeholder: Decoder showing decoded operation]
+
+
+<figure><img src="../.gitbook/assets/Screenshot 2025-12-19 at 5.27.38 PM.png" alt=""><figcaption></figcaption></figure>
 
 ### 4. Role Management
 
@@ -296,18 +298,6 @@ The **delay** is the waiting period (in seconds) between scheduling and executio
 * **Control**: Cancel malicious proposals quickly
 * **Traceability**: Immutable audit trail
 
-## Comparison with Alternatives
-
-| Feature                | Timelock Manager | Block Explorer | Direct Contract Calls |
-| ---------------------- | ---------------- | -------------- | --------------------- |
-| User-friendly          | ✅ Yes            | ❌ No           | ❌ No                  |
-| Decode calldata        | ✅ Automatic      | ⚠️ Manual      | ❌ No                  |
-| Filter operations      | ✅ Yes            | ⚠️ Limited     | ❌ No                  |
-| Batch operations       | ✅ UI support     | ❌ No           | ⚠️ Manual             |
-| Transaction simulation | ✅ Built-in       | ❌ No           | ❌ No                  |
-| Multi-timelock         | ✅ Yes            | ❌ No           | ❌ No                  |
-| AI explanations        | ✅ Optional       | ❌ No           | ❌ No                  |
-
 ## Getting Started
 
 Ready to use Timelock Manager?
@@ -320,7 +310,7 @@ Ready to use Timelock Manager?
 ## Next Steps
 
 * **New User**: Start with [Quick Start](quick-start.md)
-* **Developer**: See [Installation](../developer-guide/installation.md)
+* **Developer**: See [Installation](https://github.com/TruStartUp/timelock-manager)
 * **Administrator**: Check [Subgraph Deployment](../subgraph-deployment/subgraph-deployment.md)
 
 ***
