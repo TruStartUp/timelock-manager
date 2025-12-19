@@ -49,11 +49,7 @@ If you're setting up or customizing Timelock Manager:
 * [Deploying Subgraphs](subgraph-deployment/subgraph-deployment.md)
 * [Architecture Overview](architecture/architecture.md)
 
-## Support
 
-* **Troubleshooting**: Check our [Troubleshooting Guide](troubleshooting/troubleshooting.md) for common issues
-* **Glossary**: Unfamiliar terms? See the [Glossary](reference/glossary.md)
-* **Contributing**: Interested in contributing? Read our [Contributing Guide](contributing/contributing.md)
 
 ## Technology Stack
 
@@ -71,7 +67,7 @@ Choose your path:
 
 | <p>New User?<br>Start with <a href="getting-started/quick-start.md">Quick Start</a></p>             | <p>Developer?<br>Begin with <a href="developer-guide/installation.md">Installation</a></p> |
 | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| <p>Administrator?<br>Deploy a <a href="subgraph-deployment/subgraph-deployment.md">Subgraph</a></p> | <p>Auditor?<br>Review <a href="security/best-practices.md">Security Practices</a></p>      |
+| <p>Administrator?<br>Deploy a <a href="subgraph-deployment/subgraph-deployment.md">Subgraph</a></p> |                                                                                            |
 
 ***
 
