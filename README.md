@@ -32,7 +32,7 @@ The Timelock Management App provides a user-friendly interface for governance pa
 ### 1. Clone the Repository
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/TruStartUp/timelock-manager
 cd timelock-manager
 ```
 
