@@ -8,7 +8,7 @@ Get up and running with Timelock Manager in minutes.
 
 Visit the deployed Timelock Manager instance (URL provided by your administrator).
 
-[Screenshot placeholder: Landing page]
+\[Screenshot placeholder: Landing page]
 
 ### Step 2: Connect Your Wallet
 
@@ -17,7 +17,7 @@ Visit the deployed Timelock Manager instance (URL provided by your administrator
 3. Approve the connection in your wallet
 4. If prompted, add/switch to Rootstock network
 
-[Screenshot placeholder: Wallet connection modal]
+\[Screenshot placeholder: Wallet connection modal]
 
 {% hint style="info" %}
 The app will automatically prompt you to add Rootstock network if it's not in your wallet. Simply approve the request.
@@ -28,32 +28,33 @@ The app will automatically prompt you to add Rootstock network if it's not in yo
 1. Click **"Settings"** in the left sidebar
 2. Under "Timelock Configurations", click **"Add Timelock"**
 3. Fill in the details:
-   - **Name**: Friendly name (e.g., "Main DAO Timelock")
-   - **Address**: Your TimelockController contract address
-   - **Network**: Select Mainnet or Testnet
-   - **Subgraph URL**: The Graph query URL (from administrator)
+   * **Name**: Friendly name (e.g., "Main DAO Timelock")
+   * **Address**: Your TimelockController contract address
+   * **Network**: Select Mainnet or Testnet
+   * **Subgraph URL**: The Graph query URL (from administrator)
 4. Click **"Save"**
 5. Select the timelock from the dropdown in the header
 
-[Screenshot placeholder: Settings page with timelock configuration]
+\[Screenshot placeholder: Settings page with timelock configuration]
 
 ### Step 4: Explore Operations
 
 1. Click **"Operations Explorer"** in the sidebar
 2. Browse all operations for your timelock
 3. Use filters to find specific operations:
-   - Filter by status (Pending, Ready, Executed, Cancelled)
-   - Search by operation ID or address
-   - Filter by date range
+   * Filter by status (Pending, Ready, Executed, Cancelled)
+   * Search by operation ID or address
+   * Filter by date range
 
-[Screenshot placeholder: Operations Explorer]
+\[Screenshot placeholder: Operations Explorer]
 
 ### That's it!
 
 You're now ready to:
-- Browse operations: [Operations Explorer Guide](../user-guide/operations-explorer.md)
-- Create proposals: [Creating Proposals](../user-guide/creating-proposals.md)
-- Execute operations: [Executing Operations](../user-guide/executing-operations.md)
+
+* Browse operations: [Operations Explorer Guide](../user-guide/operations-explorer.md)
+* Create proposals: [Creating Proposals](../user-guide/creating-proposals.md)
+* Execute operations: [Executing Operations](../user-guide/executing-operations.md)
 
 ## For Developers
 
@@ -91,6 +92,7 @@ NEXT_PUBLIC_ENABLE_TESTNETS=true
 ```
 
 Get WalletConnect Project ID:
+
 1. Visit [cloud.walletconnect.com](https://cloud.walletconnect.com/)
 2. Create account and new project
 3. Copy Project ID
@@ -113,9 +115,9 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ### Next Steps for Developers
 
-- Deploy subgraph: [Deploying to Testnet](../subgraph-deployment/deploying-testnet.md)
-- Understand architecture: [Architecture Overview](../architecture/README.md)
-- Read developer guide: [Developer Guide](../developer-guide/README.md)
+* Deploy subgraph: [Deploying to Testnet](../subgraph-deployment/deploying-testnet.md)
+* Understand architecture: [Architecture Overview](../architecture/architecture.md)
+* Read developer guide: [Developer Guide](../developer-guide/developer-guide.md)
 
 ## For Administrators
 
@@ -197,51 +199,56 @@ vercel
 
 ### Next Steps for Administrators
 
-- Production checklist: [Production Checklist](../deployment/production-checklist.md)
-- Monitoring setup: [Monitoring](../deployment/monitoring.md)
-- Full deployment guide: [Deployment Overview](../deployment/README.md)
+* Production checklist: [Production Checklist](../deployment/production-checklist.md)
+* Monitoring setup: [Monitoring](../deployment/monitoring.md)
+* Full deployment guide: [Deployment Overview](../deployment/deployment.md)
 
 ## Common Quick Start Issues
 
 ### Issue: "Cannot connect wallet"
 
 **Solution**:
+
 1. Ensure MetaMask is installed
 2. Try refreshing the page
 3. Check browser console for errors
 4. See [Wallet Connection Issues](../troubleshooting/wallet-connection.md)
 
----
+***
 
 ### Issue: "No operations showing"
 
 **Possible causes**:
-- Subgraph not deployed or not synced
-- Wrong subgraph URL
-- Network mismatch
+
+* Subgraph not deployed or not synced
+* Wrong subgraph URL
+* Network mismatch
 
 **Solution**:
+
 1. Check subgraph is deployed and synced in The Graph Studio
 2. Verify `NEXT_PUBLIC_RSK_*_SUBGRAPH_URL` is correct
 3. Check browser console for "Subgraph unavailable" warning
 4. App should automatically fall back to Blockscout
 
----
+***
 
 ### Issue: "Cannot schedule operation"
 
-**Cause**: Missing PROPOSER_ROLE
+**Cause**: Missing PROPOSER\_ROLE
 
 **Solution**:
+
 1. Check your roles in Permissions page
-2. Ask administrator to grant PROPOSER_ROLE
+2. Ask administrator to grant PROPOSER\_ROLE
 3. Ensure wallet is connected and on correct network
 
----
+***
 
 ### Issue: "Build fails"
 
 **Solution**:
+
 ```bash
 # Clear cache and rebuild
 rm -rf .next node_modules package-lock.json
@@ -250,9 +257,10 @@ npm run build
 ```
 
 Check for:
-- Node.js version (must be 18.17+)
-- Environment variables set correctly
-- No TypeScript errors
+
+* Node.js version (must be 18.17+)
+* Environment variables set correctly
+* No TypeScript errors
 
 ## Quick Reference
 
@@ -313,18 +321,21 @@ OPENAI_API_KEY=...
 Based on your role:
 
 ### As an End User
+
 1. ✅ Connected wallet and configured timelock
 2. → Browse operations: [Operations Explorer](../user-guide/operations-explorer.md)
 3. → Create proposal: [Creating Proposals](../user-guide/creating-proposals.md)
 4. → Learn about roles: [Understanding Roles](../user-guide/understanding-roles.md)
 
 ### As a Developer
+
 1. ✅ Running locally
 2. → Deploy subgraph: [Subgraph Deployment](../subgraph-deployment/deploying-testnet.md)
-3. → Understand architecture: [Architecture](../architecture/README.md)
-4. → Read developer guide: [Developer Guide](../developer-guide/README.md)
+3. → Understand architecture: [Architecture](../architecture/architecture.md)
+4. → Read developer guide: [Developer Guide](../developer-guide/developer-guide.md)
 
 ### As an Administrator
+
 1. ✅ Deployed app and subgraph
 2. → Production checklist: [Production Checklist](../deployment/production-checklist.md)
 3. → Set up monitoring: [Monitoring](../deployment/monitoring.md)
@@ -332,11 +343,11 @@ Based on your role:
 
 ## Getting Help
 
-- **User questions**: See [User Guide](../user-guide/README.md)
-- **Developer questions**: See [Developer Guide](../developer-guide/README.md)
-- **Troubleshooting**: See [Troubleshooting](../troubleshooting/README.md)
-- **Deployment issues**: See [Deployment](../deployment/README.md)
+* **User questions**: See [User Guide](../user-guide/user-guide.md)
+* **Developer questions**: See [Developer Guide](../developer-guide/developer-guide.md)
+* **Troubleshooting**: See [Troubleshooting](../troubleshooting/troubleshooting.md)
+* **Deployment issues**: See [Deployment](../deployment/deployment.md)
 
----
+***
 
 **Quick start complete!** Choose your next guide from the sections above.

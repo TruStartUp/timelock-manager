@@ -7,14 +7,15 @@ Timelock Manager is a comprehensive Web3 application for interacting with OpenZe
 In blockchain governance, **timelocks** are smart contracts that enforce a delay between scheduling an operation and executing it. This delay provides transparency and gives stakeholders time to review proposed changes before they take effect.
 
 Timelock Manager provides a user-friendly interface to:
-- Schedule new governance operations
-- Browse and filter scheduled operations
-- Execute ready operations
-- Cancel pending operations
-- Manage roles and permissions
-- Decode and verify operation calldata
 
-[Screenshot placeholder: Dashboard showing operations overview]
+* Schedule new governance operations
+* Browse and filter scheduled operations
+* Execute ready operations
+* Cancel pending operations
+* Manage roles and permissions
+* Decode and verify operation calldata
+
+\[Screenshot placeholder: Dashboard showing operations overview]
 
 ## Why Timelocks Matter
 
@@ -45,64 +46,71 @@ With Timelock:
 ### 1. Operations Explorer
 
 Browse all operations with powerful filtering:
-- Filter by status (Pending, Ready, Executed, Cancelled)
-- Search by operation ID or address
-- Date range filtering
-- View operation details and decoded calldata
 
-[Screenshot placeholder: Operations Explorer with filters]
+* Filter by status (Pending, Ready, Executed, Cancelled)
+* Search by operation ID or address
+* Date range filtering
+* View operation details and decoded calldata
+
+\[Screenshot placeholder: Operations Explorer with filters]
 
 ### 2. Proposal Creation Wizard
 
 Step-by-step interface for scheduling operations:
-- **Step 1**: Select target contract and fetch ABI
-- **Step 2**: Configure function calls with parameters
-- **Step 3**: Review and schedule with delay settings
+
+* **Step 1**: Select target contract and fetch ABI
+* **Step 2**: Configure function calls with parameters
+* **Step 3**: Review and schedule with delay settings
 
 Supports both single operations and batch operations (multiple calls executed atomically).
 
-[Screenshot placeholder: Proposal wizard Step 2]
+\[Screenshot placeholder: Proposal wizard Step 2]
 
 ### 3. Calldata Decoder
 
 Decode and verify operation calldata:
-- Recursive decoding of nested operations
-- ABI verification (Blockscout verified vs guessed)
-- AI-powered explanations (optional)
-- Human-readable parameter display
 
-[Screenshot placeholder: Decoder showing decoded operation]
+* Recursive decoding of nested operations
+* ABI verification (Blockscout verified vs guessed)
+* AI-powered explanations (optional)
+* Human-readable parameter display
+
+\[Screenshot placeholder: Decoder showing decoded operation]
 
 ### 4. Role Management
 
 View and audit governance permissions:
-- See all role grants and members
-- View role grant/revoke history
-- Check your own permissions
-- Links to Blockscout for detailed exploration
+
+* See all role grants and members
+* View role grant/revoke history
+* Check your own permissions
+* Links to Blockscout for detailed exploration
 
 ### 5. Multi-Timelock Support
 
 Manage multiple TimelockController contracts:
-- Configure multiple timelocks
-- Switch between networks (mainnet/testnet)
-- Network-specific settings
-- Per-timelock subgraph URLs
+
+* Configure multiple timelocks
+* Switch between networks (mainnet/testnet)
+* Network-specific settings
+* Per-timelock subgraph URLs
 
 ### 6. Dual Data Sources
 
 Resilient data fetching with automatic fallback:
-- **Primary**: The Graph subgraphs (fast, indexed)
-- **Fallback**: Blockscout API (always available)
-- Transparent switching based on availability
+
+* **Primary**: The Graph subgraphs (fast, indexed)
+* **Fallback**: Blockscout API (always available)
+* Transparent switching based on availability
 
 ### 7. Security Features
 
 Built-in safety mechanisms:
-- High-risk function detection
-- Transaction simulation before execution
-- Role-based access control
-- ABI verification and confidence levels
+
+* High-risk function detection
+* Transaction simulation before execution
+* Role-based access control
+* ABI verification and confidence levels
 
 ## How It Works
 
@@ -132,17 +140,18 @@ Built-in safety mechanisms:
 
 TimelockController defines four key roles:
 
-| Role | Permission | Risk Level |
-|------|-----------|------------|
-| **Proposer** | Schedule operations | High |
-| **Executor** | Execute ready operations | Medium |
-| **Canceller** | Cancel pending operations | Low |
-| **Admin** | Grant/revoke roles | Critical |
+| Role          | Permission                | Risk Level |
+| ------------- | ------------------------- | ---------- |
+| **Proposer**  | Schedule operations       | High       |
+| **Executor**  | Execute ready operations  | Medium     |
+| **Canceller** | Cancel pending operations | Low        |
+| **Admin**     | Grant/revoke roles        | Critical   |
 
 Each operation requires specific roles at different stages:
-- **Scheduling**: Requires PROPOSER role
-- **Execution**: Requires EXECUTOR role
-- **Cancellation**: Requires CANCELLER role
+
+* **Scheduling**: Requires PROPOSER role
+* **Execution**: Requires EXECUTOR role
+* **Cancellation**: Requires CANCELLER role
 
 See: [Understanding Roles](../user-guide/understanding-roles.md)
 
@@ -153,6 +162,7 @@ See: [Understanding Roles](../user-guide/understanding-roles.md)
 **Scenario**: DAO managing DeFi protocol
 
 **Workflow**:
+
 1. DAO member proposes parameter change
 2. Proposal scheduled through Timelock Manager
 3. Community reviews during delay period
@@ -164,6 +174,7 @@ See: [Understanding Roles](../user-guide/understanding-roles.md)
 **Scenario**: Multi-sig controlling treasury
 
 **Workflow**:
+
 1. Treasury operator schedules batch payment
 2. Batch includes multiple transfers
 3. Other signers review in Operations Explorer
@@ -175,6 +186,7 @@ See: [Understanding Roles](../user-guide/understanding-roles.md)
 **Scenario**: Upgrading proxy contract
 
 **Workflow**:
+
 1. Developer schedules `upgradeTo(newImplementation)`
 2. Decoder shows upgrade target and parameters
 3. Security team reviews new implementation
@@ -186,6 +198,7 @@ See: [Understanding Roles](../user-guide/understanding-roles.md)
 **Scenario**: Malicious proposal discovered
 
 **Workflow**:
+
 1. Security team monitors Operations Explorer
 2. Suspicious operation detected
 3. Canceller role used to cancel operation
@@ -196,11 +209,11 @@ See: [Understanding Roles](../user-guide/understanding-roles.md)
 
 Built with modern Web3 technologies:
 
-- **Frontend**: Next.js 14, TypeScript, Tailwind CSS
-- **Web3**: wagmi, viem, RainbowKit
-- **Data**: The Graph, Blockscout API
-- **State**: TanStack Query, React Context
-- **Blockchain**: Rootstock (Bitcoin-secured EVM)
+* **Frontend**: Next.js 14, TypeScript, Tailwind CSS
+* **Web3**: wagmi, viem, RainbowKit
+* **Data**: The Graph, Blockscout API
+* **State**: TanStack Query, React Context
+* **Blockchain**: Rootstock (Bitcoin-secured EVM)
 
 ## Rootstock Integration
 
@@ -208,15 +221,15 @@ Built with modern Web3 technologies:
 
 Rootstock is an EVM-compatible smart contract platform secured by Bitcoin's proof-of-work:
 
-- **Bitcoin Security**: Inherits Bitcoin's hash power
-- **EVM Compatible**: Run Ethereum smart contracts
-- **Low Fees**: Cost-effective transactions
-- **Fast Blocks**: ~30 second block time
+* **Bitcoin Security**: Inherits Bitcoin's hash power
+* **EVM Compatible**: Run Ethereum smart contracts
+* **Low Fees**: Cost-effective transactions
+* **Fast Blocks**: \~30 second block time
 
 ### Supported Networks
 
-- **Mainnet** (Chain ID 30): Production deployments
-- **Testnet** (Chain ID 31): Development and testing
+* **Mainnet** (Chain ID 30): Production deployments
+* **Testnet** (Chain ID 31): Development and testing
 
 Get testnet RBTC: [Rootstock Faucet](https://faucet.rootstock.io/)
 
@@ -255,45 +268,45 @@ Schedule → Pending → Ready → Executed
 
 The **delay** is the waiting period (in seconds) between scheduling and execution:
 
-- Set at TimelockController deployment
-- Can be updated through governance
-- Typical delays: 24-72 hours
-- Balances security vs agility
+* Set at TimelockController deployment
+* Can be updated through governance
+* Typical delays: 24-72 hours
+* Balances security vs agility
 
 ## Benefits
 
 ### For Governance Participants
 
-- **User-Friendly**: No need to interact with contracts directly
-- **Transparent**: See all operations and their status
-- **Safe**: Built-in verification and simulation
-- **Efficient**: Fast queries with subgraph indexing
+* **User-Friendly**: No need to interact with contracts directly
+* **Transparent**: See all operations and their status
+* **Safe**: Built-in verification and simulation
+* **Efficient**: Fast queries with subgraph indexing
 
 ### For Protocol Administrators
 
-- **Comprehensive**: All governance features in one place
-- **Flexible**: Supports complex batch operations
-- **Auditable**: Full on-chain history
-- **Resilient**: Automatic fallback if services are down
+* **Comprehensive**: All governance features in one place
+* **Flexible**: Supports complex batch operations
+* **Auditable**: Full on-chain history
+* **Resilient**: Automatic fallback if services are down
 
 ### For Security Teams
 
-- **Visibility**: Monitor all proposals in real-time
-- **Verification**: Decode and verify calldata
-- **Control**: Cancel malicious proposals quickly
-- **Traceability**: Immutable audit trail
+* **Visibility**: Monitor all proposals in real-time
+* **Verification**: Decode and verify calldata
+* **Control**: Cancel malicious proposals quickly
+* **Traceability**: Immutable audit trail
 
 ## Comparison with Alternatives
 
-| Feature | Timelock Manager | Block Explorer | Direct Contract Calls |
-|---------|-----------------|----------------|----------------------|
-| User-friendly | ✅ Yes | ❌ No | ❌ No |
-| Decode calldata | ✅ Automatic | ⚠️ Manual | ❌ No |
-| Filter operations | ✅ Yes | ⚠️ Limited | ❌ No |
-| Batch operations | ✅ UI support | ❌ No | ⚠️ Manual |
-| Transaction simulation | ✅ Built-in | ❌ No | ❌ No |
-| Multi-timelock | ✅ Yes | ❌ No | ❌ No |
-| AI explanations | ✅ Optional | ❌ No | ❌ No |
+| Feature                | Timelock Manager | Block Explorer | Direct Contract Calls |
+| ---------------------- | ---------------- | -------------- | --------------------- |
+| User-friendly          | ✅ Yes            | ❌ No           | ❌ No                  |
+| Decode calldata        | ✅ Automatic      | ⚠️ Manual      | ❌ No                  |
+| Filter operations      | ✅ Yes            | ⚠️ Limited     | ❌ No                  |
+| Batch operations       | ✅ UI support     | ❌ No           | ⚠️ Manual             |
+| Transaction simulation | ✅ Built-in       | ❌ No           | ❌ No                  |
+| Multi-timelock         | ✅ Yes            | ❌ No           | ❌ No                  |
+| AI explanations        | ✅ Optional       | ❌ No           | ❌ No                  |
 
 ## Getting Started
 
@@ -306,10 +319,10 @@ Ready to use Timelock Manager?
 
 ## Next Steps
 
-- **New User**: Start with [Quick Start](quick-start.md)
-- **Developer**: See [Installation](../developer-guide/installation.md)
-- **Administrator**: Check [Subgraph Deployment](../subgraph-deployment/README.md)
+* **New User**: Start with [Quick Start](quick-start.md)
+* **Developer**: See [Installation](../developer-guide/installation.md)
+* **Administrator**: Check [Subgraph Deployment](../subgraph-deployment/subgraph-deployment.md)
 
----
+***
 
 **Continue reading**: [Prerequisites](prerequisites.md) → [Quick Start](quick-start.md)
