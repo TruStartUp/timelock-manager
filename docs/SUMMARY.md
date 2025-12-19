@@ -11,7 +11,6 @@
 
 * [User Guide Overview](user-guide/user-guide.md)
 * [Connecting Your Wallet](user-guide/connecting-wallet.md)
-* [Dashboard Overview](user-guide/dashboard-overview.md)
 * [Operations Explorer](user-guide/operations-explorer.md)
 * [Creating Proposals](user-guide/creating-proposals.md)
 * [Executing Operations](user-guide/executing-operations.md)
