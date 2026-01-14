@@ -80,6 +80,10 @@ interface Operation {
   executedAt: bigint | null
   delay: bigint
   scheduledAt: bigint
+  // Transaction hashes
+  scheduledTx: `0x${string}`
+  executedTx: `0x${string}` | null
+  cancelledTx: `0x${string}` | null
   // Execution parameters (from subgraph)
   target: `0x${string}` | null
   value: bigint | null
@@ -93,6 +97,7 @@ interface Operation {
     callsDetails: Array<{
       target: string
       value: string
+      rawValue: bigint
       data?: `0x${string}` | null
       signature?: string | null
     }>
@@ -185,6 +190,7 @@ const OperationsExplorerView: React.FC = () => {
 
   // FR-031: decoded call summary for the execute confirmation modal
   const [decodedExecute, setDecodedExecute] = useState<DecodedCall | null>(null)
+  const [decodedBatchCalls, setDecodedBatchCalls] = useState<(DecodedCall | null)[]>([])
   const [executeDecodeError, setExecuteDecodeError] = useState<string | null>(null)
   const [isDecodingExecute, setIsDecodingExecute] = useState(false)
 
@@ -213,48 +219,114 @@ const OperationsExplorerView: React.FC = () => {
   useEffect(() => {
     let cancelled = false
     const run = async () => {
-      if (
-        !confirmExecuteOperation?.target ||
-        confirmExecuteOperation.value === null ||
-        !confirmExecuteOperation.data
-      ) {
+      if (!confirmExecuteOperation) {
         setDecodedExecute(null)
+        setDecodedBatchCalls([])
         setExecuteDecodeError(null)
         setIsDecodingExecute(false)
         return
       }
 
-      const target = confirmExecuteOperation.target as Address
-      const calldata = confirmExecuteOperation.data as `0x${string}`
-      const abi = abiByAddress[target.toLowerCase()]
+      const isBatch = confirmExecuteOperation.calls > 1
 
-      // Only attempt if we have a custom ABI or remote decode is allowed.
-      if ((!abi || abi.length === 0) && !allowRemoteDecode) {
-        setDecodedExecute(null)
-        setExecuteDecodeError(null)
-        setIsDecodingExecute(false)
-        return
-      }
-
-      setIsDecodingExecute(true)
-      setExecuteDecodeError(null)
-      setDecodedExecute(null)
-      try {
-        const decoded = await decodeCalldata({
-          calldata,
-          target,
-          abi: abi && abi.length > 0 ? abi : undefined,
-          network: allowRemoteDecode ? network : undefined,
-          publicClient: allowRemoteDecode ? (publicClient ?? undefined) : undefined,
-          abiByAddress,
-        })
-        if (!cancelled) setDecodedExecute(decoded)
-      } catch (err) {
-        if (!cancelled) {
-          setExecuteDecodeError(err instanceof Error ? err.message : String(err))
+      if (isBatch) {
+        // Batch operation - decode each call
+        const callsDetails = confirmExecuteOperation.details?.callsDetails
+        if (!callsDetails?.length) {
+          setDecodedExecute(null)
+          setDecodedBatchCalls([])
+          setExecuteDecodeError(null)
+          setIsDecodingExecute(false)
+          return
         }
-      } finally {
-        if (!cancelled) setIsDecodingExecute(false)
+
+        setIsDecodingExecute(true)
+        setExecuteDecodeError(null)
+        setDecodedExecute(null)
+        setDecodedBatchCalls([])
+
+        try {
+          const decodedResults = await Promise.all(
+            callsDetails.map(async (call) => {
+              const target = call.target as Address
+              const calldata = (call.data || '0x') as `0x${string}`
+              const abi = abiByAddress[target.toLowerCase()]
+
+              // Skip if no ABI and no remote decode
+              if ((!abi || abi.length === 0) && !allowRemoteDecode) {
+                return null
+              }
+
+              try {
+                return await decodeCalldata({
+                  calldata,
+                  target,
+                  abi: abi && abi.length > 0 ? abi : undefined,
+                  network: allowRemoteDecode ? network : undefined,
+                  publicClient: allowRemoteDecode ? (publicClient ?? undefined) : undefined,
+                  abiByAddress,
+                })
+              } catch {
+                return null
+              }
+            })
+          )
+          if (!cancelled) setDecodedBatchCalls(decodedResults)
+        } catch (err) {
+          if (!cancelled) {
+            setExecuteDecodeError(err instanceof Error ? err.message : String(err))
+          }
+        } finally {
+          if (!cancelled) setIsDecodingExecute(false)
+        }
+      } else {
+        // Single operation - existing behavior
+        if (
+          !confirmExecuteOperation.target ||
+          confirmExecuteOperation.value === null ||
+          !confirmExecuteOperation.data
+        ) {
+          setDecodedExecute(null)
+          setDecodedBatchCalls([])
+          setExecuteDecodeError(null)
+          setIsDecodingExecute(false)
+          return
+        }
+
+        const target = confirmExecuteOperation.target as Address
+        const calldata = confirmExecuteOperation.data as `0x${string}`
+        const abi = abiByAddress[target.toLowerCase()]
+
+        // Only attempt if we have a custom ABI or remote decode is allowed.
+        if ((!abi || abi.length === 0) && !allowRemoteDecode) {
+          setDecodedExecute(null)
+          setDecodedBatchCalls([])
+          setExecuteDecodeError(null)
+          setIsDecodingExecute(false)
+          return
+        }
+
+        setIsDecodingExecute(true)
+        setExecuteDecodeError(null)
+        setDecodedExecute(null)
+        setDecodedBatchCalls([])
+        try {
+          const decoded = await decodeCalldata({
+            calldata,
+            target,
+            abi: abi && abi.length > 0 ? abi : undefined,
+            network: allowRemoteDecode ? network : undefined,
+            publicClient: allowRemoteDecode ? (publicClient ?? undefined) : undefined,
+            abiByAddress,
+          })
+          if (!cancelled) setDecodedExecute(decoded)
+        } catch (err) {
+          if (!cancelled) {
+            setExecuteDecodeError(err instanceof Error ? err.message : String(err))
+          }
+        } finally {
+          if (!cancelled) setIsDecodingExecute(false)
+        }
       }
     }
     run()
@@ -300,37 +372,74 @@ const OperationsExplorerView: React.FC = () => {
     account: connectedAccount,
   })
 
-  // T111: simulate execute() when the confirm modal opens
+  // T111: simulate execute()/executeBatch() when the confirm modal opens
   useEffect(() => {
     const run = async () => {
-      if (
-        !publicClient ||
-        !timelockAddress ||
-        !confirmExecuteOperation ||
-        !confirmExecuteOperation.target ||
-        confirmExecuteOperation.value === null ||
-        !confirmExecuteOperation.data
-      ) {
+      if (!publicClient || !timelockAddress || !confirmExecuteOperation) {
         setExecuteSimulation({ status: 'idle' })
         return
       }
 
+      const isBatch = confirmExecuteOperation.calls > 1
+
+      // For batch operations, we need callsDetails
+      if (isBatch) {
+        if (!confirmExecuteOperation.details?.callsDetails?.length) {
+          setExecuteSimulation({ status: 'idle' })
+          return
+        }
+      } else {
+        // For single operations, we need target/value/data
+        if (
+          !confirmExecuteOperation.target ||
+          confirmExecuteOperation.value === null ||
+          !confirmExecuteOperation.data
+        ) {
+          setExecuteSimulation({ status: 'idle' })
+          return
+        }
+      }
+
       setExecuteSimulation({ status: 'pending' })
       try {
-        await publicClient.simulateContract({
-          address: timelockAddress,
-          abi: TimelockControllerABI as any,
-          functionName: 'execute',
-          args: [
-            confirmExecuteOperation.target,
-            confirmExecuteOperation.value,
-            confirmExecuteOperation.data,
-            confirmExecuteOperation.predecessor,
-            confirmExecuteOperation.salt,
-          ],
-          value: confirmExecuteOperation.value,
-          account: connectedAccount,
-        } as any)
+        if (isBatch) {
+          // Batch operation - simulate executeBatch()
+          const callsDetails = confirmExecuteOperation.details!.callsDetails
+          const totalValue = callsDetails.reduce(
+            (sum, c) => sum + (c.rawValue ?? BigInt(0)),
+            BigInt(0)
+          )
+          await publicClient.simulateContract({
+            address: timelockAddress,
+            abi: TimelockControllerABI as any,
+            functionName: 'executeBatch',
+            args: [
+              callsDetails.map((c) => c.target as Address),
+              callsDetails.map((c) => c.rawValue),
+              callsDetails.map((c) => (c.data || '0x') as `0x${string}`),
+              confirmExecuteOperation.predecessor,
+              confirmExecuteOperation.salt,
+            ],
+            value: totalValue,
+            account: connectedAccount,
+          } as any)
+        } else {
+          // Single operation - simulate execute()
+          await publicClient.simulateContract({
+            address: timelockAddress,
+            abi: TimelockControllerABI as any,
+            functionName: 'execute',
+            args: [
+              confirmExecuteOperation.target,
+              confirmExecuteOperation.value,
+              confirmExecuteOperation.data,
+              confirmExecuteOperation.predecessor,
+              confirmExecuteOperation.salt,
+            ],
+            value: confirmExecuteOperation.value,
+            account: connectedAccount,
+          } as any)
+        }
 
         setExecuteSimulation({ status: 'success' })
       } catch (err) {
@@ -483,6 +592,9 @@ const OperationsExplorerView: React.FC = () => {
 
       // Also invalidate operations summary for dashboard updates
       queryClient.invalidateQueries({ queryKey: ['operations-summary', chainId] })
+
+      // Close the execute confirmation modal
+      setConfirmExecuteOperation(null)
     }
   }, [isExecuteSuccess, chainId, queryClient])
 
@@ -491,6 +603,9 @@ const OperationsExplorerView: React.FC = () => {
     if (isCancelSuccess) {
       queryClient.invalidateQueries({ queryKey: ['operations', chainId] })
       queryClient.invalidateQueries({ queryKey: ['operations-summary', chainId] })
+
+      // Close the cancel confirmation modal
+      setConfirmCancelOperation(null)
     }
   }, [isCancelSuccess, chainId, queryClient])
 
@@ -561,6 +676,10 @@ const OperationsExplorerView: React.FC = () => {
         executedAt: op.executedAt,
         delay: op.delay ?? BigInt(0),
         scheduledAt: op.scheduledAt ?? BigInt(0),
+        // Transaction hashes
+        scheduledTx: op.scheduledTx,
+        executedTx: op.executedTx,
+        cancelledTx: op.cancelledTx,
         // Execution parameters for useTimelockWrite
         target: primaryTarget,
         value: primaryValue,
@@ -575,6 +694,7 @@ const OperationsExplorerView: React.FC = () => {
             ? subgraphCalls.map((c) => ({
                 target: c.target,
                 value: c.value > BigInt(0) ? `${formatEther(c.value)} RBTC` : '0',
+                rawValue: c.value,
                 data: c.data,
                 signature: c.signature,
               }))
@@ -586,6 +706,7 @@ const OperationsExplorerView: React.FC = () => {
                       primaryValue > BigInt(0)
                         ? `${formatEther(primaryValue)} RBTC`
                         : '0',
+                    rawValue: primaryValue,
                     data: primaryData,
                     signature: null,
                   },
@@ -728,23 +849,39 @@ const OperationsExplorerView: React.FC = () => {
   const confirmCancel = () => {
     if (!confirmCancelOperation) return
     // Ensure previous cancel mutation state doesn't bleed into the next one.
+    // Note: Modal is closed via useEffect when isCancelSuccess becomes true
     resetCancel()
     setActiveCancelOperationId(confirmCancelOperation.fullId)
     cancel(confirmCancelOperation.fullId)
-    setConfirmCancelOperation(null)
   }
 
   const confirmExecute = () => {
     if (!confirmExecuteOperation) return
     // Execute the operation using useTimelockWrite
-    execute({
-      target: confirmExecuteOperation.target!,
-      value: confirmExecuteOperation.value!,
-      data: confirmExecuteOperation.data!,
-      predecessor: confirmExecuteOperation.predecessor,
-      salt: confirmExecuteOperation.salt,
-    })
-    setConfirmExecuteOperation(null)
+    // Note: Modal is closed via useEffect when isExecuteSuccess becomes true
+
+    const isBatch = confirmExecuteOperation.calls > 1
+
+    if (isBatch && confirmExecuteOperation.details?.callsDetails) {
+      // Batch operation - pass arrays to trigger executeBatch()
+      const callsDetails = confirmExecuteOperation.details.callsDetails
+      execute({
+        targets: callsDetails.map((c) => c.target as Address),
+        values: callsDetails.map((c) => c.rawValue),
+        payloads: callsDetails.map((c) => (c.data || '0x') as `0x${string}`),
+        predecessor: confirmExecuteOperation.predecessor,
+        salt: confirmExecuteOperation.salt,
+      })
+    } else {
+      // Single operation - pass single values to trigger execute()
+      execute({
+        target: confirmExecuteOperation.target!,
+        value: confirmExecuteOperation.value!,
+        data: confirmExecuteOperation.data!,
+        predecessor: confirmExecuteOperation.predecessor,
+        salt: confirmExecuteOperation.salt,
+      })
+    }
   }
 
   const formatTargets = (targets: string[]) => {
@@ -797,109 +934,267 @@ const OperationsExplorerView: React.FC = () => {
                     confirmExecuteOperation.fullId}
                 </span>
               </div>
-              <div className="flex justify-between gap-3">
-                <span className="text-text-dark-secondary">Target</span>
-                <span className="text-text-dark-primary break-all">
-                  {confirmExecuteOperation.target ?? '—'}
-                </span>
-              </div>
-              <div className="flex justify-between gap-3">
-                <span className="text-text-dark-secondary">Value</span>
-                <span className="text-text-dark-primary break-all">
-                  {confirmExecuteOperation.value === null
-                    ? '—'
-                    : confirmExecuteOperation.value > BigInt(0)
-                      ? `${formatEther(confirmExecuteOperation.value)} RBTC`
-                      : '0'}
-                </span>
-              </div>
-              <div className="flex justify-between gap-3">
-                <span className="text-text-dark-secondary">Calldata</span>
-                <span className="text-text-dark-primary break-all">
-                  {confirmExecuteOperation.data ?? '—'}
-                </span>
-              </div>
+
+              {/* Show all calls for batch operations, or single call details */}
+              {confirmExecuteOperation.calls > 1 &&
+              confirmExecuteOperation.details?.callsDetails ? (
+                <div className="space-y-3">
+                  <div className="flex justify-between gap-3">
+                    <span className="text-text-dark-secondary">Calls</span>
+                    <span className="text-text-dark-primary">
+                      {confirmExecuteOperation.calls}
+                    </span>
+                  </div>
+                  <div className="max-h-64 overflow-y-auto space-y-2">
+                    {confirmExecuteOperation.details.callsDetails.map(
+                      (call, idx) => (
+                        <div
+                          key={idx}
+                          className="rounded border border-border-dark/60 bg-black/10 p-3 space-y-2"
+                        >
+                          <div className="text-xs font-semibold text-text-dark-secondary">
+                            Call {idx + 1}
+                          </div>
+                          <div className="flex justify-between gap-3">
+                            <span className="text-text-dark-secondary text-xs">
+                              Target
+                            </span>
+                            <span className="text-text-dark-primary break-all text-xs">
+                              {call.target}
+                            </span>
+                          </div>
+                          <div className="flex justify-between gap-3">
+                            <span className="text-text-dark-secondary text-xs">
+                              Value
+                            </span>
+                            <span className="text-text-dark-primary break-all text-xs">
+                              {call.rawValue > BigInt(0)
+                                ? `${formatEther(call.rawValue)} RBTC`
+                                : '0'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between gap-3">
+                            <span className="text-text-dark-secondary text-xs">
+                              Calldata
+                            </span>
+                            <span className="text-text-dark-primary break-all text-xs">
+                              {call.data ?? '—'}
+                            </span>
+                          </div>
+                        </div>
+                      )
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-text-dark-secondary">Target</span>
+                    <span className="text-text-dark-primary break-all">
+                      {confirmExecuteOperation.target ?? '—'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-text-dark-secondary">Value</span>
+                    <span className="text-text-dark-primary break-all">
+                      {confirmExecuteOperation.value === null
+                        ? '—'
+                        : confirmExecuteOperation.value > BigInt(0)
+                          ? `${formatEther(confirmExecuteOperation.value)} RBTC`
+                          : '0'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-text-dark-secondary">Calldata</span>
+                    <span className="text-text-dark-primary break-all">
+                      {confirmExecuteOperation.data ?? '—'}
+                    </span>
+                  </div>
+                </>
+              )}
             </div>
 
             {/* FR-031: explicit call summary with decoded calldata (when available) */}
-            <div className="mt-4 rounded border border-border-dark bg-background-dark p-4 text-sm">
-              <div className="flex items-center justify-between gap-3">
-                <span className="font-semibold text-text-dark-primary">
-                  Call summary
-                </span>
-                {isVerifiedBlockscout(decodedExecute) ? (
-                  <span className="inline-flex items-center rounded-full border border-green-500/30 bg-green-500/10 px-2 py-0.5 text-[11px] font-semibold text-green-200">
-                    ✅ Verified contract
+            {confirmExecuteOperation.calls > 1 &&
+            confirmExecuteOperation.details?.callsDetails ? (
+              // Batch operation - show summary for each call
+              <div className="mt-4 rounded border border-border-dark bg-background-dark p-4 text-sm">
+                <div className="flex items-center justify-between gap-3 mb-3">
+                  <span className="font-semibold text-text-dark-primary">
+                    Call summaries ({confirmExecuteOperation.calls})
                   </span>
-                ) : (
-                  <span className="inline-flex items-center rounded-full border border-yellow-500/30 bg-yellow-500/10 px-2 py-0.5 text-[11px] font-semibold text-yellow-200">
-                    ⚠️ Unverified - showing raw hex
-                  </span>
-                )}
+                  {isDecodingExecute && (
+                    <span className="text-text-dark-secondary text-xs">
+                      Decoding...
+                    </span>
+                  )}
+                </div>
+                <div className="max-h-64 overflow-y-auto space-y-3">
+                  {confirmExecuteOperation.details.callsDetails.map(
+                    (call, idx) => {
+                      const decoded = decodedBatchCalls[idx]
+                      return (
+                        <div
+                          key={idx}
+                          className="rounded border border-border-dark/60 bg-black/10 p-3 space-y-2"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-xs font-semibold text-text-dark-secondary">
+                              Call {idx + 1}
+                            </span>
+                            {decoded ? (
+                              isVerifiedBlockscout(decoded) ? (
+                                <span className="inline-flex items-center rounded-full border border-green-500/30 bg-green-500/10 px-2 py-0.5 text-[10px] font-semibold text-green-200">
+                                  Verified
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center rounded-full border border-yellow-500/30 bg-yellow-500/10 px-2 py-0.5 text-[10px] font-semibold text-yellow-200">
+                                  Unverified
+                                </span>
+                              )
+                            ) : null}
+                          </div>
+                          <div className="flex justify-between gap-3 font-mono text-xs">
+                            <span className="text-text-dark-secondary">
+                              Function
+                            </span>
+                            <span className="text-text-dark-primary break-all text-right">
+                              {decoded
+                                ? decoded.signature || decoded.functionName
+                                : call.signature || '—'}
+                            </span>
+                          </div>
+                          {isVerifiedBlockscout(decoded) &&
+                          decoded &&
+                          decoded.params.length > 0 ? (
+                            <div className="mt-2">
+                              <div className="text-[10px] font-bold uppercase text-text-dark-secondary mb-1">
+                                Arguments
+                              </div>
+                              <div className="space-y-1 text-[10px]">
+                                {decoded.params.map((p, pi) => (
+                                  <div
+                                    key={pi}
+                                    className="rounded border border-border-dark/40 bg-black/5 p-1.5"
+                                  >
+                                    <div className="text-text-dark-secondary">
+                                      {p.name} ({p.type})
+                                    </div>
+                                    <pre className="whitespace-pre-wrap wrap-break-word text-text-dark-primary">
+                                      {stringifyValue(p.value)}
+                                    </pre>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ) : null}
+                          {call.data ? (
+                            <div className="pt-1">
+                              <Link
+                                href={`/decoder?calldata=${encodeURIComponent(
+                                  call.data
+                                )}&contractAddress=${encodeURIComponent(
+                                  call.target
+                                )}`}
+                                className="inline-flex items-center gap-1 text-[10px] font-semibold text-primary hover:underline underline-offset-4"
+                              >
+                                Open in Decoder
+                                <span className="material-symbols-outlined text-xs!">
+                                  open_in_new
+                                </span>
+                              </Link>
+                            </div>
+                          ) : null}
+                        </div>
+                      )
+                    }
+                  )}
+                </div>
               </div>
-
-              <div className="mt-3 space-y-2 font-mono text-sm">
-                <div className="flex justify-between gap-3">
-                  <span className="text-text-dark-secondary">Function</span>
-                  <span className="text-text-dark-primary break-all text-right">
-                    {isDecodingExecute ? (
-                      'Decoding…'
-                    ) : decodedExecute ? (
-                      decodedExecute.signature || decodedExecute.functionName
-                    ) : (
-                      '—'
-                    )}
+            ) : (
+              // Single operation - existing behavior
+              <div className="mt-4 rounded border border-border-dark bg-background-dark p-4 text-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="font-semibold text-text-dark-primary">
+                    Call summary
                   </span>
+                  {isVerifiedBlockscout(decodedExecute) ? (
+                    <span className="inline-flex items-center rounded-full border border-green-500/30 bg-green-500/10 px-2 py-0.5 text-[11px] font-semibold text-green-200">
+                      Verified contract
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center rounded-full border border-yellow-500/30 bg-yellow-500/10 px-2 py-0.5 text-[11px] font-semibold text-yellow-200">
+                      Unverified - showing raw hex
+                    </span>
+                  )}
                 </div>
 
-                {executeDecodeError ? (
-                  <div className="text-xs text-red-300">
-                    Decode failed: {executeDecodeError}
+                <div className="mt-3 space-y-2 font-mono text-sm">
+                  <div className="flex justify-between gap-3">
+                    <span className="text-text-dark-secondary">Function</span>
+                    <span className="text-text-dark-primary break-all text-right">
+                      {isDecodingExecute ? (
+                        'Decoding…'
+                      ) : decodedExecute ? (
+                        decodedExecute.signature || decodedExecute.functionName
+                      ) : (
+                        '—'
+                      )}
+                    </span>
                   </div>
-                ) : null}
 
-                {/* Only show typed args when we have Blockscout-verified ABI */}
-                {isVerifiedBlockscout(decodedExecute) &&
-                decodedExecute &&
-                decodedExecute.params.length > 0 ? (
-                  <div className="mt-3">
-                    <div className="text-xs font-bold uppercase text-text-dark-secondary mb-1">
-                      Arguments
+                  {executeDecodeError ? (
+                    <div className="text-xs text-red-300">
+                      Decode failed: {executeDecodeError}
                     </div>
-                    <div className="space-y-2 text-xs">
-                      {decodedExecute.params.map((p, i) => (
-                        <div key={i} className="rounded border border-border-dark/60 bg-black/10 p-2">
-                          <div className="text-text-dark-secondary">
-                            {p.name} ({p.type})
+                  ) : null}
+
+                  {/* Only show typed args when we have Blockscout-verified ABI */}
+                  {isVerifiedBlockscout(decodedExecute) &&
+                  decodedExecute &&
+                  decodedExecute.params.length > 0 ? (
+                    <div className="mt-3">
+                      <div className="text-xs font-bold uppercase text-text-dark-secondary mb-1">
+                        Arguments
+                      </div>
+                      <div className="space-y-2 text-xs">
+                        {decodedExecute.params.map((p, i) => (
+                          <div
+                            key={i}
+                            className="rounded border border-border-dark/60 bg-black/10 p-2"
+                          >
+                            <div className="text-text-dark-secondary">
+                              {p.name} ({p.type})
+                            </div>
+                            <pre className="whitespace-pre-wrap wrap-break-word text-text-dark-primary">
+                              {stringifyValue(p.value)}
+                            </pre>
                           </div>
-                          <pre className="whitespace-pre-wrap wrap-break-word text-text-dark-primary">
-                            {stringifyValue(p.value)}
-                          </pre>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ) : null}
+                  ) : null}
 
-                {confirmExecuteOperation.data ? (
-                  <div className="pt-2">
-                    <Link
-                      href={`/decoder?calldata=${encodeURIComponent(
-                        confirmExecuteOperation.data
-                      )}&contractAddress=${encodeURIComponent(
-                        confirmExecuteOperation.target ?? ''
-                      )}`}
-                      className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline underline-offset-4"
-                    >
-                      Open in Decoder
-                      <span className="material-symbols-outlined text-base!">
-                        open_in_new
-                      </span>
-                    </Link>
-                  </div>
-                ) : null}
+                  {confirmExecuteOperation.data ? (
+                    <div className="pt-2">
+                      <Link
+                        href={`/decoder?calldata=${encodeURIComponent(
+                          confirmExecuteOperation.data
+                        )}&contractAddress=${encodeURIComponent(
+                          confirmExecuteOperation.target ?? ''
+                        )}`}
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline underline-offset-4"
+                      >
+                        Open in Decoder
+                        <span className="material-symbols-outlined text-base!">
+                          open_in_new
+                        </span>
+                      </Link>
+                    </div>
+                  ) : null}
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="mt-4 rounded border border-border-dark bg-background-dark p-4 text-sm">
               <div className="flex items-center justify-between gap-3">
@@ -917,9 +1212,14 @@ const OperationsExplorerView: React.FC = () => {
                 )}
               </div>
               {executeSimulation.status === 'error' ? (
-                <p className="mt-2 text-red-300 wrap-break-word">
-                  {executeSimulation.message}
-                </p>
+                <details className="mt-2">
+                  <summary className="cursor-pointer text-red-300 hover:underline">
+                    Show error details
+                  </summary>
+                  <p className="mt-2 text-red-300 wrap-break-word text-xs">
+                    {executeSimulation.message}
+                  </p>
+                </details>
               ) : null}
             </div>
 
@@ -940,7 +1240,7 @@ const OperationsExplorerView: React.FC = () => {
                       : 'bg-border-dark text-text-dark-secondary cursor-not-allowed opacity-50'
                 }`}
                 onClick={confirmExecute}
-                disabled={!hasExecutorRole || isCheckingExecutorRole || isExecuting}
+                disabled={!hasExecutorRole || isCheckingExecutorRole || isExecuting || executeSimulation.status === 'pending'}
                 title={
                   isExecuting
                     ? 'Transaction pending...'
