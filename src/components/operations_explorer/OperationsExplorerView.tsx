@@ -80,6 +80,10 @@ interface Operation {
   executedAt: bigint | null
   delay: bigint
   scheduledAt: bigint
+  // Transaction hashes
+  scheduledTx: `0x${string}`
+  executedTx: `0x${string}` | null
+  cancelledTx: `0x${string}` | null
   // Execution parameters (from subgraph)
   target: `0x${string}` | null
   value: bigint | null
@@ -561,6 +565,10 @@ const OperationsExplorerView: React.FC = () => {
         executedAt: op.executedAt,
         delay: op.delay ?? BigInt(0),
         scheduledAt: op.scheduledAt ?? BigInt(0),
+        // Transaction hashes
+        scheduledTx: op.scheduledTx,
+        executedTx: op.executedTx,
+        cancelledTx: op.cancelledTx,
         // Execution parameters for useTimelockWrite
         target: primaryTarget,
         value: primaryValue,
