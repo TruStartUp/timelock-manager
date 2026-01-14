@@ -66,6 +66,7 @@ interface Operation {
     callsDetails: Array<{
       target: string
       value: string
+      rawValue: bigint
       data?: `0x${string}` | null
       signature?: string | null
     }>
