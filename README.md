@@ -86,6 +86,21 @@ This app can generate a plain-English explanation of decoded calls when the user
 
 This repo includes two subgraphs (one per network) under `subgraph/`. Deploy them to [The Graph Studio](https://thegraph.com/studio/) and then point the app at the resulting Query URL.
 
+#### Deploy from the app (new timelock, key stays on your machine)
+
+After deploying a timelock from the app, you can use the built-in **Subgraph deploy** flow to prepare and deploy a subgraph without ever sending your deploy key to the backend:
+
+1. From the timelock deploy success screen (or from **Settings → Subgraph deployment**), open the **Subgraph deploy** view.
+2. Confirm or enter the **Timelock address**, **Start block**, and **Network** for the timelock you just deployed.
+3. Enter your **Graph Studio deploy key** and desired **subgraph slug**. These values stay in the browser and are only used to construct a local shell command; they are never sent to the app’s server.
+4. Copy the generated shell command from the UI, paste it into your terminal, and run it. This command:
+   - Calls the app’s `/api/subgraph/prepare` endpoint to build a ready-to-deploy subgraph package for your timelock.
+   - Unzips the package and runs `npm install @graphprotocol/graph-cli`.
+   - Executes `npx graph auth --studio <DEPLOY_KEY>` and `npx graph deploy --studio <SUBGRAPH_SLUG>` locally on your machine.
+5. After deployment succeeds, copy the **Query URL** from The Graph Studio and paste it back into the **Subgraph deploy** view to save this timelock (with its subgraph URL) into the app configuration.
+
+At no point is your Studio deploy key sent to the app’s backend; it is only used locally in your browser and terminal.**
+
 ### 1) Choose the network subgraph
 
 - Testnet: `subgraph/rootstock-timelock-testnet/`
