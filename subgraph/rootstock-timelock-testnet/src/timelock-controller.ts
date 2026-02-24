@@ -120,7 +120,7 @@ export function handleCallScheduled(event: CallScheduledEvent): void {
   }
   
   // For batch operations, create Call entities for each call
-  if (event.params.index.gt(BigInt.fromI32(0))) {
+  if (event.params.index.ge(BigInt.fromI32(0))) {
     let callId = operationId.concat(Bytes.fromI32(event.params.index.toI32()))
     let call = new Call(callId)
     

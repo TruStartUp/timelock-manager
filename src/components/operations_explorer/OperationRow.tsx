@@ -14,7 +14,7 @@ import { getDangerousCallFromCalldata } from '@/lib/dangerous'
 import { formatSecondsToTime } from '@/lib/status'
 import { useABIManager } from '@/hooks/useABIManager'
 import { decodeCalldata, type DecodedCall } from '@/lib/decoder'
-import { CHAIN_TO_NETWORK } from '@/services/blockscout/client'
+import { CHAIN_TO_NETWORK, getBlockscoutExplorerUrl } from '@/services/blockscout/client'
 import { ABISource, ABIConfidence } from '@/services/blockscout/abi'
 
 const ERC20_METADATA_ABI = [
@@ -49,6 +49,10 @@ interface Operation {
   executedAt: bigint | null
   delay: bigint
   scheduledAt: bigint
+  // Transaction hashes
+  scheduledTx: `0x${string}`
+  executedTx: `0x${string}` | null
+  cancelledTx: `0x${string}` | null
   // Execution parameters (from subgraph) - included for type compatibility with parent view
   target: `0x${string}` | null
   value: bigint | null
@@ -62,6 +66,7 @@ interface Operation {
     callsDetails: Array<{
       target: string
       value: string
+      rawValue: bigint
       data?: `0x${string}` | null
       signature?: string | null
     }>
@@ -327,6 +332,35 @@ export const OperationRow: React.FC<OperationRowProps> = ({
       decoded.confidence === ABIConfidence.HIGH
     )
   }, [])
+
+  const blockscoutUrl = React.useMemo(() => {
+    return getBlockscoutExplorerUrl(chainId)
+  }, [chainId])
+
+  const getTxHashDisplay = React.useCallback(
+    (txHash: `0x${string}` | null, label: string) => {
+      if (!txHash) return null
+
+      return (
+        <p>
+          <span className="text-text-dark-secondary">{label}:</span>{' '}
+          <a
+            href={`${blockscoutUrl}/tx/${txHash}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary hover:underline underline-offset-4 font-mono break-all"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {txHash}
+            <span className="material-symbols-outlined text-base! ml-1 align-text-bottom inline-block">
+              open_in_new
+            </span>
+          </a>
+        </p>
+      )
+    },
+    [blockscoutUrl]
+  )
 
   const getTokenMeta = React.useCallback(
     async (tokenAddress: Address): Promise<TokenMeta | null> => {
@@ -833,6 +867,9 @@ export const OperationRow: React.FC<OperationRowProps> = ({
                     {operation.details.scheduled}
                   </span>
                 </p>
+                {getTxHashDisplay(operation.scheduledTx, 'Scheduled Tx')}
+                {displayStatus === 'Executed' && getTxHashDisplay(operation.executedTx, 'Executed Tx')}
+                {displayStatus === 'Canceled' && getTxHashDisplay(operation.cancelledTx, 'Cancelled Tx')}
               </div>
               {dangerous ? (
                 <div className="mt-3 rounded border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-200">

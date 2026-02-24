@@ -8,6 +8,41 @@ import { useRoles } from '@/hooks/useRoles'
 import { ROLE_NAMES } from '@/lib/constants'
 import { useTimelocks } from '@/hooks/useTimelocks'
 
+const DEFAULT_DOCS_URL = 'https://david-personal.gitbook.io/timelock-manager/'
+
+function DashboardIntro() {
+  const docsUrl = process.env.NEXT_PUBLIC_DOCS_URL ?? DEFAULT_DOCS_URL
+  return (
+    <div className="rounded border border-border-color bg-surface p-5" role="region" aria-label="About Timelock Controller and this app">
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center gap-2 text-text-secondary">
+          <span className="material-symbols-outlined text-lg" aria-hidden="true">info</span>
+          <span className="text-sm font-medium">About</span>
+        </div>
+        <p className="text-text-primary text-sm leading-relaxed">
+          A <strong>Timelock Controller</strong> is a smart contract that delays function calls on another contract for a set period. It is used in governance so that users can see planned changes and react before they take effect.
+        </p>
+        <p className="text-text-secondary text-sm leading-relaxed">
+          For example, when a management team decides to change a parameter (e.g. a fee or a cap), the timelock gives everyone time to review the operation, run checks, and cancel or adjust it if an error is found—instead of the change taking effect immediately.
+        </p>
+        <p className="text-text-secondary text-sm leading-relaxed">
+          If a malicious actor (e.g. a compromised proposer) schedules a harmful change—such as minting extra tokens or draining funds—the timelock does not execute it right away. The operation is visible to the community during the delay, so holders with the canceller role can cancel it, or users can exit the protocol before it executes.
+        </p>
+        <p className="text-text-secondary text-sm leading-relaxed">
+          <strong>Timelock Manager</strong> is a governance interface for OpenZeppelin TimelockController contracts on Rootstock. Use it to schedule, review, execute, and cancel operations; manage roles; and decode calldata—all from one place.
+        </p>
+        <a
+          href={docsUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-primary text-sm font-medium hover:underline focus-visible:underline underline-offset-2"
+        >
+          Learn more in the docs
+        </a>
+      </div>
+    </div>
+  )
+}
 
 const DashboardView: React.FC = () => {
   const chainId = useChainId()
@@ -31,26 +66,29 @@ const DashboardView: React.FC = () => {
 
   if (configurations.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16">
-        <div className="w-full max-w-2xl rounded-lg border border-border-color bg-surface p-8 text-center">
-          <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-            <span className="material-symbols-outlined text-2xl">
-              playlist_add
-            </span>
-          </div>
-          <h2 className="text-text-primary text-2xl font-bold">
-            No timelocks configured yet
-          </h2>
-          <p className="mt-2 text-text-secondary">
-            Add a timelock configuration in Settings to start exploring operations and roles.
-          </p>
-          <div className="mt-6 flex justify-center">
-            <Link
-              href="/settings"
-              className="rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-black hover:bg-primary/80 transition-colors"
-            >
-              Go to Settings
-            </Link>
+      <div className="flex flex-col gap-8">
+        <DashboardIntro />
+        <div className="flex flex-col items-center justify-center py-16">
+          <div className="w-full max-w-2xl rounded-lg border border-border-color bg-surface p-8 text-center">
+            <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <span className="material-symbols-outlined text-2xl">
+                playlist_add
+              </span>
+            </div>
+            <h2 className="text-text-primary text-2xl font-bold">
+              No timelocks configured yet
+            </h2>
+            <p className="mt-2 text-text-secondary">
+              Add a timelock configuration in Settings to start exploring operations and roles.
+            </p>
+            <div className="mt-6 flex justify-center">
+              <Link
+                href="/settings"
+                className="rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-black hover:bg-primary/80 transition-colors"
+              >
+                Go to Settings
+              </Link>
+            </div>
           </div>
         </div>
       </div>
@@ -59,26 +97,29 @@ const DashboardView: React.FC = () => {
 
   if (!selected) {
     return (
-      <div className="flex flex-col items-center justify-center py-16">
-        <div className="w-full max-w-2xl rounded-lg border border-border-color bg-surface p-8 text-center">
-          <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-yellow-500/10 text-yellow-500">
-            <span className="material-symbols-outlined text-2xl">
-              warning
-            </span>
-          </div>
-          <h2 className="text-text-primary text-2xl font-bold">
-            Select a timelock to view the dashboard
-          </h2>
-          <p className="mt-2 text-text-secondary">
-            Choose an active timelock from the selector in the header.
-          </p>
-          <div className="mt-6 flex justify-center">
-            <Link
-              href="/settings"
-              className="rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-black hover:bg-primary/80 transition-colors"
-            >
-              Manage timelocks in Settings
-            </Link>
+      <div className="flex flex-col gap-8">
+        <DashboardIntro />
+        <div className="flex flex-col items-center justify-center py-16">
+          <div className="w-full max-w-2xl rounded-lg border border-border-color bg-surface p-8 text-center">
+            <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-yellow-500/10 text-yellow-500">
+              <span className="material-symbols-outlined text-2xl">
+                warning
+              </span>
+            </div>
+            <h2 className="text-text-primary text-2xl font-bold">
+              Select a timelock to view the dashboard
+            </h2>
+            <p className="mt-2 text-text-secondary">
+              Choose an active timelock from the selector in the header.
+            </p>
+            <div className="mt-6 flex justify-center">
+              <Link
+                href="/settings"
+                className="rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-black hover:bg-primary/80 transition-colors"
+              >
+                Manage timelocks in Settings
+              </Link>
+            </div>
           </div>
         </div>
       </div>
@@ -89,6 +130,7 @@ const DashboardView: React.FC = () => {
     <>
       {/* Main Content Grid */}
       <div className="flex flex-col gap-8">
+        <DashboardIntro />
         {/* SectionHeader for Operations */}
         <h2 className="text-text-primary text-xl font-bold leading-tight tracking-[-0.015em]">
           Operations Overview
