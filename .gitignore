@@ -39,3 +39,8 @@ yarn-error.log*
 
 #Claude sessions
 .claude/settings.local.json
+
+# Hardhat (contracts/)
+/contracts/node_modules
+/contracts/artifacts
+/contracts/cache
