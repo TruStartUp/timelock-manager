@@ -4,6 +4,7 @@ import { useAccount, useChainId, useSendTransaction, useWaitForTransactionReceip
 import { isAddress } from 'viem'
 import { useTimelocks } from '@/hooks/useTimelocks'
 import { ROOTSTOCK_CHAINS } from '@/lib/constants'
+import { getBlockscoutExplorerUrl } from '@/services/blockscout/client'
 
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as const
 
@@ -26,6 +27,9 @@ export default function DeployTimelockView() {
   const [admin, setAdmin] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [compileError, setCompileError] = useState<string | null>(null)
+  const [verifyPending, setVerifyPending] = useState(false)
+  const [verifyError, setVerifyError] = useState<string | null>(null)
+  const [verifySuccess, setVerifySuccess] = useState(false)
 
   const { sendTransaction, data: txHash, isPending: isSendPending, error: sendError } = useSendTransaction()
   const { data: receipt, isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({ hash: txHash })
@@ -136,6 +140,41 @@ export default function DeployTimelockView() {
     })
   }, [deployedAddress, isConfirmed, chainId, addConfig])
 
+  const handleVerify = useCallback(async () => {
+    if (!deployedAddress || chainId !== ROOTSTOCK_CHAINS.MAINNET && chainId !== ROOTSTOCK_CHAINS.TESTNET) return
+    const proposerList = proposers.map((p) => p.trim()).filter(Boolean).map(normalizeAddress)
+    const executorList = executors.map((e) => e.trim()).filter(Boolean).map(normalizeAddress)
+    if (proposerList.length === 0 || executorList.length === 0) return
+    const adminAddr = admin.trim() ? normalizeAddress(admin.trim()) : ZERO_ADDRESS
+    setVerifyError(null)
+    setVerifySuccess(false)
+    setVerifyPending(true)
+    try {
+      const res = await fetch('/api/deploy-timelock/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          address: deployedAddress,
+          chainId,
+          minDelay: minDelay.trim() ? String(Number(minDelay)) : '0',
+          proposers: proposerList,
+          executors: executorList,
+          admin: adminAddr,
+        }),
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        setVerifyError(json.error ?? 'Verification failed')
+        return
+      }
+      setVerifySuccess(true)
+    } catch (err) {
+      setVerifyError(err instanceof Error ? err.message : 'Verification request failed')
+    } finally {
+      setVerifyPending(false)
+    }
+  }, [deployedAddress, chainId, proposers, executors, admin, minDelay])
+
   return (
     <main className="flex-1 p-8 md:p-12 overflow-y-auto">
       <div className="mx-auto max-w-4xl">
@@ -167,15 +206,54 @@ export default function DeployTimelockView() {
               <p className="text-text-dark-secondary text-sm">
                 Transaction: <code className="text-primary break-all">{txHash}</code>
               </p>
-              {deployedAddress && (
-                <button
-                  type="button"
-                  onClick={addToApp}
-                  className="inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold text-black bg-primary hover:bg-primary/80"
-                >
-                  Add this timelock to the app
-                </button>
+
+              {(chainId === ROOTSTOCK_CHAINS.MAINNET || chainId === ROOTSTOCK_CHAINS.TESTNET) && deployedAddress && txHash && (
+                <div className="space-y-2 pt-2">
+                  <p className="text-text-dark-secondary text-xs font-medium uppercase tracking-wide">Blockscout</p>
+                  <div className="flex flex-col gap-1">
+                    <a
+                      href={`${getBlockscoutExplorerUrl(chainId)}/address/${deployedAddress}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary text-sm hover:underline"
+                    >
+                      View contract
+                    </a>
+                    <a
+                      href={`${getBlockscoutExplorerUrl(chainId)}/tx/${txHash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary text-sm hover:underline"
+                    >
+                      View transaction
+                    </a>
+                  </div>
+                </div>
               )}
+
+              {deployedAddress && (
+                <div className="flex flex-wrap gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={addToApp}
+                    className="inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold text-black bg-primary hover:bg-primary/80"
+                  >
+                    Add this timelock to the app
+                  </button>
+                  {(chainId === ROOTSTOCK_CHAINS.MAINNET || chainId === ROOTSTOCK_CHAINS.TESTNET) && (
+                    <button
+                      type="button"
+                      onClick={handleVerify}
+                      disabled={verifyPending}
+                      className="inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold border border-[#55493a] text-white hover:bg-[#2a2218] disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {verifyPending ? 'Verifying…' : 'Verify contract on Blockscout'}
+                    </button>
+                  )}
+                </div>
+              )}
+              {verifySuccess && <p className="text-sm text-green-400">Contract verified successfully on Blockscout.</p>}
+              {verifyError && <p className="text-sm text-red-400">{verifyError}</p>}
             </div>
           ) : (
             <>

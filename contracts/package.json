@@ -3,9 +3,11 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "compile": "hardhat compile"
+    "compile": "hardhat compile",
+    "verify": "hardhat verify"
   },
   "devDependencies": {
+    "@nomicfoundation/hardhat-verify": "^3.0.10",
     "@nomicfoundation/hardhat-ignition": "^3.0.7",
     "@nomicfoundation/hardhat-toolbox-viem": "^5.0.2",
     "@types/node": "^22.19.11",

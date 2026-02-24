@@ -444,3 +444,23 @@ export function getBlockscoutExplorerUrl(chainId: number): string {
   }
   return BLOCKSCOUT_EXPLORER_BASE[network]
 }
+
+/**
+ * Rootstock Explorer base URLs (for UI links; official Rootstock block explorer)
+ */
+const ROOTSTOCK_EXPLORER_BASE = {
+  mainnet: 'https://explorer.rootstock.io',
+  testnet: 'https://explorer.testnet.rootstock.io',
+} as const
+
+/**
+ * Get Rootstock Explorer URL for a specific chain ID
+ * Used for building links to addresses, transactions, etc.
+ */
+export function getRootstockExplorerUrl(chainId: number): string {
+  const network = CHAIN_TO_NETWORK[chainId]
+  if (!network) {
+    throw new Error(`Unsupported chain ID: ${chainId}`)
+  }
+  return ROOTSTOCK_EXPLORER_BASE[network]
+}
