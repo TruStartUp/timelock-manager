@@ -48,6 +48,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     '/permissions': 'Roles',
     '/decoder': 'Decoder',
     '/settings': 'Settings',
+    '/deploy_timelock': 'Deploy Timelock',
   }
 
   const isActive = (href: string) => {

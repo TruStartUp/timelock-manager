@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
 import { createPublicClient, http, isAddress, type Address } from 'viem'
 import { rootstock, rootstockTestnet } from 'wagmi/chains'
 import { useChainId } from 'wagmi'
@@ -23,6 +24,16 @@ const SettingsView = () => {
   const [importAddress, setImportAddress] = useState('')
   const [importAbiJson, setImportAbiJson] = useState('')
   const [importError, setImportError] = useState<string | null>(null)
+
+  const [sectionOpen, setSectionOpen] = useState<Record<string, boolean>>({
+    deploy: false,
+    timelock: false,
+    network: false,
+    abi: false,
+  })
+  const toggleSection = (key: string) => {
+    setSectionOpen((prev) => ({ ...prev, [key]: !prev[key] }))
+  }
 
   useEffect(() => {
     setRpcUrlDraft(networkConfig.rpcUrl || '')
@@ -151,15 +162,50 @@ const SettingsView = () => {
         </div>
 
         {/* T015: Timelock Configurations Section */}
-        <TimelockSettings />
+        <div className="mb-6 rounded-lg border border-[#55493a] bg-[#231a0f] overflow-hidden">
+          <button
+            type="button"
+            className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left hover:bg-[#2a2218] transition-colors"
+            onClick={() => toggleSection('timelock')}
+            aria-expanded={sectionOpen.timelock}
+          >
+            <h2 className="text-white text-[22px] font-bold leading-tight tracking-[-0.015em]">
+              Timelock configurations
+            </h2>
+            <span
+              className={`material-symbols-outlined text-[#bbad9b] transition-transform ${sectionOpen.timelock ? 'rotate-180' : ''}`}
+              aria-hidden
+            >
+              expand_more
+            </span>
+          </button>
+          {sectionOpen.timelock ? (
+            <div className="border-t border-[#55493a] px-5 py-4">
+              <TimelockSettings />
+            </div>
+          ) : null}
+        </div>
 
-        {/* Divider */}
-        <div className="my-12 h-px w-full bg-[#3a3227]"></div>
-
-        <section className="flex flex-col gap-6">
-          <h2 className="text-white text-[22px] font-bold leading-tight tracking-[-0.015em] pb-3 border-b border-[#3a3227]">
-            Network Configuration
-          </h2>
+        {/* Network Configuration */}
+        <div className="mb-6 rounded-lg border border-[#55493a] bg-[#231a0f] overflow-hidden">
+          <button
+            type="button"
+            className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left hover:bg-[#2a2218] transition-colors"
+            onClick={() => toggleSection('network')}
+            aria-expanded={sectionOpen.network}
+          >
+            <h2 className="text-white text-[22px] font-bold leading-tight tracking-[-0.015em]">
+              Network Configuration
+            </h2>
+            <span
+              className={`material-symbols-outlined text-[#bbad9b] transition-transform ${sectionOpen.network ? 'rotate-180' : ''}`}
+              aria-hidden
+            >
+              expand_more
+            </span>
+          </button>
+          {sectionOpen.network ? (
+            <div className="border-t border-[#55493a] px-5 py-4 flex flex-col gap-6">
           <div className="flex flex-col gap-3">
             <label className="flex items-center gap-4 rounded-lg border border-solid border-primary p-[15px] cursor-pointer bg-primary/10">
               <input
@@ -291,10 +337,18 @@ const SettingsView = () => {
               Save Network Settings
             </button>
           </div>
-        </section>
-        <div className="my-12 h-px w-full bg-[#3a3227]"></div>
-        <section className="flex flex-col gap-6">
-          <div className="flex flex-wrap items-start justify-between gap-4">
+            </div>
+          ) : null}
+        </div>
+
+        {/* ABI Management */}
+        <div className="mb-6 rounded-lg border border-[#55493a] bg-[#231a0f] overflow-hidden">
+          <button
+            type="button"
+            className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left hover:bg-[#2a2218] transition-colors"
+            onClick={() => toggleSection('abi')}
+            aria-expanded={sectionOpen.abi}
+          >
             <div>
               <h2 className="text-white text-[22px] font-bold leading-tight tracking-[-0.015em]">
                 ABI Management
@@ -304,6 +358,17 @@ const SettingsView = () => {
                 contracts.
               </p>
             </div>
+            <span
+              className={`material-symbols-outlined text-[#bbad9b] transition-transform flex-shrink-0 ${sectionOpen.abi ? 'rotate-180' : ''}`}
+              aria-hidden
+            >
+              expand_more
+            </span>
+          </button>
+
+          {sectionOpen.abi ? (
+          <div className="border-t border-[#55493a] px-5 py-4 flex flex-col gap-6">
+          <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="flex gap-3">
               <button
                 className="flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold text-white bg-[#3a3227] hover:bg-[#55493a] transition-colors"
@@ -422,7 +487,43 @@ const SettingsView = () => {
               ))
             )}
           </div>
-        </section>
+          </div>
+          ) : null}
+        </div>
+
+        {/* Deploy a new timelock contract */}
+        <div className="mb-6 rounded-lg border border-[#55493a] bg-[#231a0f] overflow-hidden">
+          <button
+            type="button"
+            className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left hover:bg-[#2a2218] transition-colors"
+            onClick={() => toggleSection('deploy')}
+            aria-expanded={sectionOpen.deploy}
+          >
+            <h2 className="text-white text-[22px] font-bold leading-tight tracking-[-0.015em]">
+              Deploy a new timelock contract
+            </h2>
+            <span
+              className={`material-symbols-outlined text-[#bbad9b] transition-transform ${sectionOpen.deploy ? 'rotate-180' : ''}`}
+              aria-hidden
+            >
+              expand_more
+            </span>
+          </button>
+          {sectionOpen.deploy ? (
+            <div className="border-t border-[#55493a] px-5 py-4">
+              <p className="text-[#bbad9b] text-sm mb-4">
+                Deploy a new OpenZeppelin TimelockController on Rootstock from this app.
+              </p>
+              <Link
+                href="/deploy_timelock"
+                className="inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold text-black bg-primary hover:bg-primary/80 transition-colors"
+              >
+                <span className="material-symbols-outlined text-lg">add_circle</span>
+                Deploy Timelock
+              </Link>
+            </div>
+          ) : null}
+        </div>        
       </div>
     </main>
   )
