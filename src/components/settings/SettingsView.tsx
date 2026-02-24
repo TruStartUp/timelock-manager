@@ -28,6 +28,7 @@ const SettingsView = () => {
   const [sectionOpen, setSectionOpen] = useState<Record<string, boolean>>({
     deploy: false,
     timelock: false,
+    subgraph: false,
     network: false,
     abi: false,
   })
@@ -182,6 +183,40 @@ const SettingsView = () => {
           {sectionOpen.timelock ? (
             <div className="border-t border-[#55493a] px-5 py-4">
               <TimelockSettings />
+            </div>
+          ) : null}
+        </div>
+
+        {/* Subgraph deployment */}
+        <div className="mb-6 rounded-lg border border-[#55493a] bg-[#231a0f] overflow-hidden">
+          <button
+            type="button"
+            className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left hover:bg-[#2a2218] transition-colors"
+            onClick={() => toggleSection('subgraph')}
+            aria-expanded={sectionOpen.subgraph}
+          >
+            <h2 className="text-white text-[22px] font-bold leading-tight tracking-[-0.015em]">
+              Subgraph deployment
+            </h2>
+            <span
+              className={`material-symbols-outlined text-[#bbad9b] transition-transform ${sectionOpen.subgraph ? 'rotate-180' : ''}`}
+              aria-hidden
+            >
+              expand_more
+            </span>
+          </button>
+          {sectionOpen.subgraph ? (
+            <div className="border-t border-[#55493a] px-5 py-4 space-y-4">
+              <p className="text-text-dark-secondary text-sm">
+                Prepare and deploy a subgraph for a specific timelock using a guided flow. The Graph Studio deploy key is
+                always used locally on your machine and is never sent to this app.
+              </p>
+              <Link
+                href="/subgraph/deploy"
+                className="inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold text-black bg-primary hover:bg-primary/80"
+              >
+                Open subgraph deploy
+              </Link>
             </div>
           ) : null}
         </div>

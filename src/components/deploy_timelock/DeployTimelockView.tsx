@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/router'
 import { useAccount, useChainId, useSendTransaction, useWaitForTransactionReceipt } from 'wagmi'
 import { isAddress } from 'viem'
 import { useTimelocks } from '@/hooks/useTimelocks'
@@ -21,6 +22,7 @@ export default function DeployTimelockView() {
   const { address: walletAddress, isConnected } = useAccount()
   const chainId = useChainId()
   const { addConfig } = useTimelocks()
+  const router = useRouter()
   const [minDelay, setMinDelay] = useState('86400')
   const [proposers, setProposers] = useState<string[]>([''])
   const [executors, setExecutors] = useState<string[]>([''])
@@ -30,6 +32,7 @@ export default function DeployTimelockView() {
   const [verifyPending, setVerifyPending] = useState(false)
   const [verifyError, setVerifyError] = useState<string | null>(null)
   const [verifySuccess, setVerifySuccess] = useState(false)
+  const [pastedSubgraphUrl, setPastedSubgraphUrl] = useState('')
 
   const { sendTransaction, data: txHash, isPending: isSendPending, error: sendError } = useSendTransaction()
   const { data: receipt, isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({ hash: txHash })
@@ -128,17 +131,19 @@ export default function DeployTimelockView() {
     const address = deployedAddress
     if (!address || !isConfirmed) return
     const network = chainId === ROOTSTOCK_CHAINS.MAINNET ? 'rsk_mainnet' : 'rsk_testnet'
-    const subgraphUrl =
+    const envSubgraphUrl =
       chainId === ROOTSTOCK_CHAINS.MAINNET
         ? process.env.NEXT_PUBLIC_RSK_MAINNET_SUBGRAPH_URL ?? ''
         : process.env.NEXT_PUBLIC_RSK_TESTNET_SUBGRAPH_URL ?? ''
+    const fallbackSubgraphUrl = `https://api.studio.thegraph.com/query/0/rootstock-timelock-${network === 'rsk_mainnet' ? 'mainnet' : 'testnet'}/version/latest`
+    const subgraphUrl = pastedSubgraphUrl.trim() || envSubgraphUrl || fallbackSubgraphUrl
     addConfig({
       name: 'Deployed Timelock',
       address,
       network,
-      subgraphUrl: subgraphUrl || `https://api.studio.thegraph.com/query/0/rootstock-timelock-${network === 'rsk_mainnet' ? 'mainnet' : 'testnet'}/version/latest`,
+      subgraphUrl,
     })
-  }, [deployedAddress, isConfirmed, chainId, addConfig])
+  }, [deployedAddress, isConfirmed, chainId, addConfig, pastedSubgraphUrl])
 
   const handleVerify = useCallback(async () => {
     if (!deployedAddress || chainId !== ROOTSTOCK_CHAINS.MAINNET && chainId !== ROOTSTOCK_CHAINS.TESTNET) return
@@ -230,6 +235,37 @@ export default function DeployTimelockView() {
                   </div>
                 </div>
               )}
+
+              {isDeploySuccess &&
+                deployedAddress &&
+                receipt?.blockNumber != null &&
+                (chainId === ROOTSTOCK_CHAINS.MAINNET || chainId === ROOTSTOCK_CHAINS.TESTNET) && (
+                  <div className="space-y-3 pt-2 border-t border-[#55493a] mt-4">
+                    <p className="text-text-dark-secondary text-xs font-medium uppercase tracking-wide">
+                      Subgraph for this timelock
+                    </p>
+                    <p className="text-text-dark-secondary text-sm">
+                      Generate a ready-to-deploy subgraph package for this timelock so you can deploy it from your
+                      machine with your Graph Studio deploy key and then save the Query URL back into the app.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!deployedAddress || receipt?.blockNumber == null) return
+                        const network = chainId === ROOTSTOCK_CHAINS.MAINNET ? 'rsk_mainnet' : 'rsk_testnet'
+                        const params = new URLSearchParams({
+                          address: deployedAddress,
+                          startBlock: String(Number(receipt.blockNumber)),
+                          network,
+                        })
+                        router.push(`/subgraph/deploy?${params.toString()}`)
+                      }}
+                      className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold border border-[#55493a] text-white hover:bg-[#2a2218]"
+                    >
+                      Go to subgraph deploy
+                    </button>
+                  </div>
+                )}
 
               {deployedAddress && (
                 <div className="flex flex-wrap gap-3 pt-2">
