@@ -12,9 +12,6 @@ import { TimelockProvider } from '@/context/TimelockContext'
 const client = new QueryClient()
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  const [mounted, setMounted] = React.useState(false)
-  React.useEffect(() => setMounted(true), [])
-
   // T102: Reload wagmi config when custom RPC settings change.
   const { config: networkConfig } = useNetworkConfig()
   const wagmiConfig = React.useMemo(() => {
@@ -33,7 +30,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={client}>
         <RainbowKitProvider>
-          <TimelockProvider>{mounted && children}</TimelockProvider>
+          <TimelockProvider>{children}</TimelockProvider>
         </RainbowKitProvider>
       </QueryClientProvider>
     </WagmiProvider>

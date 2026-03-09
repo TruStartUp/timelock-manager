@@ -49,6 +49,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     '/decoder': 'Decoder',
     '/settings': 'Settings',
     '/deploy_timelock': 'Deploy Timelock',
+    '/subgraph/deploy': 'Subgraph Deploy',
   }
 
   const isActive = (href: string) => {
@@ -94,6 +95,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               <div
                 className="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10"
                 data-alt="Rootstock logo"
+                role="img"
+                aria-label="Rootstock Timelock Manager logo"
                 style={{
                   backgroundImage:
                     `url(${getStaticAssetUrl(rootstockLogo)})`,

@@ -800,13 +800,13 @@ export const OperationRow: React.FC<OperationRowProps> = ({
 
       {/* Expanded Details Row */}
       {isExpanded && operation.details && (
-        <div className="min-w-[1024px] bg-primary/5">
-          <div className="grid grid-cols-1 gap-6 p-6 md:grid-cols-3 border-b border-border-dark">
-            <div>
+        <div className="min-w-[1024px] bg-primary/5 overflow-hidden">
+          <div className="grid grid-cols-1 gap-6 p-6 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] border-b border-border-dark overflow-hidden">
+            <div className="min-w-0 overflow-hidden">
               <h4 className="text-xs font-bold uppercase text-text-dark-secondary mb-2">
                 Operation Details
               </h4>
-              <div className="flex flex-col gap-1 text-sm font-mono">
+              <div className="flex min-w-0 flex-col gap-1 text-sm font-mono overflow-hidden">
                 <p>
                   <span className="text-text-dark-secondary">Status:</span>{' '}
                   <span className="text-text-dark-primary">{displayStatus}</span>
@@ -837,12 +837,12 @@ export const OperationRow: React.FC<OperationRowProps> = ({
                       : '—'}
                   </span>
                 </p>
-                <p>
-                  <span className="text-text-dark-secondary">ID:</span>{' '}
-                  <span className="text-text-dark-primary">
+                <div className="min-w-0 overflow-hidden">
+                  <span className="text-text-dark-secondary">ID:</span>
+                  <span className="text-text-dark-primary break-all block w-full mt-0.5">
                     {operation.details.fullId}
                   </span>
-                </p>
+                </div>
                 <p>
                   <span className="text-text-dark-secondary">Predecessor:</span>{' '}
                   <span className="text-text-dark-primary break-all">
@@ -882,7 +882,7 @@ export const OperationRow: React.FC<OperationRowProps> = ({
                 </div>
               ) : null}
             </div>
-            <div className="md:col-span-2">
+            <div className="min-w-0 overflow-hidden">
               <h4 className="text-xs font-bold uppercase text-text-dark-secondary mb-2">
                 Calls ({operation.details.callsDetails.length})
               </h4>
