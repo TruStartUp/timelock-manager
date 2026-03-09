@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react'
+import Link from 'next/link'
 import {
   encodeAbiParameters,
   isAddress,
@@ -14,6 +15,8 @@ import { normalizeAddressLoose } from '@/lib/validation'
 import TimelockControllerABI from '@/lib/abis/TimelockController.json'
 import { formatTxError } from '@/lib/txErrors'
 import { VALIDATION } from '@/lib/constants'
+
+const DEFAULT_DOCS_URL = 'https://david-personal.gitbook.io/timelock-manager/'
 
 type SimulationState =
   | { status: 'idle' }
@@ -94,6 +97,8 @@ const NewProposalView: React.FC = () => {
   const publicClient = usePublicClient()
   const [scheduleSimulation, setScheduleSimulation] =
     useState<SimulationState>({ status: 'idle' })
+
+  const docsUrl = process.env.NEXT_PUBLIC_DOCS_URL ?? DEFAULT_DOCS_URL
 
   const {
     abi,
@@ -1034,12 +1039,16 @@ const NewProposalView: React.FC = () => {
             <h3 className="text-sm font-bold text-text-primary">Need help?</h3>
           </div>
           <p className="text-sm text-text-secondary leading-relaxed">
-            Refer to the documentation for detailed instructions on scheduling
-            operations.
+            Refer to the documentation for detailed examples and best practices when scheduling timelock operations.
           </p>
-          <button className="flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-full h-10 px-4 bg-background border border-border-color text-text-primary text-sm font-medium leading-normal tracking-[0.015em] hover:bg-border-color transition-colors">
-            <span className="truncate">View Docs</span>
-          </button>
+          <a
+            href={docsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-full h-10 px-4 bg-background border border-border-color text-text-primary text-sm font-medium leading-normal tracking-[0.015em] hover:bg-border-color transition-colors"
+          >
+            <span className="truncate">View scheduling docs</span>
+          </a>
         </div>
       </aside>
 
@@ -1056,6 +1065,9 @@ const NewProposalView: React.FC = () => {
                 <p className="text-text-secondary text-base font-normal leading-normal">
                   Enter the address of the contract you wish to interact with
                   and fetch its ABI.
+                </p>
+                <p className="text-text-secondary text-sm">
+                  This is the contract whose function will be called when the timelock operation executes (not the timelock itself).
                 </p>
               </div>
               <div className="flex flex-col gap-4 rounded-lg border border-border-color bg-surface p-6">
@@ -1077,7 +1089,7 @@ const NewProposalView: React.FC = () => {
                     onClick={handleFetchAbi}
                     disabled={isAbiLoading}
                   >
-                    <span className="truncate">Continue to Step 2</span>
+                    <span className="truncate">Fetch ABI</span>
                   </button>
                   {isAbiLoading && (
                     <div className="flex items-center gap-2 text-sm text-text-secondary">
@@ -1301,6 +1313,7 @@ const NewProposalView: React.FC = () => {
                                       })
                                     }
                                     disabled={opAvailableFunctions.length === 0}
+                                    title="Only write functions (non-view, non-pure) can be scheduled through the timelock."
                                   >
                                     {opAvailableFunctions.length === 0 ? (
                                       <option>No functions available</option>
@@ -1506,6 +1519,12 @@ const NewProposalView: React.FC = () => {
                     >
                       <span className="truncate">Schedule another</span>
                     </button>
+                    <Link
+                      href="/operations_explorer"
+                      className="flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-12 px-6 bg-primary text-black text-sm font-bold leading-normal tracking-[0.015em] hover:bg-primary/90 transition-colors"
+                    >
+                      <span className="truncate">View this operation in Operations Explorer</span>
+                    </Link>
                   </div>
                 </div>
               ) : (
@@ -1790,8 +1809,8 @@ const NewProposalView: React.FC = () => {
                           }
                         />
                         <p className="text-text-secondary text-xs mt-2">
-                          This is the contract that enforces <code>minDelay</code> and
-                          calls <code>schedule{operations.length > 1 ? 'Batch' : ''}()</code>.
+                          TimelockController contract that enforces <code>minDelay</code> and
+                          calls <code>schedule{operations.length > 1 ? 'Batch' : ''}()</code>, where your wallet must hold <code>PROPOSER_ROLE</code>.
                         </p>
                         {operationParams.timelockController.trim().length > 0 &&
                           !normalizedTimelockController && (
@@ -1825,6 +1844,9 @@ const NewProposalView: React.FC = () => {
                               ? `${minDelay.toString()}s`
                               : 'Fetching…'}
                         </p>
+                        <p className="text-text-secondary text-xs mt-1">
+                          Minimum time (in seconds) between scheduling and execution. Longer delays give users more time to review and react to proposed changes.
+                        </p>
                       </label>
 
                       <label className="flex flex-col w-full md:col-span-2">
@@ -1843,6 +1865,9 @@ const NewProposalView: React.FC = () => {
                             }))
                           }
                         />
+                        <p className="text-text-secondary text-xs mt-2">
+                          Unique identifier for this operation. Different salts produce different operation IDs even if all other fields are identical. Leave empty to auto-generate.
+                        </p>
                       </label>
 
                       <label className="flex flex-col w-full md:col-span-2">
@@ -1861,6 +1886,9 @@ const NewProposalView: React.FC = () => {
                             }))
                           }
                         />
+                        <p className="text-text-secondary text-xs mt-2">
+                          Optional dependency: this operation can only be executed after the predecessor ID has executed. Use 0x000…000 if there is no predecessor.
+                        </p>
                       </label>
                     </div>
                   </div>
