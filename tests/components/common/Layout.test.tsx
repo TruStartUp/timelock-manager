@@ -37,6 +37,7 @@ describe('Layout', () => {
     // Check if header content is present
     expect(screen.getByText('Rootstock')).toBeInTheDocument()
     expect(screen.getByText('Timelock Management')).toBeInTheDocument()
+    expect(screen.getByText('SAFE Verification')).toBeInTheDocument()
 
     // Check if children content is present
     expect(

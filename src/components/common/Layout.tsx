@@ -47,6 +47,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     '/new_proposal': 'New Proposal',
     '/permissions': 'Roles',
     '/decoder': 'Decoder',
+    '/safe_verification': 'SAFE Verification',
     '/settings': 'Settings',
     '/deploy_timelock': 'Deploy Timelock',
     '/subgraph/deploy': 'Subgraph Deploy',
@@ -183,6 +184,19 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             >
               <span className="material-symbols-outlined">code</span>
               <p className="text-sm font-medium leading-normal">Decoder</p>
+            </Link>
+            <Link
+              href="/safe_verification"
+              className={`flex items-center gap-3 px-3 py-2 rounded-full ${
+                isActive('/safe_verification')
+                  ? 'bg-primary/20 text-primary'
+                  : 'text-text-light hover:bg-surface-dark'
+              }`}
+            >
+              <span className="material-symbols-outlined">verified_user</span>
+              <p className="text-sm font-medium leading-normal">
+                SAFE Verification
+              </p>
             </Link>
             <Link
               href="/settings"
