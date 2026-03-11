@@ -731,23 +731,22 @@ const SafeHashVerificationView: React.FC = () => {
               </div>
 
               <div className="grid grid-cols-1 gap-4">
-                {(
-                  [
-                    result.expectedSafeTxHash
-                      ? ([
-                          'Expected SafeTxHash',
-                          result.expectedSafeTxHash,
-                        ] as const)
-                      : null,
-                    ['Computed SafeTxHash', result.computedSafeTxHash] as const,
-                    ['Domain Hash', result.domainHash] as const,
-                    ['Message Hash', result.messageHash] as const,
-                  ].filter(
-                    (
-                      item
-                    ): item is readonly [string, string] => item !== null
-                  )
-                ).map(([label, value]) => (
+                {[
+                  ...(result.expectedSafeTxHash
+                    ? [
+                        {
+                          label: 'Expected SafeTxHash',
+                          value: result.expectedSafeTxHash,
+                        },
+                      ]
+                    : []),
+                  {
+                    label: 'Computed SafeTxHash',
+                    value: result.computedSafeTxHash,
+                  },
+                  { label: 'Domain Hash', value: result.domainHash },
+                  { label: 'Message Hash', value: result.messageHash },
+                ].map(({ label, value }) => (
                   <div
                     key={label}
                     className="rounded border border-border-color bg-background p-4"
