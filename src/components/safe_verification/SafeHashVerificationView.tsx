@@ -41,6 +41,62 @@ type ManualFormState = {
   expectedSafeTxHash: string
 }
 
+function TooltipIcon(props: { text: string; ariaLabel: string }) {
+  const { text, ariaLabel } = props
+  return (
+    <span className="relative inline-flex items-center">
+      <span
+        role="button"
+        tabIndex={0}
+        title={ariaLabel}
+        className="group inline-flex size-4 items-center justify-center rounded-full border border-current/30 bg-black/10 text-[11px] font-bold leading-none text-current/80 outline-none hover:text-current focus-visible:ring-2 focus-visible:ring-primary/50"
+        onClick={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            e.stopPropagation()
+          }
+        }}
+      >
+        ?
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute left-0 top-full z-50 mt-2 w-72 max-w-[calc(100vw-4rem)] rounded-md border border-border-dark bg-background-dark px-3 py-2 text-xs font-medium text-text-dark-primary opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
+        >
+          {text}
+          <span className="absolute left-4 top-0 -translate-y-full">
+            <span className="block size-0 border-x-8 border-b-8 border-x-transparent border-b-border-dark" />
+            <span className="relative -top-[7px] block size-0 border-x-7 border-b-7 border-x-transparent border-b-background-dark" />
+          </span>
+        </span>
+      </span>
+    </span>
+  )
+}
+
+function LabelWithTooltip(props: {
+  htmlFor?: string
+  label: string
+  tooltip: string
+}) {
+  const { htmlFor, label, tooltip } = props
+
+  return (
+    <div className="flex items-center gap-2">
+      <label
+        className="text-text-primary text-base font-medium leading-normal"
+        htmlFor={htmlFor}
+      >
+        {label}
+      </label>
+      <TooltipIcon text={tooltip} ariaLabel={`${label} help`} />
+    </div>
+  )
+}
+
 const DEFAULT_FORM: ManualFormState = {
   network: 'mainnet',
   safeAddress: '',
@@ -57,6 +113,39 @@ const DEFAULT_FORM: ManualFormState = {
   refundReceiver: ZERO_ADDRESS,
   expectedSafeTxHash: '',
 }
+
+const FIELD_TOOLTIPS = {
+  verificationMethod:
+    'Choose where the expected SAFE transaction hash comes from. Safe API fetches the transaction and reference hash from the Safe Gateway. Manual lets you enter every transaction field yourself.',
+  network:
+    'Select the Rootstock network for this SAFE transaction. The selected network determines the chain ID used in the hash computation and which Safe Gateway endpoint is queried.',
+  safeAddress:
+    'The address of the SAFE multisig wallet that created the transaction. This address is part of the EIP-712 domain and changes the resulting Safe tx hash.',
+  nonce:
+    'The SAFE transaction nonce. SAFE increments this counter for each proposed transaction, and the hash changes if the nonce changes.',
+  version:
+    'The SAFE contract version, such as 1.3.0. The version determines which EIP-712 domain fields are used during hash computation.',
+  to:
+    'The target contract or recipient address that the SAFE transaction will call.',
+  value:
+    'The amount of native RBTC, in wei, that the SAFE transaction sends to the target address.',
+  data:
+    'The raw calldata sent to the target contract. Use 0x for a plain native token transfer with no function call data.',
+  operation:
+    'SAFE operation type. Call (0) performs a regular external call. DelegateCall (1) executes the target code in the SAFE context and should be used with extra care.',
+  safeTxGas:
+    'The gas limit reserved for executing the inner SAFE transaction itself. This value is part of the signed payload even if no gas reimbursement is used.',
+  baseGas:
+    'Additional gas overhead charged outside the inner call, such as signature checks and refund handling. This value is also included in the hash.',
+  gasPrice:
+    'The reimbursement gas price used by SAFE refund logic. Set this to 0 when no gas refund is configured.',
+  gasToken:
+    'The token address used for gas reimbursement. Use the zero address when refunds are paid in the native token or when no refund is configured.',
+  refundReceiver:
+    'The address that receives any gas refund. Use the zero address when the refund should go to the transaction submitter or when no refund is configured.',
+  expectedSafeTxHash:
+    'Optional reference SAFE transaction hash to compare against the locally computed result. Leave it blank if you only want to calculate the hash.',
+} as const
 
 function isValidBytes32(value: string): value is Hex {
   return /^0x[a-fA-F0-9]{64}$/.test(value.trim())
@@ -236,10 +325,12 @@ const SafeHashVerificationView: React.FC = () => {
           : {
               network: form.network,
               expectedSafeTxHash: (() => {
-                if (!isValidBytes32(form.expectedSafeTxHash)) {
+                const trimmed = form.expectedSafeTxHash.trim()
+                if (!trimmed) return undefined
+                if (!isValidBytes32(trimmed)) {
                   throw new Error('Expected Safe tx hash must be a valid bytes32 hash.')
                 }
-                return form.expectedSafeTxHash.trim().toLowerCase() as Hex
+                return trimmed.toLowerCase() as Hex
               })(),
               transaction: buildManualTransaction(form),
             }
@@ -271,9 +362,10 @@ const SafeHashVerificationView: React.FC = () => {
         computedSafeTxHash: hashes.safeTxHash,
         domainHash: hashes.domainHash,
         messageHash: hashes.messageHash,
-        isMatch:
-          payload.expectedSafeTxHash.toLowerCase() ===
-          hashes.safeTxHash.toLowerCase(),
+        isMatch: payload.expectedSafeTxHash
+          ? payload.expectedSafeTxHash.toLowerCase() ===
+            hashes.safeTxHash.toLowerCase()
+          : null,
         decodedCall: decoded.decodedCall,
         decodeError: decoded.decodeError,
       })
@@ -306,9 +398,10 @@ const SafeHashVerificationView: React.FC = () => {
           </h2>
 
           <div className="flex flex-col gap-2">
-            <label className="text-text-primary text-base font-medium leading-normal">
-              Verification method
-            </label>
+            <LabelWithTooltip
+              label="Verification method"
+              tooltip={FIELD_TOOLTIPS.verificationMethod}
+            />
             <div className="grid grid-cols-2 gap-3">
               {([
                 ['api', 'Safe API'],
@@ -335,12 +428,11 @@ const SafeHashVerificationView: React.FC = () => {
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="flex flex-col gap-2">
-              <label
-                className="text-text-primary text-base font-medium leading-normal"
+              <LabelWithTooltip
                 htmlFor="safe-network"
-              >
-                Network
-              </label>
+                label="Network"
+                tooltip={FIELD_TOOLTIPS.network}
+              />
               <select
                 id="safe-network"
                 className="form-input h-14 rounded border border-border-color bg-background px-4 text-text-primary"
@@ -361,12 +453,11 @@ const SafeHashVerificationView: React.FC = () => {
             </div>
 
             <div className="flex flex-col gap-2">
-              <label
-                className="text-text-primary text-base font-medium leading-normal"
+              <LabelWithTooltip
                 htmlFor="safe-address"
-              >
-                SAFE address
-              </label>
+                label="SAFE address"
+                tooltip={FIELD_TOOLTIPS.safeAddress}
+              />
               <input
                 id="safe-address"
                 className="form-input h-14 rounded border border-border-color bg-background px-4 font-mono text-sm text-text-primary"
@@ -377,12 +468,11 @@ const SafeHashVerificationView: React.FC = () => {
             </div>
 
             <div className="flex flex-col gap-2">
-              <label
-                className="text-text-primary text-base font-medium leading-normal"
+              <LabelWithTooltip
                 htmlFor="safe-nonce"
-              >
-                Nonce
-              </label>
+                label="Nonce"
+                tooltip={FIELD_TOOLTIPS.nonce}
+              />
               <input
                 id="safe-nonce"
                 className="form-input h-14 rounded border border-border-color bg-background px-4 font-mono text-sm text-text-primary"
@@ -394,12 +484,11 @@ const SafeHashVerificationView: React.FC = () => {
 
             {method === 'manual' ? (
               <div className="flex flex-col gap-2">
-                <label
-                  className="text-text-primary text-base font-medium leading-normal"
+                <LabelWithTooltip
                   htmlFor="safe-version"
-                >
-                  SAFE version
-                </label>
+                  label="SAFE version"
+                  tooltip={FIELD_TOOLTIPS.version}
+                />
                 <input
                   id="safe-version"
                   className="form-input h-14 rounded border border-border-color bg-background px-4 font-mono text-sm text-text-primary"
@@ -415,12 +504,11 @@ const SafeHashVerificationView: React.FC = () => {
             <>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="flex flex-col gap-2">
-                  <label
-                    className="text-text-primary text-base font-medium leading-normal"
+                  <LabelWithTooltip
                     htmlFor="tx-to"
-                  >
-                    To
-                  </label>
+                    label="To"
+                    tooltip={FIELD_TOOLTIPS.to}
+                  />
                   <input
                     id="tx-to"
                     className="form-input h-14 rounded border border-border-color bg-background px-4 font-mono text-sm text-text-primary"
@@ -430,12 +518,11 @@ const SafeHashVerificationView: React.FC = () => {
                   />
                 </div>
                 <div className="flex flex-col gap-2">
-                  <label
-                    className="text-text-primary text-base font-medium leading-normal"
+                  <LabelWithTooltip
                     htmlFor="tx-value"
-                  >
-                    Value (wei)
-                  </label>
+                    label="Value (wei)"
+                    tooltip={FIELD_TOOLTIPS.value}
+                  />
                   <input
                     id="tx-value"
                     className="form-input h-14 rounded border border-border-color bg-background px-4 font-mono text-sm text-text-primary"
@@ -447,12 +534,11 @@ const SafeHashVerificationView: React.FC = () => {
               </div>
 
               <div className="flex flex-col gap-2">
-                <label
-                  className="text-text-primary text-base font-medium leading-normal"
+                <LabelWithTooltip
                   htmlFor="tx-data"
-                >
-                  Data
-                </label>
+                  label="Data"
+                  tooltip={FIELD_TOOLTIPS.data}
+                />
                 <textarea
                   id="tx-data"
                   className="form-input min-h-28 rounded border border-border-color bg-background p-4 font-mono text-sm text-text-primary"
@@ -464,12 +550,11 @@ const SafeHashVerificationView: React.FC = () => {
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
                 <div className="flex flex-col gap-2">
-                  <label
-                    className="text-text-primary text-base font-medium leading-normal"
+                  <LabelWithTooltip
                     htmlFor="tx-operation"
-                  >
-                    Operation
-                  </label>
+                    label="Operation"
+                    tooltip={FIELD_TOOLTIPS.operation}
+                  />
                   <select
                     id="tx-operation"
                     className="form-input h-14 rounded border border-border-color bg-background px-4 text-text-primary"
@@ -483,12 +568,11 @@ const SafeHashVerificationView: React.FC = () => {
                   </select>
                 </div>
                 <div className="flex flex-col gap-2">
-                  <label
-                    className="text-text-primary text-base font-medium leading-normal"
+                  <LabelWithTooltip
                     htmlFor="safe-tx-gas"
-                  >
-                    SafeTxGas
-                  </label>
+                    label="SafeTxGas"
+                    tooltip={FIELD_TOOLTIPS.safeTxGas}
+                  />
                   <input
                     id="safe-tx-gas"
                     className="form-input h-14 rounded border border-border-color bg-background px-4 font-mono text-sm text-text-primary"
@@ -497,12 +581,11 @@ const SafeHashVerificationView: React.FC = () => {
                   />
                 </div>
                 <div className="flex flex-col gap-2">
-                  <label
-                    className="text-text-primary text-base font-medium leading-normal"
+                  <LabelWithTooltip
                     htmlFor="base-gas"
-                  >
-                    BaseGas
-                  </label>
+                    label="BaseGas"
+                    tooltip={FIELD_TOOLTIPS.baseGas}
+                  />
                   <input
                     id="base-gas"
                     className="form-input h-14 rounded border border-border-color bg-background px-4 font-mono text-sm text-text-primary"
@@ -511,12 +594,11 @@ const SafeHashVerificationView: React.FC = () => {
                   />
                 </div>
                 <div className="flex flex-col gap-2">
-                  <label
-                    className="text-text-primary text-base font-medium leading-normal"
+                  <LabelWithTooltip
                     htmlFor="gas-price"
-                  >
-                    GasPrice
-                  </label>
+                    label="GasPrice"
+                    tooltip={FIELD_TOOLTIPS.gasPrice}
+                  />
                   <input
                     id="gas-price"
                     className="form-input h-14 rounded border border-border-color bg-background px-4 font-mono text-sm text-text-primary"
@@ -525,12 +607,11 @@ const SafeHashVerificationView: React.FC = () => {
                   />
                 </div>
                 <div className="flex flex-col gap-2">
-                  <label
-                    className="text-text-primary text-base font-medium leading-normal"
+                  <LabelWithTooltip
                     htmlFor="gas-token"
-                  >
-                    GasToken
-                  </label>
+                    label="GasToken"
+                    tooltip={FIELD_TOOLTIPS.gasToken}
+                  />
                   <input
                     id="gas-token"
                     className="form-input h-14 rounded border border-border-color bg-background px-4 font-mono text-sm text-text-primary"
@@ -539,12 +620,11 @@ const SafeHashVerificationView: React.FC = () => {
                   />
                 </div>
                 <div className="flex flex-col gap-2">
-                  <label
-                    className="text-text-primary text-base font-medium leading-normal"
+                  <LabelWithTooltip
                     htmlFor="refund-receiver"
-                  >
-                    RefundReceiver
-                  </label>
+                    label="RefundReceiver"
+                    tooltip={FIELD_TOOLTIPS.refundReceiver}
+                  />
                   <input
                     id="refund-receiver"
                     className="form-input h-14 rounded border border-border-color bg-background px-4 font-mono text-sm text-text-primary"
@@ -555,12 +635,11 @@ const SafeHashVerificationView: React.FC = () => {
               </div>
 
               <div className="flex flex-col gap-2">
-                <label
-                  className="text-text-primary text-base font-medium leading-normal"
+                <LabelWithTooltip
                   htmlFor="expected-safe-hash"
-                >
-                  Expected SafeTxHash
-                </label>
+                  label="Expected SafeTxHash (optional)"
+                  tooltip={FIELD_TOOLTIPS.expectedSafeTxHash}
+                />
                 <input
                   id="expected-safe-hash"
                   className="form-input h-14 rounded border border-border-color bg-background px-4 font-mono text-sm text-text-primary"
@@ -570,6 +649,10 @@ const SafeHashVerificationView: React.FC = () => {
                     setField('expectedSafeTxHash', e.target.value)
                   }
                 />
+                <p className="text-sm text-text-secondary">
+                  Leave blank to compute the Safe tx hash without comparing it
+                  against an expected value.
+                </p>
               </div>
             </>
           ) : (
@@ -624,30 +707,40 @@ const SafeHashVerificationView: React.FC = () => {
             <div className="flex flex-col gap-6">
               <div
                 className={`rounded border p-4 ${
-                  result.isMatch
+                  result.isMatch === true
                     ? 'border-green-500/30 bg-green-500/10 text-green-300'
-                    : 'border-red-500/30 bg-red-500/10 text-red-300'
+                    : result.isMatch === false
+                      ? 'border-red-500/30 bg-red-500/10 text-red-300'
+                      : 'border-primary/30 bg-primary/10 text-primary'
                 }`}
               >
                 <p className="text-base font-semibold">
-                  {result.isMatch
+                  {result.isMatch === true
                     ? 'Hash verified successfully'
-                    : 'Hash mismatch detected'}
+                    : result.isMatch === false
+                      ? 'Hash mismatch detected'
+                      : 'Safe hash computed'}
                 </p>
                 <p className="mt-1 text-sm">
-                  {result.isMatch
+                  {result.isMatch === true
                     ? 'The expected SAFE transaction hash matches the locally recomputed value.'
-                    : 'The expected SAFE transaction hash does not match the locally recomputed value.'}
+                    : result.isMatch === false
+                      ? 'The expected SAFE transaction hash does not match the locally recomputed value.'
+                      : 'No expected SAFE transaction hash was provided, so only the locally computed value is shown.'}
                 </p>
               </div>
 
               <div className="grid grid-cols-1 gap-4">
                 {[
-                  ['Expected SafeTxHash', result.expectedSafeTxHash],
+                  result.expectedSafeTxHash
+                    ? ['Expected SafeTxHash', result.expectedSafeTxHash]
+                    : null,
                   ['Computed SafeTxHash', result.computedSafeTxHash],
                   ['Domain Hash', result.domainHash],
                   ['Message Hash', result.messageHash],
-                ].map(([label, value]) => (
+                ]
+                  .filter(Boolean)
+                  .map(([label, value]) => (
                   <div
                     key={label}
                     className="rounded border border-border-color bg-background p-4"
@@ -659,7 +752,7 @@ const SafeHashVerificationView: React.FC = () => {
                       {value}
                     </p>
                   </div>
-                ))}
+                  ))}
               </div>
 
               <div className="rounded border border-border-color bg-background p-4">

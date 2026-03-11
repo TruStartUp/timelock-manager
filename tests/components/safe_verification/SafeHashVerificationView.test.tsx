@@ -69,8 +69,46 @@ describe('SafeHashVerificationView', () => {
     fireEvent.click(screen.getByRole('button', { name: /Manual/i }))
 
     expect(
-      screen.getByText(/Expected SafeTxHash/i)
+      screen.getByText(/Expected SafeTxHash \(optional\)/i)
     ).toBeInTheDocument()
+    expect(
+      screen.getByTitle(/verification method help/i)
+    ).toBeInTheDocument()
+    expect(
+      screen.getByTitle(/safe address help/i)
+    ).toBeInTheDocument()
+    expect(
+      screen.getByTitle(/expected safetxhash \(optional\) help/i)
+    ).toBeInTheDocument()
+  })
+
+  test('allows manual verification without an expected hash', async () => {
+    mockCalculateSafeHashes.mockReturnValue({
+      domainHash:
+        '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+      messageHash:
+        '0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',
+      safeTxHash:
+        '0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',
+      encodedMessage: '0x',
+    })
+
+    render(<SafeHashVerificationView />)
+    fireEvent.click(screen.getByRole('button', { name: /Manual/i }))
+
+    fireEvent.change(screen.getByLabelText(/SAFE address/i), {
+      target: { value: '0x1234567890abcdef1234567890abcdef12345678' },
+    })
+    fireEvent.change(screen.getByLabelText(/^Nonce$/i), {
+      target: { value: '7' },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /^Verify$/i }))
+
+    expect(
+      await screen.findByText(/Safe hash computed/i)
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/Hash mismatch detected/i)).not.toBeInTheDocument()
   })
 
   test('shows success state for a matching manual hash', async () => {
@@ -96,7 +134,7 @@ describe('SafeHashVerificationView', () => {
     fireEvent.change(screen.getByLabelText(/^Data$/i), {
       target: { value: '0xa9059cbb0000000000000000000000000000000000000000000000000000000000000000' },
     })
-    fireEvent.change(screen.getByLabelText(/^Expected SafeTxHash$/i), {
+    fireEvent.change(screen.getByLabelText(/Expected SafeTxHash \(optional\)/i), {
       target: {
         value:
           '0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',
@@ -136,7 +174,7 @@ describe('SafeHashVerificationView', () => {
     fireEvent.change(screen.getByLabelText(/^Data$/i), {
       target: { value: '0xa9059cbb0000000000000000000000000000000000000000000000000000000000000000' },
     })
-    fireEvent.change(screen.getByLabelText(/^Expected SafeTxHash$/i), {
+    fireEvent.change(screen.getByLabelText(/Expected SafeTxHash \(optional\)/i), {
       target: {
         value:
           '0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',
