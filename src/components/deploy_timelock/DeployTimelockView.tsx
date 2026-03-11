@@ -197,6 +197,9 @@ export default function DeployTimelockView() {
           <p className="text-text-dark-secondary text-base font-normal leading-normal mt-3">
             Deploy a new OpenZeppelin TimelockController contract on Rootstock. Configure min delay, proposers, executors, and optional admin.
           </p>
+          <p className="text-text-dark-secondary text-sm mt-2">
+            Connect a wallet on Rootstock Mainnet or Testnet to deploy a new OpenZeppelin TimelockController from this app.
+          </p>
         </div>
 
         <div className="rounded-lg border border-[#55493a] bg-surface-dark p-8">
@@ -288,8 +291,16 @@ export default function DeployTimelockView() {
                   )}
                 </div>
               )}
-              {verifySuccess && <p className="text-sm text-green-400">Contract verified successfully on Blockscout.</p>}
-              {verifyError && <p className="text-sm text-red-400">{verifyError}</p>}
+              {verifySuccess && (
+                <div className="mt-3 rounded border border-green-500/40 bg-green-500/10 p-3 text-sm text-green-400">
+                  Contract verified successfully on Blockscout.
+                </div>
+              )}
+              {verifyError && (
+                <div className="mt-3 rounded border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-400">
+                  Verification failed. Check the parameters and try again, or verify the contract manually on Blockscout.
+                </div>
+              )}
             </div>
           ) : (
             <>
@@ -311,6 +322,9 @@ export default function DeployTimelockView() {
                     }}
                   />
                   {errors.minDelay && <p className="text-sm text-red-400 mt-1">{errors.minDelay}</p>}
+                  <p className="text-text-dark-secondary text-xs mt-2">
+                    Minimum time (in seconds) between scheduling and execution. Longer delays give users more time to review and react to proposed changes.
+                  </p>
                 </div>
 
                 <div>
@@ -334,6 +348,9 @@ export default function DeployTimelockView() {
                   ))}
                   {errors.proposers && <p className="text-sm text-red-400">{errors.proposers}</p>}
                   {proposers.map((_, i) => errors[`proposer_${i}`] && <p key={i} className="text-sm text-red-400">{errors[`proposer_${i}`]}</p>)}
+                  <p className="text-text-dark-secondary text-xs mt-2">
+                    Addresses that can schedule new operations on this timelock. At least one proposer is required.
+                  </p>
                 </div>
 
                 <div>
@@ -358,6 +375,9 @@ export default function DeployTimelockView() {
                   ))}
                   {errors.executors && <p className="text-sm text-red-400">{errors.executors}</p>}
                   {executors.map((_, i) => errors[`executor_${i}`] && <p key={i} className="text-sm text-red-400">{errors[`executor_${i}`]}</p>)}
+                  <p className="text-text-dark-secondary text-xs mt-2">
+                    Addresses that can execute ready operations. Use 0x0000000000000000000000000000000000000000 if you want any address to be able to execute (use with caution).
+                  </p>
                 </div>
 
                 <div>
@@ -374,6 +394,9 @@ export default function DeployTimelockView() {
                     }}
                   />
                   {errors.admin && <p className="text-sm text-red-400 mt-1">{errors.admin}</p>}
+                  <p className="text-text-dark-secondary text-xs mt-2">
+                    Optional admin that can manage roles. Leave empty for a self-administered timelock with no single admin account.
+                  </p>
                 </div>
               </div>
 

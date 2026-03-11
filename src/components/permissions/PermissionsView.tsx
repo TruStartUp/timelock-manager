@@ -252,6 +252,16 @@ const PermissionsView = () => {
   return (
     <main className="flex flex-1 p-6 lg:p-8">
       <div className="grid grid-cols-12 gap-6 w-full">
+        <div className="col-span-12 mb-2">
+          <p className="text-text-secondary text-sm">
+            Roles define who can schedule, execute, and cancel operations for the active timelock. Select a role to see its current holders and change history.
+          </p>
+          {selected?.address && (
+            <p className="text-text-secondary text-xs mt-1">
+              Roles below apply to the currently selected timelock in the header ({truncateAddress(selected.address as Address)}).
+            </p>
+          )}
+        </div>
         <div className="col-span-12 lg:col-span-4 xl:col-span-3 flex flex-col gap-6">
           <h2 className="text-xl font-semibold text-white">All Roles</h2>
           <div className="px-0 py-0">
@@ -417,7 +427,9 @@ const PermissionsView = () => {
             </div>
           ) : (
             <div className="bg-surface-dark rounded-xl p-6">
-              <p className="text-text-secondary">Select a role to view details</p>
+              <p className="text-text-secondary">
+                Select a role on the left to see which addresses hold it and how it has changed over time.
+              </p>
             </div>
           )}
           <div className="bg-surface-dark rounded-xl p-6">
@@ -432,7 +444,12 @@ const PermissionsView = () => {
                   <thead className="text-text-dark border-b border-white/10">
                     <tr>
                       <th className="p-3 font-medium">Action</th>
-                      <th className="p-3 font-medium">Target Address</th>
+                      <th
+                        className="p-3 font-medium"
+                        title="Address that was granted or revoked this role in this transaction."
+                      >
+                        Target Address
+                      </th>
                       <th className="p-3 font-medium">Transaction Hash</th>
                       <th className="p-3 font-medium text-right">Timestamp</th>
                     </tr>

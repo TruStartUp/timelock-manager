@@ -181,45 +181,15 @@ const SettingsView = () => {
             </span>
           </button>
           {sectionOpen.timelock ? (
-            <div className="border-t border-[#55493a] px-5 py-4">
+            <div className="border-t border-[#55493a] px-5 py-4 space-y-3">
+              <p className="text-[#bbad9b] text-sm">
+                Timelocks and their subgraph URLs that this app uses for the Dashboard, Operations Explorer, and Permissions views.
+              </p>
               <TimelockSettings />
             </div>
           ) : null}
         </div>
 
-        {/* Subgraph deployment */}
-        <div className="mb-6 rounded-lg border border-[#55493a] bg-[#231a0f] overflow-hidden">
-          <button
-            type="button"
-            className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left hover:bg-[#2a2218] transition-colors"
-            onClick={() => toggleSection('subgraph')}
-            aria-expanded={sectionOpen.subgraph}
-          >
-            <h2 className="text-white text-[22px] font-bold leading-tight tracking-[-0.015em]">
-              Subgraph deployment
-            </h2>
-            <span
-              className={`material-symbols-outlined text-[#bbad9b] transition-transform ${sectionOpen.subgraph ? 'rotate-180' : ''}`}
-              aria-hidden
-            >
-              expand_more
-            </span>
-          </button>
-          {sectionOpen.subgraph ? (
-            <div className="border-t border-[#55493a] px-5 py-4 space-y-4">
-              <p className="text-text-dark-secondary text-sm">
-                Prepare and deploy a subgraph for a specific timelock using a guided flow. The Graph Studio deploy key is
-                always used locally on your machine and is never sent to this app.
-              </p>
-              <Link
-                href="/subgraph/deploy"
-                className="inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold text-black bg-primary hover:bg-primary/80"
-              >
-                Open subgraph deploy
-              </Link>
-            </div>
-          ) : null}
-        </div>
 
         {/* Network Configuration */}
         <div className="mb-6 rounded-lg border border-[#55493a] bg-[#231a0f] overflow-hidden">
@@ -352,6 +322,9 @@ const SettingsView = () => {
                 {knownChainLabel ? ` — ${knownChainLabel}` : ''}
               </p>
             ) : null}
+            <p className="text-xs text-[#bbad9b]">
+              Network is controlled by your wallet in the header. These options show which Rootstock network you are currently connected to.
+            </p>
           </div>
           <div className="flex justify-end gap-3 pt-4">
             <button
@@ -497,7 +470,7 @@ const SettingsView = () => {
           <div className="flex flex-col gap-3">
             {abiManager.entries.length === 0 ? (
               <div className="rounded-lg border border-[#55493a] bg-[#231a0f] p-4 text-[#bbad9b]">
-                No custom ABIs saved yet.
+                No custom ABIs saved yet. Import ABIs for unverified or custom contracts so Operations Explorer and the Decoder can show human-readable function calls.
               </div>
             ) : (
               abiManager.entries.map((e) => (
@@ -558,7 +531,41 @@ const SettingsView = () => {
               </Link>
             </div>
           ) : null}
-        </div>        
+        </div>    
+
+        {/* Subgraph deployment */}
+        <div className="mb-6 rounded-lg border border-[#55493a] bg-[#231a0f] overflow-hidden">
+          <button
+            type="button"
+            className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left hover:bg-[#2a2218] transition-colors"
+            onClick={() => toggleSection('subgraph')}
+            aria-expanded={sectionOpen.subgraph}
+          >
+            <h2 className="text-white text-[22px] font-bold leading-tight tracking-[-0.015em]">
+              Subgraph deployment
+            </h2>
+            <span
+              className={`material-symbols-outlined text-[#bbad9b] transition-transform ${sectionOpen.subgraph ? 'rotate-180' : ''}`}
+              aria-hidden
+            >
+              expand_more
+            </span>
+          </button>
+          {sectionOpen.subgraph ? (
+            <div className="border-t border-[#55493a] px-5 py-4 space-y-4">
+              <p className="text-text-dark-secondary text-sm">
+                Use this when you already have a timelock contract deployed and want to prepare and deploy a subgraph that indexes its events. The Graph Studio deploy key is
+                always used locally on your machine and is never sent to this app.
+              </p>
+              <Link
+                href="/subgraph/deploy"
+                className="inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold text-black bg-primary hover:bg-primary/80"
+              >
+                Open subgraph deploy
+              </Link>
+            </div>
+          ) : null}
+        </div>            
       </div>
     </main>
   )

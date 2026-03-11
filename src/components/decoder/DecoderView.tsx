@@ -99,27 +99,27 @@ const DecoderView: React.FC = () => {
   } {
     if (result.source === 'BLOCKSCOUT' && result.confidence === 'HIGH') {
       return {
-        label: '✅ Verified contract',
+        label: 'Verified contract (Blockscout ABI)',
         className:
           'inline-flex items-center rounded-full bg-success/20 px-3 py-1 text-sm font-medium text-success',
       }
     }
     if (result.source === 'FOURBYTE') {
       return {
-        label: '⚠️ Decoded using guessed signature',
+        label: 'Decoded using guessed function signature',
         className:
           'inline-flex items-center rounded-full bg-yellow-500/20 px-3 py-1 text-sm font-medium text-yellow-400',
       }
     }
     if (result.source === 'MANUAL') {
       return {
-        label: '✅ Decoded using manual ABI',
+        label: 'Decoded using manual ABI',
         className:
           'inline-flex items-center rounded-full bg-success/20 px-3 py-1 text-sm font-medium text-success',
       }
     }
     return {
-      label: '✅ Decoded',
+      label: 'Decoded',
       className:
         'inline-flex items-center rounded-full bg-border-color px-3 py-1 text-sm font-medium text-text-secondary',
     }
@@ -441,7 +441,7 @@ const DecoderView: React.FC = () => {
         </h1>
         <p className="text-text-secondary text-base font-normal leading-normal mt-2">
           Decode arbitrary calldata or transaction hashes from the Rootstock
-          network.
+          network. Paste calldata from a transaction or from the Operations Explorer to see which function is being called and with which arguments.
         </p>
       </div>
 
@@ -484,6 +484,7 @@ const DecoderView: React.FC = () => {
               type="text"
               value={contractAddress}
               onChange={(e) => setContractAddress(e.target.value)}
+              title="If provided, the app will look up the verified ABI in Blockscout for more accurate decoding."
             />
           </div>
 
@@ -501,6 +502,7 @@ const DecoderView: React.FC = () => {
               placeholder="Paste contract ABI JSON here..."
               value={abi}
               onChange={(e) => setAbi(e.target.value)}
+              title="Use this when the contract is not verified or you want to override the on-chain ABI. Paste the full JSON ABI array."
             />
           </div>
 
@@ -671,6 +673,9 @@ const DecoderView: React.FC = () => {
               <div className="flex flex-1 items-center justify-center text-center">
                 <div className="flex flex-col gap-2">
                   <p className="text-text-secondary">Awaiting input to decode…</p>
+                  <p className="text-text-secondary text-sm">
+                    Paste calldata above (and optionally a contract address) and click Decode to see the decoded function and parameters.
+                  </p>
                   {normalizedContractAddress ? (
                     <p className="text-text-secondary text-sm">
                       {isAbiLoading

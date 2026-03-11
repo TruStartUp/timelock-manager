@@ -42,7 +42,8 @@ export const TimelockSelector: React.FC = () => {
         className="form-select flex w-full min-w-0 resize-none overflow-hidden rounded text-text-primary focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-border-color bg-surface h-12 px-4 pr-12 text-base font-normal leading-normal appearance-none"
         value={selected?.id ?? ''}
         onChange={(e) => select(e.target.value || null)}
-        aria-label="Select Timelock Configuration"
+        aria-label="Select timelock configuration"
+        title="Choose which timelock contract you’re currently managing. All pages will use the selected timelock."
       >
         {!selected && <option value="">Select timelock...</option>}
         {configurations.map((config) => (

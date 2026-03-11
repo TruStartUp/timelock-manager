@@ -131,10 +131,20 @@ const DashboardView: React.FC = () => {
       {/* Main Content Grid */}
       <div className="flex flex-col gap-8">
         <DashboardIntro />
+        <p className="text-text-secondary text-sm">
+          Network: {networkName}
+        </p>
+        <p className="text-text-secondary text-sm">
+          Currently showing data for timelock: {(selected.address as string).slice(0, 6)}...
+          {(selected.address as string).slice(-4)}.
+        </p>
         {/* SectionHeader for Operations */}
         <h2 className="text-text-primary text-xl font-bold leading-tight tracking-[-0.015em]">
           Operations Overview
         </h2>
+        <p className="text-text-secondary text-sm">
+          Pending = scheduled and waiting for the delay. Ready = can be executed now. Executed = already run.
+        </p>
         {/* Stats Cards */}
         {isError && (
           <div className="rounded border border-red-500/50 bg-red-500/10 p-4">
@@ -268,7 +278,7 @@ const DashboardView: React.FC = () => {
                 // Empty state
                 <tr>
                   <td colSpan={3} className="px-6 py-4 text-center text-text-secondary">
-                    No roles found
+                    No roles were found for this timelock. It may not have any assigned roles yet, or this subgraph has not indexed them. See the docs for more details.
                   </td>
                 </tr>
               )}

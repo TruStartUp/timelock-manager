@@ -14,7 +14,7 @@ import { Skeleton } from '@/components/common/Skeleton'
 import { OperationRow } from './OperationRow'
 import TimelockControllerABI from '@/lib/abis/TimelockController.json'
 import { decodeCalldata, type DecodedCall } from '@/lib/decoder'
-import { CHAIN_TO_NETWORK } from '@/services/blockscout/client'
+import { CHAIN_TO_NETWORK, getBlockscoutExplorerUrl } from '@/services/blockscout/client'
 import { ABISource, ABIConfidence } from '@/services/blockscout/abi'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
@@ -1204,9 +1204,19 @@ const OperationsExplorerView: React.FC = () => {
                 {executeSimulation.status === 'pending' ? (
                   <span className="text-text-dark-secondary">Running…</span>
                 ) : executeSimulation.status === 'success' ? (
-                  <span className="text-green-300">Likely succeeds</span>
+                  <span
+                    className="text-green-300"
+                    title="Result of a dry-run simulation (eth_call). It helps catch obvious failures but cannot guarantee final on-chain success."
+                  >
+                    Likely succeeds
+                  </span>
                 ) : executeSimulation.status === 'error' ? (
-                  <span className="text-red-300">May fail</span>
+                  <span
+                    className="text-red-300"
+                    title="Result of a dry-run simulation (eth_call). It helps catch obvious failures but cannot guarantee final on-chain success."
+                  >
+                    May fail
+                  </span>
                 ) : (
                   <span className="text-text-dark-secondary">—</span>
                 )}
@@ -1332,9 +1342,19 @@ const OperationsExplorerView: React.FC = () => {
                 {cancelSimulation.status === 'pending' ? (
                   <span className="text-text-dark-secondary">Running…</span>
                 ) : cancelSimulation.status === 'success' ? (
-                  <span className="text-green-300">Likely succeeds</span>
+                  <span
+                    className="text-green-300"
+                    title="Result of a dry-run simulation (eth_call). It helps catch obvious failures but cannot guarantee final on-chain success."
+                  >
+                    Likely succeeds
+                  </span>
                 ) : cancelSimulation.status === 'error' ? (
-                  <span className="text-red-300">May fail</span>
+                  <span
+                    className="text-red-300"
+                    title="Result of a dry-run simulation (eth_call). It helps catch obvious failures but cannot guarantee final on-chain success."
+                  >
+                    May fail
+                  </span>
                 ) : (
                   <span className="text-text-dark-secondary">—</span>
                 )}
@@ -1415,10 +1435,15 @@ const OperationsExplorerView: React.FC = () => {
             Timelock Management
           </h1>
         </div>
-        <button className="flex min-w-[84px] cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-full h-10 px-4 bg-primary text-background-dark text-sm font-bold leading-normal tracking-[0.015em] hover:opacity-90 transition-opacity">
+        <Link
+          href="/new_proposal"
+          className="flex min-w-[84px] cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-full h-10 px-4 bg-primary text-background-dark text-sm font-bold leading-normal tracking-[0.015em] hover:opacity-90 transition-opacity"
+          aria-label="Schedule a new timelock operation"
+          title="Schedule a new timelock operation"
+        >
           <span className="material-symbols-outlined text-xl!">add</span>
           <span className="truncate">Schedule Operation</span>
-        </button>
+        </Link>
       </header>
 
       <main className="flex flex-col gap-4 p-4 md:p-6">
@@ -1428,6 +1453,9 @@ const OperationsExplorerView: React.FC = () => {
             Timelock Operations
           </h2>
         </div>
+        <p className="text-text-dark-secondary text-sm">
+          All scheduled, ready, executed, and canceled operations for the currently selected timelock.
+        </p>
 
         {/* Toolbar / Filters */}
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between rounded-lg bg-surface-dark p-3">
@@ -1501,11 +1529,20 @@ const OperationsExplorerView: React.FC = () => {
               className="h-11 rounded-lg bg-border-dark px-3 text-sm text-text-dark-primary placeholder:text-text-dark-secondary focus:outline-0 focus:ring-0"
               aria-label="Date to"
             />
-            <button className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-border-dark text-text-dark-secondary hover:bg-white/10 transition-colors">
+            <button
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-border-dark text-text-dark-secondary hover:bg-white/10 transition-colors"
+              type="button"
+              aria-label="Show advanced filters"
+              title="Show advanced filters"
+            >
               <span className="material-symbols-outlined">filter_list</span>
             </button>
           </div>
         </div>
+
+        <p className="text-text-dark-secondary text-xs">
+          Use these filters to focus on actions that still need review or execution, or to audit past executions and cancellations.
+        </p>
 
         {/* T092: Date range validation error */}
         {dateRangeError ? (
@@ -1544,8 +1581,7 @@ const OperationsExplorerView: React.FC = () => {
         {/* T094: Results count */}
         {!isLoading && !isError ? (
           <div className="text-sm text-text-dark-secondary">
-            Showing {resultsCount.from}–{resultsCount.to} ({resultsCount.showing}{' '}
-            on this page)
+            Showing {resultsCount.from}–{resultsCount.to} operations on this page
           </div>
         ) : null}
 
@@ -1656,7 +1692,7 @@ const OperationsExplorerView: React.FC = () => {
                 </p>
                 <div className="flex flex-col sm:flex-row gap-3">
                   <a
-                    href={`https://explorer.testnet.rsk.co/tx/${executeTxHash}`}
+                    href={`${getBlockscoutExplorerUrl(chainId)}/tx/${executeTxHash}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center justify-center gap-2 rounded-md px-4 py-2 bg-green-500/20 text-green-500 text-sm font-medium hover:bg-green-500/30 transition-colors"
@@ -1664,7 +1700,7 @@ const OperationsExplorerView: React.FC = () => {
                     <span className="material-symbols-outlined text-base">
                       open_in_new
                     </span>
-                    View Transaction
+                    View transaction on Blockscout
                   </a>
                 </div>
               </div>

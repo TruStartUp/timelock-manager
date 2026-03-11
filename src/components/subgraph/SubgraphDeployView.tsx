@@ -148,6 +148,9 @@ npx graph deploy --studio '${trimmedSlug}'`
                 value={startBlock}
                 onChange={(e) => setStartBlock(e.target.value)}
               />
+              <p className="mt-1 text-xs text-text-dark-secondary">
+                Block number when this timelock contract was deployed (for example, from its deployment transaction in the explorer).
+              </p>
             </div>
           </div>
 
@@ -194,7 +197,7 @@ npx graph deploy --studio '${trimmedSlug}'`
                   onChange={(e) => setDeployKey(e.target.value)}
                 />
                 <p className="mt-1 text-xs text-text-dark-secondary">
-                  Used only to construct the command below in your browser. It is never sent to this app&apos;s server.
+                  Your Graph Studio deploy key (from the Studio UI). It is only used locally in this browser to build the command and is never sent to this app&apos;s server.
                 </p>
               </div>
               <div>
@@ -250,7 +253,11 @@ npx graph deploy --studio '${trimmedSlug}'`
                 Save this timelock to the app
               </button>
             </div>
-            {saveSuccess && <p className="text-sm text-green-400">{saveSuccess}</p>}
+            {saveSuccess && (
+              <p className="text-sm text-green-400">
+                Timelock saved. You can now select it in Settings or from the header to view its operations.
+              </p>
+            )}
             {saveError && <p className="text-sm text-red-400">{saveError}</p>}
           </div>
         </div>
