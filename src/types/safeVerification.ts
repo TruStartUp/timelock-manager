@@ -21,7 +21,7 @@ export interface SafeTransactionParams {
 
 export interface SafeVerificationPayload {
   network: SafeVerificationNetwork
-  expectedSafeTxHash: Hex
+  expectedSafeTxHash?: Hex
   transaction: SafeTransactionParams
 }
 
@@ -29,7 +29,7 @@ export interface SafeVerificationResult extends SafeVerificationPayload {
   computedSafeTxHash: Hex
   domainHash: Hex
   messageHash: Hex
-  isMatch: boolean
+  isMatch: boolean | null
   decodedCall?: DecodedCall
   decodeError?: string
 }
