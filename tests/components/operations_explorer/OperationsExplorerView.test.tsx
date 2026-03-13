@@ -212,6 +212,14 @@ describe('OperationsExplorerView', () => {
     })
   })
 
+
+  test('shows guidance when no timelock is connected', () => {
+    render(<OperationsExplorerView />, { wrapper: TestWrapper })
+
+    expect(
+      screen.getByText(/Activity will show here once a timelock is connected/i)
+    ).toBeInTheDocument()
+  })
   test('renders top navigation bar correctly', () => {
     render(<OperationsExplorerView />, { wrapper: TestWrapper })
 
