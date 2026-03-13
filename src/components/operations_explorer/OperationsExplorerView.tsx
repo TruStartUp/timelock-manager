@@ -576,7 +576,7 @@ const OperationsExplorerView: React.FC = () => {
       dateTo: dateToTs,
     },
     {
-      enabled: !dateRangeError,
+      enabled: !dateRangeError && !!timelockAddress,
       pagination: {
         first: pageSize,
         skip: pageIndex * pageSize,
@@ -1456,6 +1456,11 @@ const OperationsExplorerView: React.FC = () => {
         <p className="text-text-dark-secondary text-sm">
           All scheduled, ready, executed, and canceled operations for the currently selected timelock.
         </p>
+        {!timelockAddress ? (
+          <div className="rounded-lg border border-border-dark bg-background-dark/60 p-4 text-sm text-text-dark-secondary">
+            Activity will show here once a timelock is connected. Configure and select a timelock in Settings to start seeing operations.
+          </div>
+        ) : null}
 
         {/* Toolbar / Filters */}
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between rounded-lg bg-surface-dark p-3">
