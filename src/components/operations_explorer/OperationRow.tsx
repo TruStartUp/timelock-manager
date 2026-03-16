@@ -592,7 +592,7 @@ export const OperationRow: React.FC<OperationRowProps> = ({
         tabIndex={0}
         aria-expanded={isExpanded}
         className={`grid min-w-[1024px] grid-cols-7 items-center border-b border-border-dark px-6 py-4 transition-colors cursor-pointer outline-none ${
-          isExpanded ? 'bg-primary/10 hover:bg-primary/20' : 'hover:bg-white/5'
+          isExpanded ? 'bg-primary/8 hover:bg-primary/12' : 'hover:bg-surface-elevated/40'
         }`}
         onClick={() => onRowClick(operation.id)}
         onKeyDown={handleKeyDown}
@@ -800,7 +800,7 @@ export const OperationRow: React.FC<OperationRowProps> = ({
 
       {/* Expanded Details Row */}
       {isExpanded && operation.details && (
-        <div className="min-w-[1024px] bg-primary/5 overflow-hidden">
+        <div className="min-w-[1024px] overflow-hidden bg-surface-elevated/30">
           <div className="grid grid-cols-1 gap-6 p-6 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] border-b border-border-dark overflow-hidden">
             <div className="min-w-0 overflow-hidden">
               <h4 className="text-xs font-bold uppercase text-text-dark-secondary mb-2">
@@ -897,15 +897,15 @@ export const OperationRow: React.FC<OperationRowProps> = ({
                   disabled={explainState.status === 'loading'}
                   className={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-xs font-bold transition-colors ${
                     explainState.status === 'loading'
-                      ? 'bg-primary/20 text-primary cursor-wait'
-                      : 'bg-border-dark text-text-dark-primary hover:bg-white/10'
+                      ? 'bg-primary/15 text-primary cursor-wait'
+                      : 'bg-surface text-text-dark-primary hover:bg-surface-elevated'
                   }`}
                 >
                   {explainState.status === 'loading' ? 'Explaining…' : 'Explain this operation'}
                 </button>
               </div>
               {explainState.status === 'success' ? (
-                <div className="mb-3 rounded border border-border-dark/60 bg-black/10 p-3 text-sm">
+                <div className="mb-3 rounded-xl border border-border-dark/60 bg-surface p-3 text-sm">
                   <div className="text-xs font-bold uppercase text-text-dark-secondary mb-1">
                     Human translation
                   </div>
@@ -926,9 +926,9 @@ export const OperationRow: React.FC<OperationRowProps> = ({
                   Failed to generate explanation: {explainState.message}
                 </div>
               ) : null}
-              <div className="flex flex-col gap-2 text-sm font-mono bg-background-dark p-3 rounded-md">
+              <div className="flex flex-col gap-2 rounded-xl bg-background-dark p-3 text-sm font-mono">
                 {operation.details.callsDetails.map((call, index) => (
-                  <div key={index} className="rounded border border-border-dark/60 bg-black/10 p-3">
+                  <div key={index} className="rounded-xl border border-border-dark/60 bg-surface p-3">
                     <div className="flex flex-wrap items-baseline justify-between gap-2">
                       <div className="flex items-baseline gap-2">
                         <span className="text-primary">{index + 1}.</span>

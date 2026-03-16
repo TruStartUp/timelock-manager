@@ -94,13 +94,15 @@ describe('DashboardView', () => {
       </WagmiProvider>
     )
 
-    // Active timelock panel (now read-only, not a combobox)
-    expect(screen.getByText(/Active Timelock/i)).toBeInTheDocument()
-    expect(screen.getByText(/Test Timelock/i)).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: /Dashboard/i })
+    ).toBeInTheDocument()
+    expect(screen.getByText(/Manage and monitor governance/i)).toBeInTheDocument()
 
     // Check for network status
-    expect(screen.getByText(/Connected to:/i)).toBeInTheDocument()
+    expect(screen.getByText(/Network:/i)).toBeInTheDocument()
     expect(screen.getByText(/Rootstock Mainnet/i)).toBeInTheDocument()
+    expect(screen.getByText(/Timelock:/i)).toBeInTheDocument()
 
     // Check for "Operations Overview" section
     expect(
@@ -117,8 +119,9 @@ describe('DashboardView', () => {
     })
 
     // Verify the "Ready for Execution" count (note: "3" also appears in roles table, so we check context)
-    const readySection = screen.getByText(/Ready for Execution/i).parentElement
-    expect(readySection).toHaveTextContent('3')
+    expect(
+      screen.getByLabelText(/View ready operations in Operations Explorer/i)
+    ).toHaveTextContent('3')
 
     // Check for "Access Manager Roles" section
     expect(
@@ -127,8 +130,8 @@ describe('DashboardView', () => {
     expect(screen.getByRole('table')).toBeInTheDocument()
     // Role names are now displayed from ROLE_NAMES (Proposer, Executor, etc.)
     await waitFor(() => {
-      expect(screen.getByText(/Proposer/i)).toBeInTheDocument()
-      expect(screen.getByText(/Executor/i)).toBeInTheDocument()
+      expect(screen.getAllByText(/Proposer/i).length).toBeGreaterThan(0)
+      expect(screen.getAllByText(/Executor/i).length).toBeGreaterThan(0)
     })
   })
 
@@ -202,13 +205,14 @@ describe('DashboardView', () => {
     )
 
     // Should display 0 for all counts
-    const pendingSection = screen.getByText(/Pending Operations/i).parentElement
-    expect(pendingSection).toHaveTextContent('0')
-
-    const readySection = screen.getByText(/Ready for Execution/i).parentElement
-    expect(readySection).toHaveTextContent('0')
-
-    const executedSection = screen.getByText(/Executed Operations/i).parentElement
-    expect(executedSection).toHaveTextContent('0')
+    expect(
+      screen.getByLabelText(/View pending operations in Operations Explorer/i)
+    ).toHaveTextContent('0')
+    expect(
+      screen.getByLabelText(/View ready operations in Operations Explorer/i)
+    ).toHaveTextContent('0')
+    expect(
+      screen.getByLabelText(/View executed operations in Operations Explorer/i)
+    ).toHaveTextContent('0')
   })
 })

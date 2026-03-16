@@ -162,7 +162,7 @@ npx graph deploy --studio '${trimmedSlug}'`
                 onClick={() => setNetwork('rsk_mainnet')}
                 className={`px-4 py-2 rounded-full text-sm font-medium border ${
                   network === 'rsk_mainnet'
-                    ? 'border-primary bg-primary text-black'
+                    ? 'border-primary bg-primary text-white'
                     : 'border-[#55493a] text-white hover:bg-[#2a2218]'
                 }`}
               >
@@ -173,7 +173,7 @@ npx graph deploy --studio '${trimmedSlug}'`
                 onClick={() => setNetwork('rsk_testnet')}
                 className={`px-4 py-2 rounded-full text-sm font-medium border ${
                   network === 'rsk_testnet'
-                    ? 'border-primary bg-primary text-black'
+                    ? 'border-primary bg-primary text-white'
                     : 'border-[#55493a] text-white hover:bg-[#2a2218]'
                 }`}
               >
@@ -248,7 +248,7 @@ npx graph deploy --studio '${trimmedSlug}'`
               <button
                 type="button"
                 onClick={handleSaveToApp}
-                className="inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold text-black bg-primary hover:bg-primary/80"
+                className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-white hover:bg-primary/80"
               >
                 Save this timelock to the app
               </button>
@@ -265,4 +265,3 @@ npx graph deploy --studio '${trimmedSlug}'`
     </main>
   )
 }
-

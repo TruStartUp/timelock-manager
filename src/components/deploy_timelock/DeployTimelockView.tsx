@@ -275,7 +275,7 @@ export default function DeployTimelockView() {
                   <button
                     type="button"
                     onClick={addToApp}
-                    className="inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold text-black bg-primary hover:bg-primary/80"
+                    className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-white hover:bg-primary/80"
                   >
                     Add this timelock to the app
                   </button>
@@ -408,7 +408,7 @@ export default function DeployTimelockView() {
                   type="button"
                   onClick={handleDeploy}
                   disabled={!isConnected || isDeployPending}
-                  className="inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold text-black bg-primary hover:bg-primary/80 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-white hover:bg-primary/80 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isDeployPending ? 'Deploying…' : 'Deploy Timelock'}
                 </button>

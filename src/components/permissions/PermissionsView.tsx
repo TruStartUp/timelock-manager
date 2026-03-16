@@ -102,7 +102,7 @@ const RoleMemberRow = ({ member, isDefaultAdmin, connectedAddress, blockscoutUrl
           href={`${blockscoutUrl}/address/${member}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex size-9 items-center justify-center rounded-md text-text-dark hover:text-white hover:bg-white/5 transition-colors"
+          className="inline-flex size-9 items-center justify-center rounded-md text-text-dark hover:text-white hover:bg-surface-elevated/40 transition-colors"
           aria-label="Open on Blockscout"
           title="Open on Blockscout"
         >
@@ -119,7 +119,7 @@ const RoleMemberRow = ({ member, isDefaultAdmin, connectedAddress, blockscoutUrl
                 console.error('Failed to copy:', err)
               }
             }}
-            className="inline-flex size-9 items-center justify-center rounded-md text-text-dark hover:text-white hover:bg-white/5 transition-colors"
+            className="inline-flex size-9 items-center justify-center rounded-md text-text-dark hover:text-white hover:bg-surface-elevated/40 transition-colors"
             title={copiedAddress === member ? 'Copied!' : 'Copy address'}
             aria-label={copiedAddress === member ? 'Copied address' : 'Copy address'}
           >

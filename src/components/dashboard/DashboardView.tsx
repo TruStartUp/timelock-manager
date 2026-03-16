@@ -13,11 +13,11 @@ const DEFAULT_DOCS_URL = 'https://david-personal.gitbook.io/timelock-manager/'
 function DashboardIntro() {
   const docsUrl = process.env.NEXT_PUBLIC_DOCS_URL ?? DEFAULT_DOCS_URL
   return (
-    <div className="rounded border border-border-color bg-surface p-5" role="region" aria-label="About Timelock Controller and this app">
+    <div className="app-card p-6" role="region" aria-label="About Timelock Controller and this app">
       <div className="flex flex-col gap-3">
         <div className="flex items-center gap-2 text-text-secondary">
           <span className="material-symbols-outlined text-lg" aria-hidden="true">info</span>
-          <span className="text-sm font-medium">About</span>
+          <span className="text-xs font-semibold uppercase tracking-[0.18em]">About</span>
         </div>
         <p className="text-text-primary text-sm leading-relaxed">
           A <strong>Timelock Controller</strong> is a smart contract that delays function calls on another contract for a set period. It is used in governance so that users can see planned changes and react before they take effect.
@@ -69,7 +69,7 @@ const DashboardView: React.FC = () => {
       <div className="flex flex-col gap-8">
         <DashboardIntro />
         <div className="flex flex-col items-center justify-center py-16">
-          <div className="w-full max-w-2xl rounded-lg border border-border-color bg-surface p-8 text-center">
+          <div className="app-card w-full max-w-2xl p-8 text-center">
             <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
               <span className="material-symbols-outlined text-2xl">
                 playlist_add
@@ -84,7 +84,7 @@ const DashboardView: React.FC = () => {
             <div className="mt-6 flex justify-center">
               <Link
                 href="/settings"
-                className="rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-black hover:bg-primary/80 transition-colors"
+                className="app-button-primary rounded-full px-6"
               >
                 Go to Settings
               </Link>
@@ -100,8 +100,8 @@ const DashboardView: React.FC = () => {
       <div className="flex flex-col gap-8">
         <DashboardIntro />
         <div className="flex flex-col items-center justify-center py-16">
-          <div className="w-full max-w-2xl rounded-lg border border-border-color bg-surface p-8 text-center">
-            <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-yellow-500/10 text-yellow-500">
+          <div className="app-card w-full max-w-2xl p-8 text-center">
+            <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-amber-500/10 text-amber-400">
               <span className="material-symbols-outlined text-2xl">
                 warning
               </span>
@@ -115,7 +115,7 @@ const DashboardView: React.FC = () => {
             <div className="mt-6 flex justify-center">
               <Link
                 href="/settings"
-                className="rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-black hover:bg-primary/80 transition-colors"
+                className="app-button-primary rounded-full px-6"
               >
                 Manage timelocks in Settings
               </Link>
@@ -130,14 +130,25 @@ const DashboardView: React.FC = () => {
     <>
       {/* Main Content Grid */}
       <div className="flex flex-col gap-8">
+        <div className="space-y-4">
+          <div>
+            <h1 className="text-text-primary text-3xl font-bold tracking-tight">
+              Dashboard
+            </h1>
+            <p className="mt-2 text-text-secondary">
+              Manage and monitor governance time-delayed operations.
+            </p>
+          </div>
+          <div className="app-panel flex flex-wrap items-center gap-3 px-4 py-3 text-sm text-text-secondary">
+            <span>Network: {networkName}</span>
+            <span className="hidden text-border-color sm:inline">•</span>
+            <span>
+              Timelock: {(selected.address as string).slice(0, 6)}...
+              {(selected.address as string).slice(-4)}
+            </span>
+          </div>
+        </div>
         <DashboardIntro />
-        <p className="text-text-secondary text-sm">
-          Network: {networkName}
-        </p>
-        <p className="text-text-secondary text-sm">
-          Currently showing data for timelock: {(selected.address as string).slice(0, 6)}...
-          {(selected.address as string).slice(-4)}.
-        </p>
         {/* SectionHeader for Operations */}
         <h2 className="text-text-primary text-xl font-bold leading-tight tracking-[-0.015em]">
           Operations Overview
@@ -147,19 +158,24 @@ const DashboardView: React.FC = () => {
         </p>
         {/* Stats Cards */}
         {isError && (
-          <div className="rounded border border-red-500/50 bg-red-500/10 p-4">
-            <p className="text-red-500 text-sm">
+          <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4">
+            <p className="text-red-300 text-sm">
               Failed to load operations data. Please check your connection and try again.
             </p>
           </div>
         )}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          <div className="flex flex-col gap-2 rounded border border-border-color p-6 bg-surface">
-            <p className="text-text-secondary text-base font-medium leading-normal">
-              Pending Operations
-            </p>
+          <div className="app-card flex flex-col gap-3 p-6">
+            <div className="flex items-center justify-between">
+              <p className="text-text-secondary text-base font-medium leading-normal">
+                Pending Operations
+              </p>
+              <span className="rounded-full bg-status-pending/10 px-2.5 py-1 text-xs font-semibold text-status-pending">
+                Waiting
+              </span>
+            </div>
             {isLoading ? (
-              <div className="h-9 w-16 animate-pulse bg-border-color rounded"></div>
+              <div className="h-9 w-16 animate-pulse rounded bg-border-color"></div>
             ) : (
               <Link
                 href="/operations_explorer?status=pending"
@@ -170,12 +186,17 @@ const DashboardView: React.FC = () => {
               </Link>
             )}
           </div>
-          <div className="flex flex-col gap-2 rounded border border-border-color p-6 bg-surface">
-            <p className="text-text-secondary text-base font-medium leading-normal">
-              Ready for Execution
-            </p>
+          <div className="app-card flex flex-col gap-3 p-6">
+            <div className="flex items-center justify-between">
+              <p className="text-text-secondary text-base font-medium leading-normal">
+                Ready for Execution
+              </p>
+              <span className="rounded-full bg-status-ready/10 px-2.5 py-1 text-xs font-semibold text-status-ready">
+                Ready
+              </span>
+            </div>
             {isLoading ? (
-              <div className="h-9 w-16 animate-pulse bg-border-color rounded"></div>
+              <div className="h-9 w-16 animate-pulse rounded bg-border-color"></div>
             ) : (
               <Link
                 href="/operations_explorer?status=ready"
@@ -186,12 +207,17 @@ const DashboardView: React.FC = () => {
               </Link>
             )}
           </div>
-          <div className="flex flex-col gap-2 rounded border border-border-color p-6 bg-surface">
-            <p className="text-text-secondary text-base font-medium leading-normal">
-              Executed Operations
-            </p>
+          <div className="app-card flex flex-col gap-3 p-6">
+            <div className="flex items-center justify-between">
+              <p className="text-text-secondary text-base font-medium leading-normal">
+                Executed Operations
+              </p>
+              <span className="rounded-full bg-status-executed/10 px-2.5 py-1 text-xs font-semibold text-status-executed">
+                Complete
+              </span>
+            </div>
             {isLoading ? (
-              <div className="h-9 w-16 animate-pulse bg-border-color rounded"></div>
+              <div className="h-9 w-16 animate-pulse rounded bg-border-color"></div>
             ) : (
               <Link
                 href="/operations_explorer?status=executed"
@@ -209,15 +235,15 @@ const DashboardView: React.FC = () => {
         </h2>
         {/* Roles Summary Table */}
         {rolesError && (
-          <div className="rounded border border-red-500/50 bg-red-500/10 p-4">
-            <p className="text-red-500 text-sm">
+          <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4">
+            <p className="text-red-300 text-sm">
               Failed to load roles data. Please check your connection and try again.
             </p>
           </div>
         )}
-        <div className="overflow-x-auto rounded border border-border-color bg-surface">
+        <div className="app-card overflow-x-auto">
           <table className="w-full min-w-[640px] text-left text-sm">
-            <thead className="border-b border-border-color text-text-secondary">
+            <thead className="border-b border-border-color bg-surface-elevated/40 text-text-secondary">
               <tr>
                 <th className="px-6 py-4 font-medium" scope="col">
                   Role

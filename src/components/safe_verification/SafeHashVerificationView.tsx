@@ -49,7 +49,7 @@ function TooltipIcon(props: { text: string; ariaLabel: string }) {
         role="button"
         tabIndex={0}
         title={ariaLabel}
-        className="group inline-flex size-4 items-center justify-center rounded-full border border-current/30 bg-black/10 text-[11px] font-bold leading-none text-current/80 outline-none hover:text-current focus-visible:ring-2 focus-visible:ring-primary/50"
+        className="group inline-flex size-4 items-center justify-center rounded-full border border-current/30 bg-surface-elevated/60 text-[11px] font-bold leading-none text-current/80 outline-none hover:text-current focus-visible:ring-2 focus-visible:ring-primary/30"
         onClick={(e) => {
           e.preventDefault()
           e.stopPropagation()

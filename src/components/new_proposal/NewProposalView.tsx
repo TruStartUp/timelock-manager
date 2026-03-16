@@ -923,7 +923,7 @@ const NewProposalView: React.FC = () => {
   return (
     <div className="flex min-h-screen">
       {/* Left Sidebar: Navigation */}
-      <aside className="w-1/4 max-w-xs border-r border-border-color p-6 flex flex-col justify-between">
+      <aside className="w-1/4 max-w-xs border-r border-border-color bg-surface/60 p-6 flex flex-col justify-between">
         <div className="flex flex-col gap-8">
           {/* Logo and Title */}
           <div className="flex items-center gap-3">
@@ -1031,7 +1031,7 @@ const NewProposalView: React.FC = () => {
         </div>
 
         {/* Help Section */}
-        <div className="flex flex-col gap-4 p-4 bg-surface rounded border border-border-color">
+        <div className="app-card flex flex-col gap-4 p-4">
           <div className="flex items-center gap-2">
             <span className="material-symbols-outlined text-text-secondary">
               help
@@ -1045,7 +1045,7 @@ const NewProposalView: React.FC = () => {
             href={docsUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-full h-10 px-4 bg-background border border-border-color text-text-primary text-sm font-medium leading-normal tracking-[0.015em] hover:bg-border-color transition-colors"
+            className="app-button-secondary flex w-full cursor-pointer overflow-hidden rounded-full h-10 px-4 text-sm font-medium leading-normal tracking-[0.015em]"
           >
             <span className="truncate">View scheduling docs</span>
           </a>
@@ -1070,7 +1070,7 @@ const NewProposalView: React.FC = () => {
                   This is the contract whose function will be called when the timelock operation executes (not the timelock itself).
                 </p>
               </div>
-              <div className="flex flex-col gap-4 rounded-lg border border-border-color bg-surface p-6">
+              <div className="app-card flex flex-col gap-4 p-6">
                 <label className="flex flex-col w-full">
                   <p className="text-text-primary text-base font-medium leading-normal pb-2">
                     Target Contract Address
@@ -1085,7 +1085,7 @@ const NewProposalView: React.FC = () => {
                 </label>
                 <div className="flex items-center gap-4">
                   <button
-                    className="flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-12 px-6 bg-primary text-black text-sm font-bold leading-normal tracking-[0.015em] hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-12 px-6 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em] hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     onClick={handleFetchAbi}
                     disabled={isAbiLoading}
                   >
@@ -1158,7 +1158,7 @@ const NewProposalView: React.FC = () => {
               </div>
 
               {operations.length === 0 ? (
-                <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-6">
+                <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-6">
                   <p className="text-yellow-400 text-base">
                     No operations configured. Please go back to Step 1 and fetch a contract ABI.
                   </p>
@@ -1210,7 +1210,7 @@ const NewProposalView: React.FC = () => {
                       return (
                         <div
                           key={operation.id}
-                          className="flex flex-col gap-6 rounded-lg border border-border-color bg-surface p-6"
+                          className="app-card flex flex-col gap-6 p-6"
                         >
                           {/* Operation Header */}
                           <div className="flex items-center justify-between">
@@ -1254,7 +1254,7 @@ const NewProposalView: React.FC = () => {
                                 }
                               />
                               <button
-                                className="flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-14 px-6 bg-primary text-black text-sm font-bold leading-normal tracking-[0.015em] hover:bg-primary/90 transition-colors disabled:opacity-50"
+                                className="flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-14 px-6 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em] hover:bg-primary/90 transition-colors disabled:opacity-50"
                                 onClick={() => handleFetchAbiForOperation(opIndex, operation.contractAddress)}
                                 disabled={!isAddress(operation.contractAddress, { strict: false })}
                               >
@@ -1403,11 +1403,11 @@ const NewProposalView: React.FC = () => {
                   </div>
 
                   {/* Add Operation Button + Total Count */}
-                  <div className="flex items-center justify-between rounded-lg border border-border-color bg-surface p-4">
+                    <div className="app-card flex items-center justify-between p-4">
                     <button
                       onClick={handleAddOperation}
                       disabled={operations.length >= VALIDATION.MAX_BATCH_CALLS}
-                      className="flex items-center gap-2 cursor-pointer rounded-full px-6 py-3 bg-primary text-black text-sm font-bold leading-normal tracking-[0.015em] hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="flex items-center gap-2 cursor-pointer rounded-full px-6 py-3 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em] hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <span className="material-symbols-outlined text-lg">add</span>
                       <span className="truncate">Add Operation</span>
@@ -1429,7 +1429,7 @@ const NewProposalView: React.FC = () => {
                       <span className="truncate">Back</span>
                     </button>
                     <button
-                      className="flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-12 px-6 bg-primary text-black text-sm font-bold leading-normal tracking-[0.015em] hover:bg-primary/90 transition-colors"
+                      className="flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-12 px-6 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em] hover:bg-primary/90 transition-colors"
                       onClick={handleNext}
                     >
                       <span className="truncate">Next: Review</span>
@@ -1453,7 +1453,7 @@ const NewProposalView: React.FC = () => {
               </div>
 
               {showSuccess ? (
-                <div className="flex flex-col gap-6 rounded-lg border border-border-color bg-surface p-6">
+                <div className="app-card flex flex-col gap-6 p-6">
                   <div className="flex items-center gap-3 text-green-500">
                     <span className="material-symbols-outlined text-base">
                       task_alt
@@ -1521,7 +1521,7 @@ const NewProposalView: React.FC = () => {
                     </button>
                     <Link
                       href="/operations_explorer"
-                      className="flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-12 px-6 bg-primary text-black text-sm font-bold leading-normal tracking-[0.015em] hover:bg-primary/90 transition-colors"
+                      className="flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-12 px-6 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em] hover:bg-primary/90 transition-colors"
                     >
                       <span className="truncate">View this operation in Operations Explorer</span>
                     </Link>
@@ -1529,7 +1529,7 @@ const NewProposalView: React.FC = () => {
                 </div>
               ) : (
                 <>
-                <div className="flex flex-col gap-6 rounded-lg border border-border-color bg-surface p-6">
+                <div className="app-card flex flex-col gap-6 p-6">
                   {/* Batch Summary */}
                   {operations.length > 1 && (
                     <div className="flex flex-col gap-4 pb-6 border-b border-border-color">
@@ -1737,7 +1737,7 @@ const NewProposalView: React.FC = () => {
 
                   {/* High-risk confirmation gate */}
                   {isHighRiskFunction && (
-                    <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
+                    <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
                       <p className="text-yellow-400 text-sm font-medium">
                         High-risk function detected
                       </p>
@@ -1940,7 +1940,7 @@ const NewProposalView: React.FC = () => {
                       ) : null}
                     </div>
                   <button
-                    className={`flex min-w-[84px] items-center justify-center overflow-hidden rounded-full h-12 px-6 bg-primary text-black text-sm font-bold leading-normal tracking-[0.015em] ${
+                    className={`flex min-w-[84px] items-center justify-center overflow-hidden rounded-full h-12 px-6 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em] ${
                       isPending ||
                         scheduleSimulation.status === 'pending' ||
                       operations.some(op => !op.calldata) ||
@@ -1989,7 +1989,7 @@ const NewProposalView: React.FC = () => {
             }
           }}
         >
-          <div className="bg-surface border border-border-color rounded-lg shadow-2xl p-8 max-w-2xl w-full mx-4 max-h-[80vh] overflow-auto">
+          <div className="app-card max-h-[80vh] w-full max-w-2xl overflow-auto p-8 shadow-2xl mx-4">
             <div className="flex items-center justify-between mb-6">
               <h2
                 id="manual-abi-title"
@@ -2046,7 +2046,7 @@ const NewProposalView: React.FC = () => {
               </button>
               <button
                 onClick={handleManualABISubmit}
-                className="px-6 py-3 rounded-full bg-primary text-black font-bold hover:bg-primary/90 transition-colors"
+                className="px-6 py-3 rounded-full bg-primary text-white font-bold hover:bg-primary/90 transition-colors"
               >
                 Use This ABI
               </button>

@@ -163,7 +163,7 @@ const AddTimelockForm: React.FC = () => {
       <div className="flex justify-end pt-2">
         <button
           type="submit"
-          className="rounded-full px-6 py-2.5 text-sm font-semibold text-black bg-primary hover:bg-primary/80 transition-colors"
+          className="rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-white hover:bg-primary/80 transition-colors"
         >
           Add Timelock
         </button>

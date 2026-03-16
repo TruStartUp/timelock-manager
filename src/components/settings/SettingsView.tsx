@@ -338,7 +338,7 @@ const SettingsView = () => {
               Reset to Default
             </button>
             <button
-              className="rounded-full px-6 py-2.5 text-sm font-semibold text-black bg-primary hover:bg-primary/80 transition-colors disabled:bg-primary/40 disabled:cursor-not-allowed"
+              className="rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-white hover:bg-primary/80 transition-colors disabled:bg-primary/40 disabled:cursor-not-allowed"
               disabled={isCustomRpcEnabled && rpcTest.status !== 'success'}
               onClick={saveNetworkSettings}
             >
@@ -457,7 +457,7 @@ const SettingsView = () => {
                   Cancel
                 </button>
                 <button
-                  className="rounded-full px-6 py-2.5 text-sm font-semibold text-black bg-primary hover:bg-primary/80 transition-colors disabled:bg-primary/40 disabled:cursor-not-allowed"
+                  className="rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-white hover:bg-primary/80 transition-colors disabled:bg-primary/40 disabled:cursor-not-allowed"
                   onClick={handleImport}
                   disabled={!importAbiJson.trim() || !importAddress.trim()}
                 >
@@ -524,7 +524,7 @@ const SettingsView = () => {
               </p>
               <Link
                 href="/deploy_timelock"
-                className="inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold text-black bg-primary hover:bg-primary/80 transition-colors"
+                className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-white hover:bg-primary/80 transition-colors"
               >
                 <span className="material-symbols-outlined text-lg">add_circle</span>
                 Deploy Timelock
@@ -559,7 +559,7 @@ const SettingsView = () => {
               </p>
               <Link
                 href="/subgraph/deploy"
-                className="inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold text-black bg-primary hover:bg-primary/80"
+                className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-white hover:bg-primary/80"
               >
                 Open subgraph deploy
               </Link>

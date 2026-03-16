@@ -38,7 +38,7 @@ function TooltipIcon(props: { text: string; ariaLabel: string }) {
         role="button"
         tabIndex={0}
         aria-label={ariaLabel}
-        className="group inline-flex size-4 items-center justify-center rounded-full border border-current/30 bg-black/10 text-[11px] font-bold leading-none text-current/80 outline-none hover:text-current focus-visible:ring-2 focus-visible:ring-primary/50"
+        className="group inline-flex size-4 items-center justify-center rounded-full border border-current/30 bg-surface-elevated/60 text-[11px] font-bold leading-none text-current/80 outline-none hover:text-current focus-visible:ring-2 focus-visible:ring-primary/30"
         onClick={(e) => {
           // Do not toggle the surrounding filter
           e.preventDefault()
@@ -53,11 +53,11 @@ function TooltipIcon(props: { text: string; ariaLabel: string }) {
         }}
       >
         ?
-        <span className="pointer-events-none absolute left-1/2 top-full z-50 mt-2 w-72 -translate-x-1/2 rounded-md border border-border-dark bg-background-dark px-3 py-2 text-xs font-medium text-text-dark-primary opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+        <span className="pointer-events-none absolute left-1/2 top-full z-50 mt-2 w-72 -translate-x-1/2 rounded-lg border border-border-dark bg-surface px-3 py-2 text-xs font-medium text-text-dark-primary opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
           {text}
           <span className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-full">
             <span className="block size-0 border-x-8 border-b-8 border-x-transparent border-b-border-dark" />
-            <span className="relative -top-[7px] block size-0 border-x-7 border-b-7 border-x-transparent border-b-background-dark" />
+            <span className="relative -top-[7px] block size-0 border-x-7 border-b-7 border-x-transparent border-b-surface" />
           </span>
         </span>
       </span>
@@ -950,7 +950,7 @@ const OperationsExplorerView: React.FC = () => {
                       (call, idx) => (
                         <div
                           key={idx}
-                          className="rounded border border-border-dark/60 bg-black/10 p-3 space-y-2"
+                          className="rounded-xl border border-border-dark/60 bg-surface p-3 space-y-2"
                         >
                           <div className="text-xs font-semibold text-text-dark-secondary">
                             Call {idx + 1}
@@ -1036,7 +1036,7 @@ const OperationsExplorerView: React.FC = () => {
                       return (
                         <div
                           key={idx}
-                          className="rounded border border-border-dark/60 bg-black/10 p-3 space-y-2"
+                          className="rounded-xl border border-border-dark/60 bg-surface p-3 space-y-2"
                         >
                           <div className="flex items-center justify-between gap-2">
                             <span className="text-xs font-semibold text-text-dark-secondary">
@@ -1161,7 +1161,7 @@ const OperationsExplorerView: React.FC = () => {
                         {decodedExecute.params.map((p, i) => (
                           <div
                             key={i}
-                            className="rounded border border-border-dark/60 bg-black/10 p-2"
+                            className="rounded-lg border border-border-dark/60 bg-surface p-2"
                           >
                             <div className="text-text-dark-secondary">
                               {p.name} ({p.type})
@@ -1235,7 +1235,7 @@ const OperationsExplorerView: React.FC = () => {
 
             <div className="mt-6 flex items-center justify-end gap-3">
               <button
-                className="rounded-md border border-border-dark bg-transparent px-4 py-2 text-sm font-semibold text-text-dark-secondary hover:bg-white/5"
+                className="rounded-md border border-border-dark bg-transparent px-4 py-2 text-sm font-semibold text-text-dark-secondary hover:bg-surface-elevated/40"
                 onClick={() => setConfirmExecuteOperation(null)}
                 disabled={isExecuting}
               >
@@ -1381,7 +1381,7 @@ const OperationsExplorerView: React.FC = () => {
 
             <div className="mt-6 flex items-center justify-end gap-3">
               <button
-                className="rounded-md border border-border-dark bg-transparent px-4 py-2 text-sm font-semibold text-text-dark-secondary hover:bg-white/5"
+                className="rounded-md border border-border-dark bg-transparent px-4 py-2 text-sm font-semibold text-text-dark-secondary hover:bg-surface-elevated/40"
                 onClick={() => setConfirmCancelOperation(null)}
                 disabled={isCancelling}
               >
@@ -1437,7 +1437,7 @@ const OperationsExplorerView: React.FC = () => {
         </div>
         <Link
           href="/new_proposal"
-          className="flex min-w-[84px] cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-full h-10 px-4 bg-primary text-background-dark text-sm font-bold leading-normal tracking-[0.015em] hover:opacity-90 transition-opacity"
+          className="flex min-w-[84px] cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-full h-10 px-4 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em] hover:opacity-90 transition-opacity"
           aria-label="Schedule a new timelock operation"
           title="Schedule a new timelock operation"
         >
@@ -1458,7 +1458,7 @@ const OperationsExplorerView: React.FC = () => {
         </p>
 
         {/* Toolbar / Filters */}
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between rounded-lg bg-surface-dark p-3">
+        <div className="app-card flex flex-col gap-4 p-3 md:flex-row md:items-center md:justify-between">
           {/* Filter Chips */}
           <div className="flex flex-wrap gap-2">
             {(
@@ -1474,8 +1474,8 @@ const OperationsExplorerView: React.FC = () => {
                 key={filter}
                 className={`flex h-9 shrink-0 items-center justify-center gap-x-2 rounded-full text-sm font-medium leading-normal transition-colors ${
                   selectedFilter === filter
-                    ? 'bg-primary text-background-dark'
-                    : 'bg-border-dark text-text-dark-primary hover:bg-white/10'
+                    ? 'bg-primary text-white'
+                    : 'bg-border-dark text-text-dark-primary hover:bg-surface-elevated'
                 }`}
               >
                 <button
@@ -1519,18 +1519,18 @@ const OperationsExplorerView: React.FC = () => {
               type="date"
               value={dateFrom}
               onChange={(e) => setDateFrom(e.target.value)}
-              className="h-11 rounded-lg bg-border-dark px-3 text-sm text-text-dark-primary placeholder:text-text-dark-secondary focus:outline-0 focus:ring-0"
+              className="h-11 rounded-lg border border-border-dark bg-border-dark px-3 text-sm text-text-dark-primary placeholder:text-text-dark-secondary focus:outline-0 focus:ring-2 focus:ring-primary/20"
               aria-label="Date from"
             />
             <input
               type="date"
               value={dateTo}
               onChange={(e) => setDateTo(e.target.value)}
-              className="h-11 rounded-lg bg-border-dark px-3 text-sm text-text-dark-primary placeholder:text-text-dark-secondary focus:outline-0 focus:ring-0"
+              className="h-11 rounded-lg border border-border-dark bg-border-dark px-3 text-sm text-text-dark-primary placeholder:text-text-dark-secondary focus:outline-0 focus:ring-2 focus:ring-primary/20"
               aria-label="Date to"
             />
             <button
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-border-dark text-text-dark-secondary hover:bg-white/10 transition-colors"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-border-dark bg-border-dark text-text-dark-secondary hover:bg-surface-elevated transition-colors"
               type="button"
               aria-label="Show advanced filters"
               title="Show advanced filters"
@@ -1587,11 +1587,11 @@ const OperationsExplorerView: React.FC = () => {
 
         {/* T116: Pagination controls */}
         {!isLoading && !isError ? (
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-surface-dark p-3">
+          <div className="app-card flex flex-wrap items-center justify-between gap-3 p-3">
             <div className="flex items-center gap-2 text-sm text-text-dark-secondary">
               <span>Rows per page</span>
               <select
-                className="h-9 rounded-lg bg-border-dark px-3 text-sm text-text-dark-primary focus:outline-0 focus:ring-0"
+                className="h-9 rounded-lg border border-border-dark bg-border-dark px-3 text-sm text-text-dark-primary focus:outline-0 focus:ring-2 focus:ring-primary/20"
                 value={pageSize}
                 onChange={(e) => {
                   const next = Number(e.target.value)
@@ -1616,7 +1616,7 @@ const OperationsExplorerView: React.FC = () => {
               <button
                 className={`flex h-9 items-center justify-center rounded-md px-3 text-xs font-bold transition-colors ${
                   canPrevPage
-                    ? 'bg-border-dark text-text-dark-primary hover:bg-white/10'
+                    ? 'bg-border-dark text-text-dark-primary hover:bg-surface-elevated'
                     : 'bg-border-dark text-text-dark-secondary opacity-50 cursor-not-allowed'
                 }`}
                 onClick={() => canPrevPage && setPageIndex((p) => Math.max(0, p - 1))}
@@ -1628,7 +1628,7 @@ const OperationsExplorerView: React.FC = () => {
               <button
                 className={`flex h-9 items-center justify-center rounded-md px-3 text-xs font-bold transition-colors ${
                   canNextPage
-                    ? 'bg-border-dark text-text-dark-primary hover:bg-white/10'
+                    ? 'bg-border-dark text-text-dark-primary hover:bg-surface-elevated'
                     : 'bg-border-dark text-text-dark-secondary opacity-50 cursor-not-allowed'
                 }`}
                 onClick={() => canNextPage && setPageIndex((p) => p + 1)}
@@ -1754,7 +1754,7 @@ const OperationsExplorerView: React.FC = () => {
 
         {/* Loading State */}
         {isLoading && (
-          <div className="rounded-lg bg-surface-dark p-6">
+          <div className="app-card p-6">
             <div className="flex items-center justify-between gap-4">
               <Skeleton className="h-6 w-48" />
               <Skeleton className="h-6 w-28" />
@@ -1867,7 +1867,7 @@ function VirtualizedOperationsList(props: {
   }, [props.expandedRowId, rowVirtualizer, shouldVirtualize])
 
   return (
-    <div className="w-full overflow-x-auto rounded-lg bg-surface-dark">
+    <div className="app-card w-full overflow-x-auto">
       <div role="table" aria-label="Timelock operations" className="w-full">
         {/* Header */}
         <div
