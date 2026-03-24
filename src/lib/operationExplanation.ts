@@ -283,11 +283,17 @@ export const fetchOperationExplanation = async (
     }
 
     const data = (await res.json()) as OperationExplanation
+    const summary = typeof data.summary === 'string' ? data.summary.trim() : ''
+    if (!summary) {
+      throw new Error('Explanation response did not include a non-empty summary')
+    }
+
     const normalized = {
-      summary: data.summary || 'Explanation generated.',
+      summary,
       perCall: data.perCall,
       cacheHit: data.cacheHit ?? false,
-      fingerprint: data.fingerprint ?? requestFingerprint,
+      // Keep client cache keyed to the request fingerprint deterministically.
+      fingerprint: requestFingerprint,
       generatedAt: data.generatedAt,
     }
     explanationCache.set(requestFingerprint, {

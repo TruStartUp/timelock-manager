@@ -175,4 +175,36 @@ describe('explain_operation API', () => {
     expect((res2.body as any).cacheHit).toBe(true)
     expect(upstreamFetch).toHaveBeenCalledTimes(1)
   })
+
+  it('rejects empty summaries from upstream responses', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        text: async () =>
+          JSON.stringify({
+            output_text: JSON.stringify({
+              summary: '   ',
+              perCall: ['Call 1'],
+            }),
+          }),
+      })
+    )
+
+    const req = createReq({
+      ...VALID_BODY,
+      fingerprint: 'test-empty-summary-fingerprint',
+      operationId:
+        '0xdd1234567890abcdef1234567890abcdef1234567890abcdef1234567890c456',
+    })
+    const res = createMockRes()
+
+    await handler(req, res)
+
+    expect(res.statusCode).toBe(502)
+    expect(res.body).toEqual({
+      error: 'OpenAI response returned empty summary',
+      fingerprint: 'test-empty-summary-fingerprint',
+    })
+  })
 })

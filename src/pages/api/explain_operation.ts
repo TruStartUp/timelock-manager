@@ -118,11 +118,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const now = Date.now()
   const cached = responseCache.get(fingerprint)
   if (cached && cached.expiresAt > now) {
-    return res.status(200).json({
-      ...cached.value,
-      cacheHit: true,
-      fingerprint,
-    })
+    const cachedSummary = typeof cached.value.summary === 'string'
+      ? cached.value.summary.trim()
+      : ''
+    // Never reuse corrupt/empty summaries from cache.
+    if (!cachedSummary) {
+      responseCache.delete(fingerprint)
+    } else {
+      return res.status(200).json({
+        ...cached.value,
+        summary: cachedSummary,
+        cacheHit: true,
+        fingerprint,
+      })
+    }
+  }
+
+  if (cached && cached.expiresAt <= now) {
+    responseCache.delete(fingerprint)
   }
 
   // GPT‑5 via Responses API
@@ -219,8 +232,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         )
       }
 
+      const summary = asString(parsed.summary ?? '').trim()
+      if (!summary) {
+        throw new Error(
+          JSON.stringify({
+            type: 'invalid_output',
+            message: 'OpenAI response returned empty summary',
+          })
+        )
+      }
+
       const responseBody: ExplainResponseBody = {
-        summary: asString(parsed.summary ?? ''),
+        summary,
         perCall: Array.isArray(parsed.perCall)
           ? parsed.perCall.map((x: unknown) => asString(x))
           : undefined,
@@ -258,7 +281,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         })
       }
       if (parsed?.type === 'invalid_output') {
-        return res.status(502).json({ error: parsed.message })
+        return res.status(502).json({
+          error: parsed.message,
+          fingerprint,
+        })
       }
     } catch {
       // Continue to generic error response

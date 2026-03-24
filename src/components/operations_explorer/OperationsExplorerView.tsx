@@ -1870,9 +1870,12 @@ function VirtualizedOperationsList(props: {
   formatAbsoluteTime: (timestamp: bigint) => string
 }) {
   const parentRef = React.useRef<HTMLDivElement | null>(null)
-  const shouldVirtualize = process.env.NODE_ENV !== 'test'
+  // Keep rows non-virtualized for this explorer table because row heights are
+  // dynamic (LLM summaries + expanded details) and absolute-position virtualization
+  // can cause overlap while heights are recalculated.
+  const shouldVirtualize = false
   const shouldPrewarm = process.env.NODE_ENV !== 'test'
-  const PREWARM_VISIBLE_ROWS = 6
+  const PREWARM_VISIBLE_ROWS = 25
 
   const rowVirtualizer = useVirtualizer({
     count: props.operations.length,
@@ -1890,21 +1893,14 @@ function VirtualizedOperationsList(props: {
 
   const prewarmIndexSet = React.useMemo(() => {
     if (!shouldPrewarm) return new Set<number>()
-    if (!shouldVirtualize) {
-      return new Set(
-        props.operations
-          .slice(0, PREWARM_VISIBLE_ROWS)
-          .map((_, index) => index)
-      )
-    }
-
+    // Prewarm from the top of the current page so non-expanded rows still get
+    // human summaries without needing explicit row expansion.
     return new Set(
-      rowVirtualizer
-        .getVirtualItems()
+      props.operations
         .slice(0, PREWARM_VISIBLE_ROWS)
-        .map((item) => item.index)
+        .map((_, index) => index)
     )
-  }, [PREWARM_VISIBLE_ROWS, props.operations, rowVirtualizer, shouldPrewarm, shouldVirtualize])
+  }, [PREWARM_VISIBLE_ROWS, props.operations, shouldPrewarm])
 
   return (
     <div className="app-card w-full overflow-x-auto">
