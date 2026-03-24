@@ -85,7 +85,7 @@ interface Operation {
 interface OperationRowProps {
   operation: Operation
   isExpanded: boolean
-  onRowClick: (id: string) => void
+  onDetailsClick: (id: string) => void
   onExecute: (id: string) => void
   onCancel: (operation: Operation) => void
   hasExecutorRole: boolean
@@ -104,12 +104,14 @@ interface OperationRowProps {
   formatTargets: (targets: string[]) => string
   formatAbsoluteTime: (timestamp: bigint) => string
   prewarmExplanation?: boolean
+  showExpandedContent?: boolean
+  detailMode?: 'inline' | 'drawer'
 }
 
 export const OperationRow: React.FC<OperationRowProps> = ({
   operation,
   isExpanded,
-  onRowClick,
+  onDetailsClick,
   onExecute,
   onCancel,
   hasExecutorRole,
@@ -128,6 +130,8 @@ export const OperationRow: React.FC<OperationRowProps> = ({
   formatTargets,
   formatAbsoluteTime,
   prewarmExplanation = false,
+  showExpandedContent = true,
+  detailMode = 'inline',
 }) => {
   const dangerous = React.useMemo(
     () => getDangerousCallFromCalldata(operation.data),
@@ -669,13 +673,6 @@ export const OperationRow: React.FC<OperationRowProps> = ({
     if (!isExpanded) setIsDeveloperDetailsOpen(false)
   }, [isExpanded])
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault()
-      onRowClick(operation.id)
-    }
-  }
-
   const handleDeveloperToggle = (e: React.SyntheticEvent<HTMLDetailsElement>) => {
     setIsDeveloperDetailsOpen(e.currentTarget.open)
   }
@@ -764,6 +761,482 @@ export const OperationRow: React.FC<OperationRowProps> = ({
     summaryText,
   ])
 
+  const details = operation.details
+  const shouldRenderExpanded = isExpanded && Boolean(details) && showExpandedContent
+
+  const expandedContent = shouldRenderExpanded ? (
+    <div
+      className={
+        detailMode === 'drawer'
+          ? 'overflow-hidden rounded-xl border border-border-dark bg-surface-elevated/30'
+          : 'min-w-[980px] overflow-hidden bg-surface-elevated/30'
+      }
+    >
+      <div
+        className={
+          detailMode === 'drawer'
+            ? 'space-y-6 p-6'
+            : 'space-y-6 border-b border-border-dark p-6'
+        }
+      >
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,2fr)_auto]">
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-2 mb-1">
+                <span
+                  className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ${getStatusTextColor(
+                    displayStatus
+                  )} bg-current/10`}
+                >
+                  {displayStatus}
+                </span>
+                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-text-dark-secondary">
+                  Human Summary
+                </span>
+                {Object.values(decodedByIndex).length > 0 &&
+                details!.callsDetails.length > 0 &&
+                details!.callsDetails.every((_, i) =>
+                  isBlockscoutVerified(decodedByIndex[i]?.decoded)
+                ) ? (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-300">
+                    <span className="material-symbols-outlined text-sm!">verified</span>
+                    Verified target
+                  </span>
+                ) : null}
+              </div>
+              <p className="text-lg font-semibold text-text-dark-primary">
+                What this operation does
+              </p>
+              {isExplanationLoading ? (
+                <div className="space-y-2">
+                  <p className="text-sm leading-7 text-text-dark-secondary">
+                    {operation.summary}
+                  </p>
+                  <div className="h-1.5 w-28 animate-pulse rounded bg-surface-elevated/80" />
+                </div>
+              ) : hasExplanationError ? (
+                <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">
+                  We couldn’t generate a plain-language explanation right now.
+                  Use Developer Details below to verify the raw transaction data.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-sm leading-7 text-text-dark-primary">
+                    {explanation?.summary}
+                  </p>
+                  {explanation?.perCall?.length ? (
+                    <div className="space-y-2 rounded-xl border border-border-dark/60 bg-surface p-4">
+                      <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-text-dark-secondary">
+                        Step By Step
+                      </p>
+                      <div className="space-y-2 text-sm text-text-dark-secondary">
+                        {explanation.perCall.map((line, i) => (
+                          <p key={i}>{line}</p>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-xl border border-border-dark/60 bg-surface p-4 text-xs text-text-dark-secondary">
+              This explanation is generated to help non-technical reviewers.
+              Decoded parameters, raw calldata, and developer details remain the
+              source of truth.
+            </div>
+
+            <div className="rounded-xl border border-border-dark/60 bg-surface p-4">
+              <p className="mb-3 text-xs font-bold uppercase tracking-[0.18em] text-text-dark-secondary">
+                Proposal Timeline
+              </p>
+              <div className="space-y-3 text-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-text-dark-primary">Scheduled</p>
+                    <p className="text-xs text-text-dark-secondary">Transaction queued in timelock</p>
+                  </div>
+                  <div className="text-right text-xs text-text-dark-secondary">
+                    <p>{details!.scheduled}</p>
+                  </div>
+                </div>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-text-dark-primary">Ready</p>
+                    <p className="text-xs text-text-dark-secondary">Minimum delay has passed</p>
+                  </div>
+                  <div className="text-right text-xs text-text-dark-secondary">
+                    <p>{eta.absolute}</p>
+                    <p>{eta.relative}</p>
+                  </div>
+                </div>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-text-dark-primary">
+                      {displayStatus === 'Canceled' ? 'Canceled' : 'Executed'}
+                    </p>
+                    <p className="text-xs text-text-dark-secondary">
+                      {displayStatus === 'Executed'
+                        ? 'Operation executed on-chain'
+                        : displayStatus === 'Canceled'
+                          ? 'Operation canceled'
+                          : 'Pending execution'}
+                    </p>
+                  </div>
+                  <div className="text-right text-xs text-text-dark-secondary">
+                    <p>
+                      {displayStatus === 'Executed'
+                        ? operation.executedAt
+                          ? formatAbsoluteTime(operation.executedAt)
+                          : 'Waiting...'
+                        : displayStatus === 'Canceled'
+                          ? operation.cancelledAt
+                            ? formatAbsoluteTime(operation.cancelledAt)
+                            : 'Waiting...'
+                          : 'Waiting...'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {dangerous ? (
+              <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200">
+                <div className="font-semibold">Dangerous function detected</div>
+                <div className="mt-1 text-red-200/80">
+                  This operation appears to call{' '}
+                  <span className="font-mono">{dangerous.functionName}</span>.
+                  Double-check the target and calldata before executing.
+                </div>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="flex flex-wrap items-start gap-2 lg:justify-end">
+            {displayStatus === 'Ready' ? (
+              <>
+                <button
+                  className={`flex items-center justify-center rounded-lg px-4 py-2 text-sm font-bold transition-colors ${
+                    isExecuting
+                      ? 'bg-primary/20 text-primary cursor-wait'
+                      : isExecuteSuccess
+                        ? 'bg-green-500/20 text-green-500'
+                        : isExecuteError
+                          ? 'bg-red-500/20 text-red-500'
+                          : hasExecutorRole
+                            ? 'bg-primary text-white hover:bg-primary/90'
+                            : 'bg-border-dark text-text-dark-secondary cursor-not-allowed opacity-50'
+                  }`}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    hasExecutorRole && !isExecuting && onExecute(operation.id)
+                  }}
+                  disabled={!hasExecutorRole || isCheckingExecutorRole || isExecuting}
+                  title={
+                    isExecuting
+                      ? 'Transaction pending...'
+                      : isExecuteSuccess
+                        ? 'Execution successful!'
+                        : isExecuteError
+                          ? 'Execution failed'
+                          : isCheckingExecutorRole
+                            ? 'Checking permissions...'
+                            : !hasExecutorRole
+                              ? 'Your wallet does not have the EXECUTOR_ROLE'
+                              : 'Execute this operation'
+                  }
+                >
+                  Execute Now
+                </button>
+                <button
+                  className={`flex items-center justify-center rounded-lg px-4 py-2 text-sm font-bold transition-colors ${
+                    isCancelling
+                      ? 'bg-primary/20 text-primary cursor-wait'
+                      : isCancelSuccess
+                        ? 'bg-green-500/20 text-green-500'
+                        : isCancelError
+                          ? 'bg-red-500/20 text-red-500'
+                          : hasCancellerRole
+                            ? 'bg-status-canceled/20 text-status-canceled hover:bg-status-canceled/30'
+                            : 'bg-border-dark text-text-dark-secondary cursor-not-allowed opacity-50'
+                  }`}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    hasCancellerRole && !isCancelling && onCancel(operation)
+                  }}
+                  disabled={!hasCancellerRole || isCheckingCancellerRole || isCancelling}
+                  title={
+                    isCancelling
+                      ? 'Transaction pending...'
+                      : isCancelSuccess
+                        ? 'Cancellation successful!'
+                        : isCancelError
+                          ? 'Cancellation failed'
+                          : isCheckingCancellerRole
+                            ? 'Checking permissions...'
+                            : !hasCancellerRole
+                              ? 'Your wallet does not have the CANCELLER_ROLE'
+                              : 'Cancel this operation'
+                  }
+                >
+                  Cancel
+                </button>
+              </>
+            ) : null}
+            {displayStatus === 'Pending' ? (
+              <button
+                className={`flex items-center justify-center rounded-lg px-4 py-2 text-sm font-bold transition-colors ${
+                  isCancelling
+                    ? 'bg-primary/20 text-primary cursor-wait'
+                    : isCancelSuccess
+                      ? 'bg-green-500/20 text-green-500'
+                      : isCancelError
+                        ? 'bg-red-500/20 text-red-500'
+                        : hasCancellerRole
+                          ? 'bg-status-canceled/20 text-status-canceled hover:bg-status-canceled/30'
+                          : 'bg-border-dark text-text-dark-secondary cursor-not-allowed opacity-50'
+                }`}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  hasCancellerRole && !isCancelling && onCancel(operation)
+                }}
+                disabled={!hasCancellerRole || isCheckingCancellerRole || isCancelling}
+                title={
+                  isCancelling
+                    ? 'Transaction pending...'
+                    : isCancelSuccess
+                      ? 'Cancellation successful!'
+                      : isCancelError
+                        ? 'Cancellation failed'
+                        : isCheckingCancellerRole
+                          ? 'Checking permissions...'
+                          : !hasCancellerRole
+                            ? 'Your wallet does not have the CANCELLER_ROLE'
+                            : 'Cancel this operation'
+                }
+              >
+                Cancel
+              </button>
+            ) : null}
+          </div>
+        </div>
+
+        <details
+          className="overflow-hidden rounded-xl border border-border-dark bg-surface"
+          open={isDeveloperDetailsOpen}
+          onToggle={handleDeveloperToggle}
+        >
+          <summary className="flex cursor-pointer items-center justify-between px-6 py-4 hover:bg-surface-elevated">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-slate-400 text-xl">
+                code
+              </span>
+              <span className="font-bold text-sm text-text-dark-primary">
+                Developer Details
+              </span>
+              <span className="text-[10px] font-normal uppercase tracking-wide text-text-dark-secondary">
+                Technical Verification
+              </span>
+            </div>
+            <span className="material-symbols-outlined text-text-dark-secondary">
+              {isDeveloperDetailsOpen ? 'expand_less' : 'expand_more'}
+            </span>
+          </summary>
+
+          <div className="grid grid-cols-1 gap-6 border-t border-border-dark p-6 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+            <div className="min-w-0 overflow-hidden">
+              <h4 className="mb-2 text-xs font-bold uppercase text-text-dark-secondary">
+                Operation Details
+              </h4>
+              <div className="flex min-w-0 flex-col gap-1 overflow-hidden text-sm font-mono">
+                <p>
+                  <span className="text-text-dark-secondary">Status:</span>{' '}
+                  <span className="text-text-dark-primary">{displayStatus}</span>
+                </p>
+                <p>
+                  <span className="text-text-dark-secondary">Time until ready:</span>{' '}
+                  <span className="text-text-dark-primary">{eta.relative}</span>
+                </p>
+                <p>
+                  <span className="text-text-dark-secondary">Ready at:</span>{' '}
+                  <span className="text-text-dark-primary">{eta.absolute}</span>
+                </p>
+                <p>
+                  <span className="text-text-dark-secondary">Delay:</span>{' '}
+                  <span className="text-text-dark-primary">
+                    {typeof operation.delay === 'bigint'
+                      ? `${operation.delay.toString()}s (${formatSecondsToTime(
+                          Number(operation.delay)
+                        )})`
+                      : '—'}
+                  </span>
+                </p>
+                <p>
+                  <span className="text-text-dark-secondary">Current minDelay:</span>{' '}
+                  <span className="text-text-dark-primary">
+                    {typeof minDelay === 'bigint'
+                      ? `${minDelay.toString()}s (${formatSecondsToTime(Number(minDelay))})`
+                      : '—'}
+                  </span>
+                </p>
+                <div className="min-w-0 overflow-hidden">
+                  <span className="text-text-dark-secondary">ID:</span>
+                  <span className="text-text-dark-primary break-all block w-full mt-0.5">
+                    {details!.fullId}
+                  </span>
+                </div>
+                <p>
+                  <span className="text-text-dark-secondary">Predecessor:</span>{' '}
+                  <span className="text-text-dark-primary break-all">{operation.predecessor}</span>
+                </p>
+                <p>
+                  <span className="text-text-dark-secondary">Salt:</span>{' '}
+                  <span className="text-text-dark-primary break-all">{operation.salt}</span>
+                </p>
+                <p>
+                  <span className="text-text-dark-secondary">Proposer:</span>{' '}
+                  <span className="text-text-dark-primary">{details!.fullProposer}</span>
+                </p>
+                <p>
+                  <span className="text-text-dark-secondary">Scheduled:</span>{' '}
+                  <span className="text-text-dark-primary">{details!.scheduled}</span>
+                </p>
+                {getTxHashDisplay(operation.scheduledTx, 'Scheduled Tx')}
+                {displayStatus === 'Executed'
+                  ? getTxHashDisplay(operation.executedTx, 'Executed Tx')
+                  : null}
+                {displayStatus === 'Canceled'
+                  ? getTxHashDisplay(operation.cancelledTx, 'Cancelled Tx')
+                  : null}
+              </div>
+            </div>
+
+            <div className="min-w-0 overflow-hidden">
+              <h4 className="mb-2 text-xs font-bold uppercase text-text-dark-secondary">
+                Calls ({details!.callsDetails.length})
+              </h4>
+              <div className="flex flex-col gap-2 rounded-xl bg-background-dark p-3 text-sm font-mono">
+                {details!.callsDetails.map((call, index) => (
+                  <div
+                    key={index}
+                    className="rounded-xl border border-border-dark/60 bg-surface p-3"
+                  >
+                    <div className="flex flex-wrap items-baseline justify-between gap-2">
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-primary">{index + 1}.</span>
+                        {decodedByIndex[index]?.decoded ? (
+                          <span className="text-text-dark-primary">
+                            {decodedByIndex[index]!.decoded!.functionName}{' '}
+                            <span className="text-text-dark-secondary">
+                              {decodedByIndex[index]!.decoded!.signature
+                                ? `(${decodedByIndex[index]!.decoded!.signature})`
+                                : ''}
+                              {decodedByIndex[index]!.decoded!.source === ABISource.FOURBYTE
+                                ? ' — 4byte guess'
+                                : ''}
+                            </span>
+                          </span>
+                        ) : call.signature ? (
+                          <span className="text-text-dark-primary">{call.signature}</span>
+                        ) : isDecoding ? (
+                          <span className="text-text-dark-secondary">Decoding…</span>
+                        ) : (
+                          <span className="text-text-dark-secondary">
+                            ABI not available — import ABI to decode
+                          </span>
+                        )}
+                      </div>
+
+                      <span
+                        className={getAbiBadge(decodedByIndex[index]?.decoded).className}
+                        title="ABI verification status"
+                      >
+                        {getAbiBadge(decodedByIndex[index]?.decoded).label}
+                      </span>
+                    </div>
+
+                    <div className="mt-2 space-y-1">
+                      <div>
+                        <span className="text-text-dark-secondary">Target:</span>{' '}
+                        <span className="text-text-dark-primary break-all">{call.target}</span>
+                      </div>
+                      <div>
+                        <span className="text-text-dark-secondary">Native value:</span>{' '}
+                        <span className="text-text-dark-primary">{call.value}</span>
+                      </div>
+                      {call.data ? (
+                        <div>
+                          <span className="text-text-dark-secondary">Calldata:</span>{' '}
+                          <span className="text-text-dark-primary break-all">{call.data}</span>
+                        </div>
+                      ) : null}
+                    </div>
+
+                    {call.data ? (
+                      <div className="mt-2">
+                        <Link
+                          href={`/decoder?calldata=${encodeURIComponent(
+                            call.data
+                          )}&contractAddress=${encodeURIComponent(call.target)}`}
+                          className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline underline-offset-4"
+                        >
+                          Open in Decoder
+                          <span className="material-symbols-outlined text-base!">
+                            open_in_new
+                          </span>
+                        </Link>
+                      </div>
+                    ) : null}
+
+                    {decodedByIndex[index]?.error ? (
+                      <div className="mt-2 text-xs text-red-300">
+                        Decode failed: {decodedByIndex[index]!.error}
+                      </div>
+                    ) : null}
+
+                    {isBlockscoutVerified(decodedByIndex[index]?.decoded) &&
+                    decodedByIndex[index]?.decoded &&
+                    decodedByIndex[index]!.decoded!.params.length > 0 ? (
+                      <div className="mt-3">
+                        <div className="text-xs font-bold uppercase text-text-dark-secondary mb-1">
+                          Arguments
+                        </div>
+                        <div className="space-y-1 text-xs">
+                          {decodedByIndex[index]!.decoded!.params.map((p, i) => (
+                            <div key={i} className="flex flex-col gap-0.5">
+                              <div>
+                                <span className="text-text-dark-secondary">{p.name}</span>{' '}
+                                <span className="text-text-dark-secondary">({p.type})</span>
+                              </div>
+                              <pre className="whitespace-pre-wrap wrap-break-word text-text-dark-primary">
+                                {stringifyValue(p.value)}
+                              </pre>
+                              {humanAmountByIndex[index] &&
+                              humanAmountByIndex[index]!.paramIndex === i ? (
+                                <div className="text-text-dark-primary">
+                                  <span className="text-text-dark-secondary">Human:</span>{' '}
+                                  {humanAmountByIndex[index]!.formatted}
+                                </div>
+                              ) : null}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </details>
+      </div>
+    </div>
+  ) : null
+
+  if (detailMode === 'drawer') {
+    return expandedContent
+  }
+
   return (
     <>
       <div
@@ -775,8 +1248,6 @@ export const OperationRow: React.FC<OperationRowProps> = ({
             ? 'bg-primary/8 hover:bg-primary/12'
             : 'hover:bg-surface-elevated/40'
         }`}
-        onClick={() => onRowClick(operation.id)}
-        onKeyDown={handleKeyDown}
       >
         <div role="cell" className="min-w-0 pr-3">
           <div className="flex items-center gap-3">
@@ -866,7 +1337,7 @@ export const OperationRow: React.FC<OperationRowProps> = ({
           <div className="flex justify-end gap-2">
             <button
               className="rounded-md px-3 py-2 text-xs font-semibold text-primary hover:bg-primary/10"
-              onClick={() => onRowClick(operation.id)}
+              onClick={() => onDetailsClick(operation.id)}
             >
               {isExpanded ? 'Hide details' : 'Details'}
             </button>
@@ -1036,436 +1507,7 @@ export const OperationRow: React.FC<OperationRowProps> = ({
           </div>
         </div>
       </div>
-
-      {isExpanded && operation.details ? (
-        <div className="min-w-[980px] overflow-hidden bg-surface-elevated/30">
-          <div className="space-y-6 border-b border-border-dark p-6">
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,2fr)_auto]">
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ${getStatusTextColor(
-                        displayStatus
-                      )} bg-current/10`}
-                    >
-                      {displayStatus}
-                    </span>
-                    <span className="text-xs font-semibold uppercase tracking-[0.18em] text-text-dark-secondary">
-                      Human Summary
-                    </span>
-                  </div>
-                  <p className="text-lg font-semibold text-text-dark-primary">
-                    What this operation does
-                  </p>
-                  {isExplanationLoading ? (
-                    <div className="space-y-2">
-                      <div className="h-4 w-3/4 animate-pulse rounded bg-surface-elevated/80" />
-                      <div className="h-4 w-full animate-pulse rounded bg-surface-elevated/80" />
-                      <div className="h-4 w-5/6 animate-pulse rounded bg-surface-elevated/80" />
-                    </div>
-                  ) : hasExplanationError ? (
-                    <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">
-                      We couldn’t generate a plain-language explanation right
-                      now. Use Developer Details below to verify the raw
-                      transaction data.
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      <p className="text-sm leading-7 text-text-dark-primary">
-                        {explanation?.summary}
-                      </p>
-                      {explanation?.perCall?.length ? (
-                        <div className="space-y-2 rounded-xl border border-border-dark/60 bg-surface p-4">
-                          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-text-dark-secondary">
-                            Step By Step
-                          </p>
-                          <div className="space-y-2 text-sm text-text-dark-secondary">
-                            {explanation.perCall.map((line, i) => (
-                              <p key={i}>{line}</p>
-                            ))}
-                          </div>
-                        </div>
-                      ) : null}
-                    </div>
-                  )}
-                </div>
-
-                <div className="rounded-xl border border-border-dark/60 bg-surface p-4 text-xs text-text-dark-secondary">
-                  This explanation is generated to help non-technical reviewers.
-                  Decoded parameters, raw calldata, and developer details remain
-                  the source of truth.
-                </div>
-
-                {dangerous ? (
-                  <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200">
-                    <div className="font-semibold">Dangerous function detected</div>
-                    <div className="mt-1 text-red-200/80">
-                      This operation appears to call{' '}
-                      <span className="font-mono">{dangerous.functionName}</span>.
-                      Double-check the target and calldata before executing.
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-
-              <div className="flex flex-wrap items-start gap-2 lg:justify-end">
-                {displayStatus === 'Ready' ? (
-                  <>
-                    <button
-                      className={`flex items-center justify-center rounded-lg px-4 py-2 text-sm font-bold transition-colors ${
-                        isExecuting
-                          ? 'bg-primary/20 text-primary cursor-wait'
-                          : isExecuteSuccess
-                            ? 'bg-green-500/20 text-green-500'
-                            : isExecuteError
-                              ? 'bg-red-500/20 text-red-500'
-                              : hasExecutorRole
-                                ? 'bg-primary text-white hover:bg-primary/90'
-                                : 'bg-border-dark text-text-dark-secondary cursor-not-allowed opacity-50'
-                      }`}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        hasExecutorRole && !isExecuting && onExecute(operation.id)
-                      }}
-                      disabled={!hasExecutorRole || isCheckingExecutorRole || isExecuting}
-                      title={
-                        isExecuting
-                          ? 'Transaction pending...'
-                          : isExecuteSuccess
-                            ? 'Execution successful!'
-                            : isExecuteError
-                              ? 'Execution failed'
-                              : isCheckingExecutorRole
-                                ? 'Checking permissions...'
-                                : !hasExecutorRole
-                                  ? 'Your wallet does not have the EXECUTOR_ROLE'
-                                  : 'Execute this operation'
-                      }
-                    >
-                      Execute Now
-                    </button>
-                    <button
-                      className={`flex items-center justify-center rounded-lg px-4 py-2 text-sm font-bold transition-colors ${
-                        isCancelling
-                          ? 'bg-primary/20 text-primary cursor-wait'
-                          : isCancelSuccess
-                            ? 'bg-green-500/20 text-green-500'
-                            : isCancelError
-                              ? 'bg-red-500/20 text-red-500'
-                              : hasCancellerRole
-                                ? 'bg-status-canceled/20 text-status-canceled hover:bg-status-canceled/30'
-                                : 'bg-border-dark text-text-dark-secondary cursor-not-allowed opacity-50'
-                      }`}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        hasCancellerRole && !isCancelling && onCancel(operation)
-                      }}
-                      disabled={!hasCancellerRole || isCheckingCancellerRole || isCancelling}
-                      title={
-                        isCancelling
-                          ? 'Transaction pending...'
-                          : isCancelSuccess
-                            ? 'Cancellation successful!'
-                            : isCancelError
-                              ? 'Cancellation failed'
-                              : isCheckingCancellerRole
-                                ? 'Checking permissions...'
-                                : !hasCancellerRole
-                                  ? 'Your wallet does not have the CANCELLER_ROLE'
-                                  : 'Cancel this operation'
-                      }
-                    >
-                      Cancel
-                    </button>
-                  </>
-                ) : null}
-                {displayStatus === 'Pending' ? (
-                  <button
-                    className={`flex items-center justify-center rounded-lg px-4 py-2 text-sm font-bold transition-colors ${
-                      isCancelling
-                        ? 'bg-primary/20 text-primary cursor-wait'
-                        : isCancelSuccess
-                          ? 'bg-green-500/20 text-green-500'
-                          : isCancelError
-                            ? 'bg-red-500/20 text-red-500'
-                            : hasCancellerRole
-                              ? 'bg-status-canceled/20 text-status-canceled hover:bg-status-canceled/30'
-                              : 'bg-border-dark text-text-dark-secondary cursor-not-allowed opacity-50'
-                    }`}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      hasCancellerRole && !isCancelling && onCancel(operation)
-                    }}
-                    disabled={!hasCancellerRole || isCheckingCancellerRole || isCancelling}
-                    title={
-                      isCancelling
-                        ? 'Transaction pending...'
-                        : isCancelSuccess
-                          ? 'Cancellation successful!'
-                          : isCancelError
-                            ? 'Cancellation failed'
-                            : isCheckingCancellerRole
-                              ? 'Checking permissions...'
-                              : !hasCancellerRole
-                                ? 'Your wallet does not have the CANCELLER_ROLE'
-                                : 'Cancel this operation'
-                    }
-                  >
-                    Cancel
-                  </button>
-                ) : null}
-              </div>
-            </div>
-
-            <details
-              className="overflow-hidden rounded-xl border border-border-dark bg-surface"
-              open={isDeveloperDetailsOpen}
-              onToggle={handleDeveloperToggle}
-            >
-              <summary className="flex cursor-pointer items-center justify-between px-6 py-4 hover:bg-surface-elevated">
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-slate-400 text-xl">
-                    code
-                  </span>
-                  <span className="font-bold text-sm text-text-dark-primary">
-                    Developer Details
-                  </span>
-                  <span className="text-[10px] font-normal uppercase tracking-wide text-text-dark-secondary">
-                    Technical Verification
-                  </span>
-                </div>
-                <span className="material-symbols-outlined text-text-dark-secondary">
-                  {isDeveloperDetailsOpen ? 'expand_less' : 'expand_more'}
-                </span>
-              </summary>
-
-              <div className="grid grid-cols-1 gap-6 border-t border-border-dark p-6 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
-                <div className="min-w-0 overflow-hidden">
-                  <h4 className="mb-2 text-xs font-bold uppercase text-text-dark-secondary">
-                    Operation Details
-                  </h4>
-                  <div className="flex min-w-0 flex-col gap-1 overflow-hidden text-sm font-mono">
-                    <p>
-                      <span className="text-text-dark-secondary">Status:</span>{' '}
-                      <span className="text-text-dark-primary">{displayStatus}</span>
-                    </p>
-                    <p>
-                      <span className="text-text-dark-secondary">
-                        Time until ready:
-                      </span>{' '}
-                      <span className="text-text-dark-primary">{eta.relative}</span>
-                    </p>
-                    <p>
-                      <span className="text-text-dark-secondary">Ready at:</span>{' '}
-                      <span className="text-text-dark-primary">{eta.absolute}</span>
-                    </p>
-                    <p>
-                      <span className="text-text-dark-secondary">Delay:</span>{' '}
-                      <span className="text-text-dark-primary">
-                        {typeof operation.delay === 'bigint'
-                          ? `${operation.delay.toString()}s (${formatSecondsToTime(
-                              Number(operation.delay)
-                            )})`
-                          : '—'}
-                      </span>
-                    </p>
-                    <p>
-                      <span className="text-text-dark-secondary">
-                        Current minDelay:
-                      </span>{' '}
-                      <span className="text-text-dark-primary">
-                        {typeof minDelay === 'bigint'
-                          ? `${minDelay.toString()}s (${formatSecondsToTime(
-                              Number(minDelay)
-                            )})`
-                          : '—'}
-                      </span>
-                    </p>
-                    <div className="min-w-0 overflow-hidden">
-                      <span className="text-text-dark-secondary">ID:</span>
-                      <span className="text-text-dark-primary break-all block w-full mt-0.5">
-                        {operation.details.fullId}
-                      </span>
-                    </div>
-                    <p>
-                      <span className="text-text-dark-secondary">Predecessor:</span>{' '}
-                      <span className="text-text-dark-primary break-all">
-                        {operation.predecessor}
-                      </span>
-                    </p>
-                    <p>
-                      <span className="text-text-dark-secondary">Salt:</span>{' '}
-                      <span className="text-text-dark-primary break-all">
-                        {operation.salt}
-                      </span>
-                    </p>
-                    <p>
-                      <span className="text-text-dark-secondary">Proposer:</span>{' '}
-                      <span className="text-text-dark-primary">
-                        {operation.details.fullProposer}
-                      </span>
-                    </p>
-                    <p>
-                      <span className="text-text-dark-secondary">Scheduled:</span>{' '}
-                      <span className="text-text-dark-primary">
-                        {operation.details.scheduled}
-                      </span>
-                    </p>
-                    {getTxHashDisplay(operation.scheduledTx, 'Scheduled Tx')}
-                    {displayStatus === 'Executed'
-                      ? getTxHashDisplay(operation.executedTx, 'Executed Tx')
-                      : null}
-                    {displayStatus === 'Canceled'
-                      ? getTxHashDisplay(operation.cancelledTx, 'Cancelled Tx')
-                      : null}
-                  </div>
-                </div>
-
-                <div className="min-w-0 overflow-hidden">
-                  <h4 className="mb-2 text-xs font-bold uppercase text-text-dark-secondary">
-                    Calls ({operation.details.callsDetails.length})
-                  </h4>
-                  <div className="flex flex-col gap-2 rounded-xl bg-background-dark p-3 text-sm font-mono">
-                    {operation.details.callsDetails.map((call, index) => (
-                      <div
-                        key={index}
-                        className="rounded-xl border border-border-dark/60 bg-surface p-3"
-                      >
-                        <div className="flex flex-wrap items-baseline justify-between gap-2">
-                          <div className="flex items-baseline gap-2">
-                            <span className="text-primary">{index + 1}.</span>
-                            {decodedByIndex[index]?.decoded ? (
-                              <span className="text-text-dark-primary">
-                                {decodedByIndex[index]!.decoded!.functionName}{' '}
-                                <span className="text-text-dark-secondary">
-                                  {decodedByIndex[index]!.decoded!.signature
-                                    ? `(${decodedByIndex[index]!.decoded!.signature})`
-                                    : ''}
-                                  {decodedByIndex[index]!.decoded!.source ===
-                                  ABISource.FOURBYTE
-                                    ? ' — 4byte guess'
-                                    : ''}
-                                </span>
-                              </span>
-                            ) : call.signature ? (
-                              <span className="text-text-dark-primary">
-                                {call.signature}
-                              </span>
-                            ) : isDecoding ? (
-                              <span className="text-text-dark-secondary">
-                                Decoding…
-                              </span>
-                            ) : (
-                              <span className="text-text-dark-secondary">
-                                ABI not available — import ABI to decode
-                              </span>
-                            )}
-                          </div>
-
-                          <span
-                            className={
-                              getAbiBadge(decodedByIndex[index]?.decoded).className
-                            }
-                            title="ABI verification status"
-                          >
-                            {getAbiBadge(decodedByIndex[index]?.decoded).label}
-                          </span>
-                        </div>
-
-                        <div className="mt-2 space-y-1">
-                          <div>
-                            <span className="text-text-dark-secondary">Target:</span>{' '}
-                            <span className="text-text-dark-primary break-all">
-                              {call.target}
-                            </span>
-                          </div>
-                          <div>
-                            <span className="text-text-dark-secondary">
-                              Native value:
-                            </span>{' '}
-                            <span className="text-text-dark-primary">
-                              {call.value}
-                            </span>
-                          </div>
-                          {call.data ? (
-                            <div>
-                              <span className="text-text-dark-secondary">
-                                Calldata:
-                              </span>{' '}
-                              <span className="text-text-dark-primary break-all">
-                                {call.data}
-                              </span>
-                            </div>
-                          ) : null}
-                        </div>
-
-                        {call.data ? (
-                          <div className="mt-2">
-                            <Link
-                              href={`/decoder?calldata=${encodeURIComponent(
-                                call.data
-                              )}&contractAddress=${encodeURIComponent(call.target)}`}
-                              className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline underline-offset-4"
-                            >
-                              Open in Decoder
-                              <span className="material-symbols-outlined text-base!">
-                                open_in_new
-                              </span>
-                            </Link>
-                          </div>
-                        ) : null}
-
-                        {decodedByIndex[index]?.error ? (
-                          <div className="mt-2 text-xs text-red-300">
-                            Decode failed: {decodedByIndex[index]!.error}
-                          </div>
-                        ) : null}
-
-                        {isBlockscoutVerified(decodedByIndex[index]?.decoded) &&
-                        decodedByIndex[index]?.decoded &&
-                        decodedByIndex[index]!.decoded!.params.length > 0 ? (
-                          <div className="mt-3">
-                            <div className="text-xs font-bold uppercase text-text-dark-secondary mb-1">
-                              Arguments
-                            </div>
-                            <div className="space-y-1 text-xs">
-                              {decodedByIndex[index]!.decoded!.params.map((p, i) => (
-                                <div key={i} className="flex flex-col gap-0.5">
-                                  <div>
-                                    <span className="text-text-dark-secondary">
-                                      {p.name}
-                                    </span>{' '}
-                                    <span className="text-text-dark-secondary">
-                                      ({p.type})
-                                    </span>
-                                  </div>
-                                  <pre className="whitespace-pre-wrap wrap-break-word text-text-dark-primary">
-                                    {stringifyValue(p.value)}
-                                  </pre>
-                                  {humanAmountByIndex[index] &&
-                                  humanAmountByIndex[index]!.paramIndex === i ? (
-                                    <div className="text-text-dark-primary">
-                                      <span className="text-text-dark-secondary">
-                                        Human:
-                                      </span>{' '}
-                                      {humanAmountByIndex[index]!.formatted}
-                                    </div>
-                                  ) : null}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        ) : null}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </details>
-          </div>
-        </div>
-      ) : null}
+      {expandedContent}
     </>
   )
 }

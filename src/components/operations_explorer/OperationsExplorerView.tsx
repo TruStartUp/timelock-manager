@@ -117,7 +117,7 @@ const OperationsExplorerView: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
-  const [expandedRowId, setExpandedRowId] = useState<string | null>(null)
+  const [selectedOperationId, setSelectedOperationId] = useState<string | null>(null)
   // T116: pagination state
   const [pageSize, setPageSize] = useState<number>(50)
   const [pageIndex, setPageIndex] = useState<number>(0)
@@ -841,9 +841,22 @@ const OperationsExplorerView: React.FC = () => {
     }
   }
 
-  const handleRowClick = (id: string) => {
-    setExpandedRowId(expandedRowId === id ? null : id)
+  const handleDetailsClick = (id: string) => {
+    setSelectedOperationId((prev) => (prev === id ? null : id))
   }
+
+  const selectedOperation = useMemo(
+    () => clientFilteredOperations.find((op) => op.id === selectedOperationId) ?? null,
+    [clientFilteredOperations, selectedOperationId]
+  )
+
+  useEffect(() => {
+    if (!selectedOperationId) return
+    const stillVisible = clientFilteredOperations.some(
+      (op) => op.id === selectedOperationId
+    )
+    if (!stillVisible) setSelectedOperationId(null)
+  }, [clientFilteredOperations, selectedOperationId])
 
   const handleExecute = (id: string) => {
     // Find the operation by shortened ID
@@ -1819,8 +1832,8 @@ const OperationsExplorerView: React.FC = () => {
         {!isLoading && !isError && clientFilteredOperations.length > 0 && (
           <VirtualizedOperationsList
             operations={clientFilteredOperations}
-            expandedRowId={expandedRowId}
-            onRowClick={handleRowClick}
+            selectedOperationId={selectedOperationId}
+            onDetailsClick={handleDetailsClick}
             onExecute={handleExecute}
             onCancel={handleCancel}
             hasExecutorRole={hasExecutorRole}
@@ -1842,14 +1855,51 @@ const OperationsExplorerView: React.FC = () => {
           />
         )}
       </main>
+      {selectedOperation ? (
+        <OperationDetailsDrawer
+          operation={selectedOperation}
+          isExpanded
+          onClose={() => setSelectedOperationId(null)}
+          onDetailsClick={handleDetailsClick}
+          onExecute={handleExecute}
+          onCancel={handleCancel}
+          hasExecutorRole={hasExecutorRole}
+          isCheckingExecutorRole={isCheckingExecutorRole}
+          isExecuting={isExecuting}
+          isExecuteSuccess={isExecuteSuccess}
+          isExecuteError={isExecuteError}
+          hasCancellerRole={hasCancellerRole}
+          isCheckingCancellerRole={isCheckingCancellerRole}
+          isCancelling={
+            isCancelling &&
+            activeCancelOperationId !== null &&
+            activeCancelOperationId === selectedOperation.fullId
+          }
+          isCancelSuccess={
+            isCancelSuccess &&
+            activeCancelOperationId !== null &&
+            activeCancelOperationId === selectedOperation.fullId
+          }
+          isCancelError={
+            isCancelError &&
+            activeCancelOperationId !== null &&
+            activeCancelOperationId === selectedOperation.fullId
+          }
+          minDelay={minDelay}
+          getStatusColor={getStatusColor}
+          getStatusTextColor={getStatusTextColor}
+          formatTargets={formatTargets}
+          formatAbsoluteTime={formatAbsoluteTime}
+        />
+      ) : null}
     </>
   )
 }
 
 function VirtualizedOperationsList(props: {
   operations: Operation[]
-  expandedRowId: string | null
-  onRowClick: (id: string) => void
+  selectedOperationId: string | null
+  onDetailsClick: (id: string) => void
   onExecute: (id: string) => void
   onCancel: (operation: Operation) => void
   hasExecutorRole: boolean
@@ -1889,7 +1939,7 @@ function VirtualizedOperationsList(props: {
   React.useLayoutEffect(() => {
     if (!shouldVirtualize) return
     rowVirtualizer.measure()
-  }, [props.expandedRowId, rowVirtualizer, shouldVirtualize])
+  }, [props.selectedOperationId, rowVirtualizer, shouldVirtualize])
 
   const prewarmIndexSet = React.useMemo(() => {
     if (!shouldPrewarm) return new Set<number>()
@@ -1956,9 +2006,9 @@ function VirtualizedOperationsList(props: {
                   >
                     <OperationRow
                       operation={operation}
-                      isExpanded={props.expandedRowId === operation.id}
+                      isExpanded={props.selectedOperationId === operation.id}
                       prewarmExplanation={prewarmIndexSet.has(virtualRow.index)}
-                      onRowClick={props.onRowClick}
+                      onDetailsClick={props.onDetailsClick}
                       onExecute={props.onExecute}
                       onCancel={props.onCancel}
                       hasExecutorRole={props.hasExecutorRole}
@@ -1988,6 +2038,7 @@ function VirtualizedOperationsList(props: {
                       getStatusTextColor={props.getStatusTextColor}
                       formatTargets={props.formatTargets}
                       formatAbsoluteTime={props.formatAbsoluteTime}
+                      showExpandedContent={false}
                     />
                   </div>
                 )
@@ -1999,9 +2050,9 @@ function VirtualizedOperationsList(props: {
                 <OperationRow
                   key={operation.fullId}
                   operation={operation}
-                  isExpanded={props.expandedRowId === operation.id}
+                  isExpanded={props.selectedOperationId === operation.id}
                   prewarmExplanation={prewarmIndexSet.has(index)}
-                  onRowClick={props.onRowClick}
+                  onDetailsClick={props.onDetailsClick}
                   onExecute={props.onExecute}
                   onCancel={props.onCancel}
                   hasExecutorRole={props.hasExecutorRole}
@@ -2031,6 +2082,7 @@ function VirtualizedOperationsList(props: {
                   getStatusTextColor={props.getStatusTextColor}
                   formatTargets={props.formatTargets}
                   formatAbsoluteTime={props.formatAbsoluteTime}
+                  showExpandedContent={false}
                 />
               ))}
             </div>
@@ -2038,6 +2090,64 @@ function VirtualizedOperationsList(props: {
         </div>
       </div>
     </div>
+  )
+}
+
+function OperationDetailsDrawer(
+  props: React.ComponentProps<typeof OperationRow> & { onClose: () => void }
+) {
+  const { operation, onClose, ...rowProps } = props
+
+  React.useEffect(() => {
+    const onEsc = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onEsc)
+    return () => window.removeEventListener('keydown', onEsc)
+  }, [onClose])
+
+  return (
+    <>
+      <div
+        className="fixed inset-0 z-40 bg-slate-950/65 backdrop-blur-sm"
+        aria-hidden="true"
+        onClick={onClose}
+      />
+      <aside
+        role="dialog"
+        aria-modal="true"
+        aria-label="Operation details"
+        className="fixed inset-y-0 right-0 z-50 w-full max-w-[920px] overflow-y-auto border-l border-border-dark bg-background shadow-2xl"
+      >
+        <div className="sticky top-0 z-10 border-b border-border-dark bg-background/95 px-6 py-4 backdrop-blur">
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-text-dark-secondary">
+                Operation Detail
+              </p>
+              <p className="truncate font-mono text-text-dark-primary">{operation.id}</p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg p-2 text-text-dark-secondary hover:bg-surface-elevated hover:text-text-dark-primary"
+              aria-label="Close operation details panel"
+            >
+              <span className="material-symbols-outlined">close</span>
+            </button>
+          </div>
+        </div>
+        <div className="p-6">
+          <OperationRow
+            {...rowProps}
+            operation={operation}
+            isExpanded
+            detailMode="drawer"
+            showExpandedContent
+          />
+        </div>
+      </aside>
+    </>
   )
 }
 
