@@ -71,6 +71,7 @@ const ZERO_BYTES32 =
 interface Operation {
   id: string
   fullId: `0x${string}`
+  summary: string
   status: Exclude<OperationStatus, 'All'>
   calls: number
   targets: string[]
@@ -662,11 +663,32 @@ const OperationsExplorerView: React.FC = () => {
           ? [primaryTarget]
           : []
       const callsCount = isBatch ? subgraphCalls.length : primaryTarget ? 1 : 0
+      const firstCallSignature = subgraphCalls[0]?.signature ?? null
+      const firstFunctionName =
+        firstCallSignature && firstCallSignature.includes('(')
+          ? firstCallSignature.split('(')[0]
+          : firstCallSignature
+      const selector =
+        primaryData && primaryData !== '0x' && primaryData.length >= 10
+          ? primaryData.slice(0, 10)
+          : null
+      const targetLabel = primaryTarget ? shortenAddress(primaryTarget) : 'unknown target'
+      const collapsedSummary =
+        callsCount > 1
+          ? firstFunctionName
+            ? `Batch (${callsCount} calls), starts with ${firstFunctionName}.`
+            : `Batch operation with ${callsCount} calls.`
+          : firstFunctionName
+            ? `${firstFunctionName} on ${targetLabel}.`
+            : selector
+              ? `Contract call ${selector} on ${targetLabel}.`
+              : `Administrative update on ${targetLabel}.`
 
       // Format operation for UI
       const uiOperation: Operation = {
         id: shortenAddress(op.id),
         fullId: op.id,
+        summary: collapsedSummary,
         status: mapSubgraphStatus(op.status),
         calls: callsCount,
         targets: targets.map(shortenAddress),
@@ -1763,10 +1785,11 @@ const OperationsExplorerView: React.FC = () => {
               {Array.from({ length: 8 }).map((_, i) => (
                 <div
                   key={`op-skel-${i}`}
-                  className="min-w-[1024px] border-b border-border-dark px-6 py-4"
+                  className="min-w-[1400px] border-b border-border-dark px-6 py-4"
                 >
-                  <div className="grid grid-cols-7 items-center gap-6">
+                  <div className="grid grid-cols-[minmax(140px,1.1fr)_minmax(340px,3.2fr)_minmax(120px,1fr)_minmax(72px,0.6fr)_minmax(150px,1fr)_minmax(190px,1.2fr)_minmax(160px,1fr)_minmax(130px,0.9fr)] items-center gap-6">
                     <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-4 w-56" />
                     <Skeleton className="h-4 w-28" />
                     <Skeleton className="h-4 w-10 justify-self-center" />
                     <Skeleton className="h-4 w-40" />
@@ -1892,12 +1915,13 @@ function VirtualizedOperationsList(props: {
         {/* Header */}
         <div
           role="rowgroup"
-          className="min-w-[1024px] border-b border-border-dark text-xs uppercase text-text-dark-secondary"
+          className="min-w-[1400px] border-b border-border-dark text-xs uppercase text-text-dark-secondary"
         >
-          <div role="row" className="grid grid-cols-7 px-6 py-4">
+          <div role="row" className="grid grid-cols-[minmax(140px,1.1fr)_minmax(340px,3.2fr)_minmax(120px,1fr)_minmax(72px,0.6fr)_minmax(150px,1fr)_minmax(190px,1.2fr)_minmax(160px,1fr)_minmax(130px,0.9fr)] px-6 py-4">
             <div role="columnheader" className="flex items-center gap-1">
               ID <span className="material-symbols-outlined text-base!">swap_vert</span>
             </div>
+            <div role="columnheader">Description</div>
             <div role="columnheader" className="flex items-center gap-1">
               Status{' '}
               <span className="material-symbols-outlined text-base!">swap_vert</span>

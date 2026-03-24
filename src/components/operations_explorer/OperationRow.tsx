@@ -17,7 +17,6 @@ import {
   buildExplainOperationPayload,
   fetchOperationExplanation,
   getOperationExplanationQueryKey,
-  prewarmOperationExplanation,
 } from '@/lib/operationExplanation'
 import { formatSecondsToTime } from '@/lib/status'
 import { useABIManager } from '@/hooks/useABIManager'
@@ -51,6 +50,7 @@ const tokenMetaCache = new Map<string, TokenMeta>()
 interface Operation {
   id: string
   fullId: `0x${string}`
+  summary: string
   status: 'Pending' | 'Ready' | 'Executed' | 'Canceled'
   calls: number
   targets: string[]
@@ -290,30 +290,11 @@ export const OperationRow: React.FC<OperationRowProps> = ({
   )
 
   const explanationPayload = React.useMemo(() => {
-    if (!isExpanded || !operation.details?.callsDetails?.length || isDecoding) {
-      return null
-    }
-
-    return buildExplainOperationPayload(operation, chainId, {
-      decodedByIndex,
-      humanAmountByIndex,
-    })
-  }, [
-    chainId,
-    decodedByIndex,
-    humanAmountByIndex,
-    isDecoding,
-    isExpanded,
-    operation,
-  ])
-
-  const explanationFingerprint = React.useMemo(() => {
-    if (!explanationPayload) return null
-    return buildExplanationFingerprint(explanationPayload)
-  }, [explanationPayload])
-
-  const prewarmPayload = React.useMemo(() => {
-    if (!prewarmExplanation || isExpanded || !operation.details?.callsDetails?.length || isDecoding) {
+    if (
+      (!isExpanded && !prewarmExplanation) ||
+      !operation.details?.callsDetails?.length ||
+      isDecoding
+    ) {
       return null
     }
     if (requiresDecodeForExplanation && Object.keys(decodedByIndex).length === 0) {
@@ -335,10 +316,10 @@ export const OperationRow: React.FC<OperationRowProps> = ({
     requiresDecodeForExplanation,
   ])
 
-  const prewarmFingerprint = React.useMemo(() => {
-    if (!prewarmPayload) return null
-    return buildExplanationFingerprint(prewarmPayload)
-  }, [prewarmPayload])
+  const explanationFingerprint = React.useMemo(() => {
+    if (!explanationPayload) return null
+    return buildExplanationFingerprint(explanationPayload)
+  }, [explanationPayload])
 
   const explanationQuery = useQuery({
     queryKey: getOperationExplanationQueryKey(
@@ -349,29 +330,10 @@ export const OperationRow: React.FC<OperationRowProps> = ({
     queryFn: ({ signal }) =>
       fetchOperationExplanation(explanationPayload!, explanationFingerprint ?? undefined, signal),
     staleTime: 1000 * 60 * 30,
-    enabled: Boolean(explanationPayload && explanationFingerprint),
+    enabled:
+      Boolean(explanationPayload && explanationFingerprint) &&
+      (isExpanded || prewarmExplanation),
   })
-
-  React.useEffect(() => {
-    if (!prewarmPayload || !prewarmFingerprint) return
-    let cancelled = false
-    const run = async () => {
-      try {
-        await prewarmOperationExplanation({
-          payload: prewarmPayload,
-          fingerprint: prewarmFingerprint,
-        })
-      } catch {
-        // Best-effort background prewarm
-      }
-    }
-    if (!cancelled) {
-      run()
-    }
-    return () => {
-      cancelled = true
-    }
-  }, [prewarmPayload, prewarmFingerprint])
 
   const isSameHumanAmountMap = React.useCallback(
     (
@@ -697,7 +659,7 @@ export const OperationRow: React.FC<OperationRowProps> = ({
         role="row"
         tabIndex={0}
         aria-expanded={isExpanded}
-        className={`grid min-w-[1024px] grid-cols-7 items-center border-b border-border-dark px-6 py-4 transition-colors cursor-pointer outline-none ${
+        className={`grid min-w-[1400px] grid-cols-[minmax(140px,1.1fr)_minmax(340px,3.2fr)_minmax(120px,1fr)_minmax(72px,0.6fr)_minmax(150px,1fr)_minmax(190px,1.2fr)_minmax(160px,1fr)_minmax(130px,0.9fr)] items-center border-b border-border-dark px-6 py-4 transition-colors cursor-pointer outline-none ${
           isExpanded
             ? 'bg-primary/8 hover:bg-primary/12'
             : 'hover:bg-surface-elevated/40'
@@ -707,6 +669,24 @@ export const OperationRow: React.FC<OperationRowProps> = ({
       >
         <div role="cell" className="font-mono text-text-dark-primary">
           {operation.id}
+        </div>
+        <div role="cell" className="min-w-0 pr-3">
+          {explanationQuery.data?.summary ? (
+            <p className="max-h-10 overflow-hidden text-sm leading-5 text-text-dark-primary">
+              {explanationQuery.data.summary}
+            </p>
+          ) : explanationQuery.isLoading ||
+            isDecoding ||
+            (requiresDecodeForExplanation && Object.keys(decodedByIndex).length === 0) ? (
+            <div className="space-y-1">
+              <div className="h-3 w-full animate-pulse rounded bg-surface-elevated/80" />
+              <div className="h-3 w-2/3 animate-pulse rounded bg-surface-elevated/80" />
+            </div>
+          ) : (
+            <p className="max-h-10 overflow-hidden text-sm leading-5 text-text-dark-secondary">
+              {operation.summary}
+            </p>
+          )}
         </div>
         <div role="cell">
           <div className="flex items-center gap-2">
@@ -914,7 +894,7 @@ export const OperationRow: React.FC<OperationRowProps> = ({
       </div>
 
       {isExpanded && operation.details ? (
-        <div className="min-w-[1024px] overflow-hidden bg-surface-elevated/30">
+        <div className="min-w-[1400px] overflow-hidden bg-surface-elevated/30">
           <div className="space-y-6 border-b border-border-dark p-6">
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,2fr)_auto]">
               <div className="space-y-4">
