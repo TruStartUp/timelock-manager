@@ -171,8 +171,23 @@ export const OperationRow: React.FC<OperationRowProps> = ({
   const displayStatus = statusMap[liveStatus] || operation.status
 
   const getDisplayTimestamp = (): bigint | null => {
-    if (displayStatus === 'Executed') return operation.executedAt ?? null
-    if (displayStatus === 'Canceled') return operation.cancelledAt ?? null
+    if (displayStatus === 'Executed') {
+      if (operation.executedAt) return operation.executedAt
+      if (typeof timestamp === 'bigint' && timestamp > BigInt(1)) return timestamp
+      if (operation.scheduledAt > BigInt(0)) {
+        const delay =
+          typeof operation.delay === 'bigint' ? operation.delay : BigInt(0)
+        return operation.scheduledAt + delay
+      }
+      return null
+    }
+
+    if (displayStatus === 'Canceled') {
+      if (operation.cancelledAt) return operation.cancelledAt
+      if (typeof timestamp === 'bigint' && timestamp > BigInt(1)) return timestamp
+      if (operation.scheduledAt > BigInt(0)) return operation.scheduledAt
+      return null
+    }
 
     if (typeof timestamp === 'bigint' && timestamp > BigInt(1)) return timestamp
 
@@ -188,20 +203,50 @@ export const OperationRow: React.FC<OperationRowProps> = ({
     return null
   }
 
+  const formatRelativeFromNow = React.useCallback((timestamp: bigint): string => {
+    const nowSeconds = Math.floor(Date.now() / 1000)
+    const diff = Number(timestamp) - nowSeconds
+    const abs = Math.abs(diff)
+
+    if (abs < 60) return diff >= 0 ? 'in less than a minute' : 'just now'
+
+    const units = [
+      { label: 'day', seconds: 86400 },
+      { label: 'hour', seconds: 3600 },
+      { label: 'minute', seconds: 60 },
+    ] as const
+
+    for (const unit of units) {
+      const value = Math.floor(abs / unit.seconds)
+      if (value >= 1) {
+        const suffix = value === 1 ? '' : 's'
+        return diff >= 0
+          ? `in ${value} ${unit.label}${suffix}`
+          : `${value} ${unit.label}${suffix} ago`
+      }
+    }
+
+    return diff >= 0 ? 'soon' : 'recently'
+  }, [])
+
   const getETADisplay = () => {
     const ts = getDisplayTimestamp()
     const absolute = ts ? formatAbsoluteTime(ts) : '-'
 
-    if (displayStatus === 'Executed' || displayStatus === 'Canceled') {
-      return { relative: '-', absolute }
+    if (displayStatus === 'Executed' && ts) {
+      return { relative: formatRelativeFromNow(ts), absolute }
+    }
+
+    if (displayStatus === 'Canceled' && ts) {
+      return { relative: formatRelativeFromNow(ts), absolute }
     }
 
     if (displayStatus === 'Pending' && timeUntilReady) {
-      return { relative: `in ${timeUntilReady}`, absolute }
+      return { relative: `Ready in ${timeUntilReady}`, absolute }
     }
 
     if (displayStatus === 'Ready') {
-      return { relative: 'Ready', absolute }
+      return { relative: 'Ready now', absolute }
     }
 
     if (displayStatus === 'Pending' && ts) {
@@ -209,7 +254,9 @@ export const OperationRow: React.FC<OperationRowProps> = ({
       const secondsUntil = Math.max(0, Number(ts) - now)
       return {
         relative:
-          secondsUntil > 0 ? `in ${formatSecondsToTime(secondsUntil)}` : 'Ready',
+          secondsUntil > 0
+            ? `Ready in ${formatSecondsToTime(secondsUntil)}`
+            : 'Ready now',
         absolute,
       }
     }
@@ -295,9 +342,6 @@ export const OperationRow: React.FC<OperationRowProps> = ({
       !operation.details?.callsDetails?.length ||
       isDecoding
     ) {
-      return null
-    }
-    if (requiresDecodeForExplanation && Object.keys(decodedByIndex).length === 0) {
       return null
     }
 
@@ -652,6 +696,73 @@ export const OperationRow: React.FC<OperationRowProps> = ({
   const hasExplanationError =
     (Boolean(explanationPayload) && explanationQuery.isError) ||
     (!isExplanationLoading && !explanation)
+  const summaryText = explanationQuery.data?.summary || operation.summary
+  const hasEnhancedSummary = Boolean(explanationQuery.data?.summary)
+  const summaryIconMeta = React.useMemo(() => {
+    if (!hasEnhancedSummary) {
+      return {
+        icon:
+          explanationQuery.isLoading ||
+          isDecoding ||
+          (requiresDecodeForExplanation && Object.keys(decodedByIndex).length === 0)
+            ? 'hourglass_top'
+            : 'description',
+        iconClass: 'bg-surface-elevated text-text-dark-secondary',
+      }
+    }
+
+    const text = summaryText.toLowerCase()
+    if (
+      text.includes('borrow') ||
+      text.includes('cap') ||
+      text.includes('interest') ||
+      text.includes('rate')
+    ) {
+      return {
+        icon: 'trending_up',
+        iconClass: 'bg-blue-500/10 text-blue-400',
+      }
+    }
+    if (
+      text.includes('admin') ||
+      text.includes('role') ||
+      text.includes('ownership') ||
+      text.includes('permission')
+    ) {
+      return {
+        icon: 'admin_panel_settings',
+        iconClass: 'bg-purple-500/10 text-purple-400',
+      }
+    }
+    if (
+      text.includes('collateral') ||
+      text.includes('security') ||
+      text.includes('protect')
+    ) {
+      return {
+        icon: 'security',
+        iconClass: 'bg-emerald-500/10 text-emerald-400',
+      }
+    }
+    if (displayStatus === 'Canceled') {
+      return {
+        icon: 'cancel',
+        iconClass: 'bg-slate-500/10 text-slate-400',
+      }
+    }
+    return {
+      icon: 'tune',
+      iconClass: 'bg-primary/10 text-primary',
+    }
+  }, [
+    decodedByIndex,
+    displayStatus,
+    explanationQuery.isLoading,
+    hasEnhancedSummary,
+    isDecoding,
+    requiresDecodeForExplanation,
+    summaryText,
+  ])
 
   return (
     <>
@@ -659,7 +770,7 @@ export const OperationRow: React.FC<OperationRowProps> = ({
         role="row"
         tabIndex={0}
         aria-expanded={isExpanded}
-        className={`grid min-w-[1400px] grid-cols-[minmax(140px,1.1fr)_minmax(340px,3.2fr)_minmax(120px,1fr)_minmax(72px,0.6fr)_minmax(150px,1fr)_minmax(190px,1.2fr)_minmax(160px,1fr)_minmax(130px,0.9fr)] items-center border-b border-border-dark px-6 py-4 transition-colors cursor-pointer outline-none ${
+        className={`grid min-w-[980px] grid-cols-[minmax(360px,3.4fr)_minmax(130px,1fr)_minmax(190px,1.2fr)_minmax(180px,1.2fr)] items-center border-b border-border-dark px-6 py-4 transition-colors cursor-pointer outline-none ${
           isExpanded
             ? 'bg-primary/8 hover:bg-primary/12'
             : 'hover:bg-surface-elevated/40'
@@ -667,65 +778,98 @@ export const OperationRow: React.FC<OperationRowProps> = ({
         onClick={() => onRowClick(operation.id)}
         onKeyDown={handleKeyDown}
       >
-        <div role="cell" className="font-mono text-text-dark-primary">
-          {operation.id}
-        </div>
         <div role="cell" className="min-w-0 pr-3">
-          {explanationQuery.data?.summary ? (
-            <p className="max-h-10 overflow-hidden text-sm leading-5 text-text-dark-primary">
-              {explanationQuery.data.summary}
-            </p>
-          ) : explanationQuery.isLoading ||
-            isDecoding ||
-            (requiresDecodeForExplanation && Object.keys(decodedByIndex).length === 0) ? (
-            <div className="space-y-1">
-              <div className="h-3 w-full animate-pulse rounded bg-surface-elevated/80" />
-              <div className="h-3 w-2/3 animate-pulse rounded bg-surface-elevated/80" />
-            </div>
-          ) : (
-            <p className="max-h-10 overflow-hidden text-sm leading-5 text-text-dark-secondary">
-              {operation.summary}
-            </p>
-          )}
-        </div>
-        <div role="cell">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <div
-              className={`h-2.5 w-2.5 rounded-full ${getStatusColor(displayStatus)}`}
-            />
-            <span className={`font-medium ${getStatusTextColor(displayStatus)}`}>
-              {displayStatus}
+              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${summaryIconMeta.iconClass}`}
+              aria-hidden="true"
+            >
+              <span className="material-symbols-outlined text-[18px]">
+                {summaryIconMeta.icon}
+              </span>
+            </div>
+            <div className="min-w-0">
+              <p className="font-mono text-text-dark-primary">{operation.id}</p>
+              {explanationQuery.data?.summary ? (
+                <p className="mt-1 max-h-10 overflow-hidden text-sm leading-5 text-text-dark-primary">
+                  {explanationQuery.data.summary}
+                </p>
+              ) : explanationQuery.isLoading ||
+                isDecoding ? (
+                <>
+                  <p className="mt-1 max-h-10 overflow-hidden text-sm leading-5 text-text-dark-secondary">
+                    {operation.summary}
+                  </p>
+                  <div className="mt-2 h-1.5 w-28 animate-pulse rounded bg-surface-elevated/80" />
+                </>
+              ) : (
+                <p className="mt-1 max-h-10 overflow-hidden text-sm leading-5 text-text-dark-secondary">
+                  {operation.summary}
+                </p>
+              )}
+            </div>
+          </div>
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+            <span className="rounded-full bg-surface-elevated px-2 py-1 text-text-dark-secondary">
+              {operation.calls} call{operation.calls === 1 ? '' : 's'}
+            </span>
+            <span className="rounded-full bg-surface-elevated px-2 py-1 font-mono text-text-dark-secondary">
+              {formatTargets(operation.targets)}
+            </span>
+            <span className="rounded-full bg-surface-elevated px-2 py-1 font-mono text-text-dark-secondary">
+              {operation.proposer}
             </span>
             {dangerous ? (
               <span
-                className="inline-flex items-center rounded-full border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-[11px] font-semibold text-red-300"
+                className="inline-flex items-center rounded-full border border-red-500/30 bg-red-500/10 px-2 py-1 font-semibold text-red-300"
                 title={`Dangerous function detected: ${dangerous.functionName}`}
               >
                 <span className="material-symbols-outlined mr-1 text-[14px] leading-none">
                   warning
                 </span>
-                {dangerous.functionName}
+                Sensitive
               </span>
             ) : null}
           </div>
         </div>
-        <div role="cell" className="text-center font-medium text-text-dark-primary">
-          {operation.calls}
-        </div>
-        <div role="cell" className="font-mono text-text-dark-secondary">
-          {formatTargets(operation.targets)}
-        </div>
         <div role="cell">
-          <div className="flex flex-col">
-            <span className="font-medium text-text-dark-primary">{eta.relative}</span>
-            <span className="text-xs text-text-dark-secondary">{eta.absolute}</span>
+          <div className="flex items-center gap-2">
+            <span className={`h-2.5 w-2.5 rounded-full ${getStatusColor(displayStatus)}`} />
+            <span className={`font-semibold ${getStatusTextColor(displayStatus)}`}>
+              {displayStatus}
+            </span>
+            {displayStatus === 'Ready' ? (
+              <span className="rounded-full bg-status-ready/15 px-2 py-0.5 text-[11px] font-semibold text-status-ready">
+                Action
+              </span>
+            ) : null}
           </div>
         </div>
-        <div role="cell" className="font-mono text-text-dark-secondary">
-          {operation.proposer}
-        </div>
+        <div role="cell">
+          <div className="flex items-start gap-2">
+              <span className="material-symbols-outlined mt-0.5 text-base text-text-dark-secondary">
+                {displayStatus === 'Ready'
+                  ? 'bolt'
+                  : displayStatus === 'Pending'
+                    ? 'schedule'
+                    : displayStatus === 'Canceled'
+                      ? 'history'
+                    : 'event_available'}
+              </span>
+              <div className="flex flex-col">
+                <span className="font-medium text-text-dark-primary">{eta.relative}</span>
+                <span className="text-xs text-text-dark-secondary">{eta.absolute}</span>
+              </div>
+            </div>
+          </div>
         <div role="cell" onClick={(e) => e.stopPropagation()}>
           <div className="flex justify-end gap-2">
+            <button
+              className="rounded-md px-3 py-2 text-xs font-semibold text-primary hover:bg-primary/10"
+              onClick={() => onRowClick(operation.id)}
+            >
+              {isExpanded ? 'Hide details' : 'Details'}
+            </button>
             {displayStatus === 'Ready' ? (
               <>
                 <button
@@ -894,7 +1038,7 @@ export const OperationRow: React.FC<OperationRowProps> = ({
       </div>
 
       {isExpanded && operation.details ? (
-        <div className="min-w-[1400px] overflow-hidden bg-surface-elevated/30">
+        <div className="min-w-[980px] overflow-hidden bg-surface-elevated/30">
           <div className="space-y-6 border-b border-border-dark p-6">
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,2fr)_auto]">
               <div className="space-y-4">
