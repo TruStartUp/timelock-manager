@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { expect, test, describe, vi, beforeEach } from 'vitest'
 import OperationsExplorerView from '@/components/operations_explorer/OperationsExplorerView'
 import React from 'react'
@@ -11,6 +11,69 @@ import * as useHasRoleModule from '@/hooks/useHasRole'
 import * as useTimelockWriteModule from '@/hooks/useTimelockWrite'
 import { type Operation } from '@/types/operation'
 
+vi.mock('next/router', () => ({
+  useRouter: () => ({
+    isReady: true,
+    query: {},
+    push: vi.fn(),
+    replace: vi.fn(),
+    pathname: '/operations_explorer',
+  }),
+}))
+
+vi.mock('wagmi', async () => {
+  const actual = await vi.importActual<typeof import('wagmi')>('wagmi')
+  return {
+    ...actual,
+    usePublicClient: () => undefined,
+  }
+})
+
+vi.mock('@/hooks/useTimelocks', () => ({
+  useTimelocks: () => ({
+    selected: {
+      id: 'test-timelock',
+      name: 'Test Timelock',
+      address: '0x09a3fa8b0706829ad2b66719b851793a7b20d08a',
+      network: 'rsk_mainnet',
+      subgraphUrl: 'https://example.com/subgraph',
+    },
+    configurations: [],
+    addConfig: vi.fn(),
+    removeConfig: vi.fn(),
+    select: vi.fn(),
+    isLoading: false,
+    error: null,
+  }),
+}))
+
+vi.mock('@/hooks/useABIManager', () => ({
+  useABIManager: () => ({
+    entries: [
+      {
+        address: '0x1234567890abcdef1234567890abcdef1234a7b8',
+        name: 'Test Token',
+        abi: [
+          {
+            type: 'function',
+            name: 'transfer',
+            stateMutability: 'nonpayable',
+            inputs: [
+              { name: 'to', type: 'address' },
+              { name: 'amount', type: 'uint256' },
+            ],
+            outputs: [{ name: '', type: 'bool' }],
+          },
+        ],
+      },
+    ],
+    upsert: vi.fn(),
+    remove: vi.fn(),
+    clearAll: vi.fn(),
+    exportAll: vi.fn(),
+  }),
+}))
+
 // Mock data matching the original component's mock data
 const mockOperations: Operation[] = [
   {
@@ -19,7 +82,7 @@ const mockOperations: Operation[] = [
     timelockController: '0x09a3fa8b0706829ad2b66719b851793a7b20d08a' as `0x${string}`,
     target: '0x1234567890abcdef1234567890abcdef1234a7b8' as `0x${string}`,
     value: BigInt('1500000000000000000'), // 1.5 ETH in wei
-    data: '0x' as `0x${string}`,
+    data: '0xa9059cbb0000000000000000000000004567890abcdef1234567890abcdef1234567890a00000000000000000000000000000000000000000000000014d1120d7b160000' as `0x${string}`,
     predecessor: '0x0000000000000000000000000000000000000000000000000000000000000000' as `0x${string}`,
     salt: '0x0000000000000000000000000000000000000000000000000000000000000001' as `0x${string}`,
     delay: BigInt(86400),
@@ -103,13 +166,8 @@ const mockOperations: Operation[] = [
   },
 ]
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: false,
-    },
-  },
-})
+let queryClient: QueryClient
+let fetchMock: ReturnType<typeof vi.fn>
 
 // Wrapper component with providers
 const TestWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
@@ -128,6 +186,23 @@ describe('OperationsExplorerView', () => {
   beforeEach(() => {
     // Clear all mocks before each test
     vi.clearAllMocks()
+    queryClient = new QueryClient({
+      defaultOptions: {
+        queries: {
+          retry: false,
+        },
+      },
+    })
+    fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        summary:
+          'This operation transfers tokens to the configured recipient when the timelock executes it.',
+        perCall: ['Call 1 transfers tokens to the configured recipient.'],
+      }),
+      text: async () => '',
+    })
+    vi.stubGlobal('fetch', fetchMock)
 
     // Mock useOperations hook to return mock data
     vi.spyOn(useOperationsModule, 'useOperations').mockReturnValue({
@@ -218,9 +293,9 @@ describe('OperationsExplorerView', () => {
     // Check for title
     expect(screen.getByText(/Timelock Management/i)).toBeInTheDocument()
 
-    // Check for Schedule Operation button
+    // Check for Schedule Operation link
     expect(
-      screen.getByRole('button', { name: /Schedule Operation/i })
+      screen.getByRole('link', { name: /Schedule a new timelock operation/i })
     ).toBeInTheDocument()
   })
 
@@ -275,7 +350,7 @@ describe('OperationsExplorerView', () => {
     expect(screen.getByText(/^Status$/i)).toBeInTheDocument()
     expect(screen.getByText(/^Calls$/i)).toBeInTheDocument()
     expect(screen.getByText(/^Targets$/i)).toBeInTheDocument()
-    expect(screen.getByText(/^ETA$/i)).toBeInTheDocument()
+    expect(screen.getByText(/^Ready at$/i)).toBeInTheDocument()
     expect(screen.getByText(/^Proposer$/i)).toBeInTheDocument()
     expect(screen.getByText(/^Actions$/i)).toBeInTheDocument()
   })
@@ -317,8 +392,7 @@ describe('OperationsExplorerView', () => {
     const pendingButton = screen.getByRole('button', { name: /^Pending$/i })
     fireEvent.click(pendingButton)
 
-    // After clicking, the Pending filter should have the active class
-    expect(pendingButton.className).toContain('bg-primary')
+    expect(pendingButton.parentElement?.className).toContain('bg-primary')
   })
 
   test('search input accepts text input', () => {
@@ -339,8 +413,8 @@ describe('OperationsExplorerView', () => {
     const firstRow = screen.getByText(/0xab12\.\.\.c456/i).closest('[role="row"]')
     if (firstRow) {
       fireEvent.click(firstRow)
-      // Now operation details should be visible
-      expect(screen.getByText(/Operation Details/i)).toBeInTheDocument()
+      expect(screen.getByText(/What this operation does/i)).toBeInTheDocument()
+      expect(screen.getAllByText(/^Developer Details$/i)[0]).toBeInTheDocument()
     }
 
     // Click the second operation row
@@ -351,7 +425,7 @@ describe('OperationsExplorerView', () => {
     }
   })
 
-  test('expanded row shows operation details correctly', () => {
+  test('expanded row shows summary-first review flow with developer details closed by default', async () => {
     render(<OperationsExplorerView />, { wrapper: TestWrapper })
 
     // Click the first row to expand it
@@ -360,16 +434,40 @@ describe('OperationsExplorerView', () => {
       fireEvent.click(firstRow)
     }
 
-    // Check expanded details with full operation ID
-    expect(screen.getByText(/Operation Details/i)).toBeInTheDocument()
-    expect(screen.getByText(/ID:/i)).toBeInTheDocument()
-    expect(screen.getByText(/0xab1234567890abcdef1234567890abcdef1234567890abcdef1234567890c456/i)).toBeInTheDocument()
-    expect(screen.getByText(/Proposer:/i)).toBeInTheDocument()
-    expect(screen.getByText(/0xd4567890abcdef1234567890abcdef1234567e8f9/i)).toBeInTheDocument()
-    expect(screen.getByText(/Scheduled:/i)).toBeInTheDocument()
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          /This operation transfers tokens to the configured recipient/i
+        )
+      ).toBeInTheDocument()
+    })
+
+    expect(screen.getByText(/Human Summary/i)).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        /Decoded parameters, raw calldata, and developer details remain the source of truth/i
+      )
+    ).toBeInTheDocument()
+    expect(screen.getAllByText(/^Developer Details$/i)[0]).toBeInTheDocument()
+    expect(screen.queryByText(/Predecessor:/i)).not.toBeVisible()
+
+    fireEvent.click(screen.getAllByText(/^Developer Details$/i)[0])
+
+    expect(screen.getByText(/Operation Details/i)).toBeVisible()
+    expect(screen.getByText(/ID:/i)).toBeVisible()
+    expect(
+      screen.getByText(
+        /0xab1234567890abcdef1234567890abcdef1234567890abcdef1234567890c456/i
+      )
+    ).toBeVisible()
+    expect(screen.getByText(/Proposer:/i)).toBeVisible()
+    expect(
+      screen.getByText(/0xd4567890abcdef1234567890abcdef1234567e8f9/i)
+    ).toBeVisible()
+    expect(screen.getByText(/Scheduled:/i)).toBeVisible()
   })
 
-  test('expanded row shows calls details correctly', () => {
+  test('expanded row shows calls details inside developer details', () => {
     render(<OperationsExplorerView />, { wrapper: TestWrapper })
 
     // Click the first row to expand it
@@ -378,13 +476,56 @@ describe('OperationsExplorerView', () => {
       fireEvent.click(firstRow)
     }
 
-    // Check for Calls section - our mock has 1 call
-    expect(screen.getByText(/Calls \(1\)/i)).toBeInTheDocument()
-    expect(screen.getByText(/0x1234567890abcdef1234567890abcdef1234a7b8/i)).toBeInTheDocument()
-    expect(screen.getByText(/1\.5 RBTC/i)).toBeInTheDocument()
+    fireEvent.click(screen.getAllByText(/^Developer Details$/i)[0])
+
+    expect(screen.getByText(/Calls \(1\)/i)).toBeVisible()
+    expect(
+      screen.getByText(/0x1234567890abcdef1234567890abcdef1234a7b8/i)
+    ).toBeVisible()
+    expect(screen.getByText(/1\.5 RBTC/i)).toBeVisible()
   })
 
-  test('EXECUTE button opens confirm dialog and calls execute on confirm', () => {
+  test('fetches the explanation only when row details are opened', async () => {
+    render(<OperationsExplorerView />, { wrapper: TestWrapper })
+
+    expect(fetchMock).not.toHaveBeenCalled()
+
+    const firstRow = screen.getByText(/0xab12\.\.\.c456/i).closest('[role="row"]')
+    if (firstRow) {
+      fireEvent.click(firstRow)
+    }
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          /This operation transfers tokens to the configured recipient/i
+        )
+      ).toBeInTheDocument()
+    })
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  test('shows deterministic fallback text for unknown calls without calling the explainer', async () => {
+    render(<OperationsExplorerView />, { wrapper: TestWrapper })
+
+    const secondRow = screen.getByText(/0x2d12\.\.\.a1b2/i).closest('[role="row"]')
+    if (secondRow) {
+      fireEvent.click(secondRow)
+    }
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          /The exact effect could not be determined automatically because the function could not be decoded/i
+        )
+      ).toBeInTheDocument()
+    })
+
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  test('EXECUTE button opens confirm dialog and calls execute on confirm', async () => {
     render(<OperationsExplorerView />, { wrapper: TestWrapper })
 
     const executeButtons = screen.getAllByRole('button', { name: /^EXECUTE$/i })
@@ -399,7 +540,9 @@ describe('OperationsExplorerView', () => {
     fireEvent.click(confirmButton)
 
     // Verify that the execute function was called with the correct parameters
-    expect(mockExecute).toHaveBeenCalledTimes(1)
+    await waitFor(() => {
+      expect(mockExecute).toHaveBeenCalledTimes(1)
+    })
     expect(mockExecute).toHaveBeenCalledWith({
       target: '0x1234567890abcdef1234567890abcdef1234a7b8',
       value: BigInt('1500000000000000000'),
@@ -436,8 +579,8 @@ describe('OperationsExplorerView', () => {
     // Check for relative time formatting from live countdown
     // Pending operations show countdown (e.g., "in 12h")
     expect(screen.getByText(/in 12h/i)).toBeInTheDocument()
-    // Ready operations show "Ready now"
-    expect(screen.getByText(/Ready now/i)).toBeInTheDocument()
+    // Ready operations show "Ready"
+    expect(screen.getAllByText(/^Ready$/i).length).toBeGreaterThan(0)
   })
 
   test('displays absolute ETA timestamps', () => {
