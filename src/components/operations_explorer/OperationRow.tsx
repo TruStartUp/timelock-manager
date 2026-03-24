@@ -13,10 +13,11 @@ import { useChainId, usePublicClient } from 'wagmi'
 import { decodeCalldata, type DecodedCall } from '@/lib/decoder'
 import { getDangerousCallFromCalldata } from '@/lib/dangerous'
 import {
+  buildExplanationFingerprint,
   buildExplainOperationPayload,
-  buildUnknownOperationExplanation,
   fetchOperationExplanation,
   getOperationExplanationQueryKey,
+  prewarmOperationExplanation,
 } from '@/lib/operationExplanation'
 import { formatSecondsToTime } from '@/lib/status'
 import { useABIManager } from '@/hooks/useABIManager'
@@ -102,6 +103,7 @@ interface OperationRowProps {
   getStatusTextColor: (status: string) => string
   formatTargets: (targets: string[]) => string
   formatAbsoluteTime: (timestamp: bigint) => string
+  prewarmExplanation?: boolean
 }
 
 export const OperationRow: React.FC<OperationRowProps> = ({
@@ -125,6 +127,7 @@ export const OperationRow: React.FC<OperationRowProps> = ({
   getStatusTextColor,
   formatTargets,
   formatAbsoluteTime,
+  prewarmExplanation = false,
 }) => {
   const dangerous = React.useMemo(
     () => getDangerousCallFromCalldata(operation.data),
@@ -256,6 +259,35 @@ export const OperationRow: React.FC<OperationRowProps> = ({
       ),
     [callsDetails]
   )
+  const DECODE_CONCURRENCY = 3
+  const PREWARM_CALL_CAP = 8
+
+  const mapWithConcurrency = React.useCallback(
+    async <T, R>(
+      items: T[],
+      limit: number,
+      worker: (item: T, index: number) => Promise<R>
+    ): Promise<R[]> => {
+      if (items.length === 0) return []
+      const out = new Array<R>(items.length)
+      let cursor = 0
+
+      const runWorker = async () => {
+        while (true) {
+          const index = cursor
+          cursor += 1
+          if (index >= items.length) return
+          out[index] = await worker(items[index], index)
+        }
+      }
+
+      await Promise.all(
+        Array.from({ length: Math.min(limit, items.length) }, () => runWorker())
+      )
+      return out
+    },
+    []
+  )
 
   const explanationPayload = React.useMemo(() => {
     if (!isExpanded || !operation.details?.callsDetails?.length || isDecoding) {
@@ -275,20 +307,71 @@ export const OperationRow: React.FC<OperationRowProps> = ({
     operation,
   ])
 
-  const fallbackExplanation = React.useMemo(() => {
-    if (!isExpanded || !operation.details?.callsDetails?.length || isDecoding) {
+  const explanationFingerprint = React.useMemo(() => {
+    if (!explanationPayload) return null
+    return buildExplanationFingerprint(explanationPayload)
+  }, [explanationPayload])
+
+  const prewarmPayload = React.useMemo(() => {
+    if (!prewarmExplanation || isExpanded || !operation.details?.callsDetails?.length || isDecoding) {
+      return null
+    }
+    if (requiresDecodeForExplanation && Object.keys(decodedByIndex).length === 0) {
       return null
     }
 
-    return buildUnknownOperationExplanation(operation)
-  }, [isDecoding, isExpanded, operation])
+    return buildExplainOperationPayload(operation, chainId, {
+      decodedByIndex,
+      humanAmountByIndex,
+    })
+  }, [
+    chainId,
+    decodedByIndex,
+    humanAmountByIndex,
+    isDecoding,
+    isExpanded,
+    operation,
+    prewarmExplanation,
+    requiresDecodeForExplanation,
+  ])
+
+  const prewarmFingerprint = React.useMemo(() => {
+    if (!prewarmPayload) return null
+    return buildExplanationFingerprint(prewarmPayload)
+  }, [prewarmPayload])
 
   const explanationQuery = useQuery({
-    queryKey: getOperationExplanationQueryKey(chainId, operation),
-    queryFn: () => fetchOperationExplanation(explanationPayload!),
+    queryKey: getOperationExplanationQueryKey(
+      chainId,
+      operation,
+      explanationFingerprint
+    ),
+    queryFn: ({ signal }) =>
+      fetchOperationExplanation(explanationPayload!, explanationFingerprint ?? undefined, signal),
     staleTime: 1000 * 60 * 30,
-    enabled: Boolean(explanationPayload),
+    enabled: Boolean(explanationPayload && explanationFingerprint),
   })
+
+  React.useEffect(() => {
+    if (!prewarmPayload || !prewarmFingerprint) return
+    let cancelled = false
+    const run = async () => {
+      try {
+        await prewarmOperationExplanation({
+          payload: prewarmPayload,
+          fingerprint: prewarmFingerprint,
+        })
+      } catch {
+        // Best-effort background prewarm
+      }
+    }
+    if (!cancelled) {
+      run()
+    }
+    return () => {
+      cancelled = true
+    }
+  }, [prewarmPayload, prewarmFingerprint])
 
   const isSameHumanAmountMap = React.useCallback(
     (
@@ -502,49 +585,65 @@ export const OperationRow: React.FC<OperationRowProps> = ({
 
   React.useEffect(() => {
     let cancelled = false
-    if (!isExpanded || !operation.details) return
+    const shouldRunDecode = isExpanded || prewarmExplanation
+    const operationDetails = operation.details
+    if (!shouldRunDecode || !operationDetails) return
 
     const run = async () => {
-      setIsDecoding(true)
+      if (isExpanded) setIsDecoding(true)
       const next: Record<number, { decoded?: DecodedCall; error?: string }> = {}
 
-      const calls = operation.details.callsDetails ?? []
-      for (let i = 0; i < calls.length; i++) {
-        const call = calls[i]
-        const calldata = call.data
-        const target = call.target as Address
-        if (!calldata || typeof calldata !== 'string' || calldata.length < 10) {
-          continue
-        }
+      const calls = operationDetails.callsDetails ?? []
+      const cappedCalls =
+        !isExpanded && calls.length > PREWARM_CALL_CAP
+          ? calls.slice(0, PREWARM_CALL_CAP)
+          : calls
 
-        const abi = abiByAddress[target.toLowerCase()]
-        if ((!abi || abi.length === 0) && !allowRemoteDecode) {
-          next[i] = { error: 'ABI unavailable for automatic decoding' }
-          continue
-        }
+      const results = await mapWithConcurrency(
+        cappedCalls,
+        DECODE_CONCURRENCY,
+        async (call, i) => {
+          const calldata = call.data
+          const target = call.target as Address
+          if (!calldata || typeof calldata !== 'string' || calldata.length < 10) {
+            return { index: i, value: undefined }
+          }
 
-        try {
-          const decoded = await decodeCalldata({
-            calldata: calldata as never,
-            target,
-            abi: abi && abi.length > 0 ? abi : undefined,
-            network: allowRemoteDecode ? network : undefined,
-            publicClient: allowRemoteDecode ? publicClient ?? undefined : undefined,
-            abiByAddress,
-          })
-          next[i] = { decoded }
-        } catch (err) {
-          next[i] = { error: err instanceof Error ? err.message : String(err) }
+          const abi = abiByAddress[target.toLowerCase()]
+          if ((!abi || abi.length === 0) && !allowRemoteDecode) {
+            return { index: i, value: { error: 'ABI unavailable for automatic decoding' } }
+          }
+
+          try {
+            const decoded = await decodeCalldata({
+              calldata: calldata as never,
+              target,
+              abi: abi && abi.length > 0 ? abi : undefined,
+              network: allowRemoteDecode ? network : undefined,
+              publicClient: allowRemoteDecode ? publicClient ?? undefined : undefined,
+              abiByAddress,
+            })
+            return { index: i, value: { decoded } }
+          } catch (err) {
+            return {
+              index: i,
+              value: { error: err instanceof Error ? err.message : String(err) },
+            }
+          }
         }
+      )
+
+      for (const item of results) {
+        if (item?.value) next[item.index] = item.value
       }
 
       if (!cancelled) {
-        setDecodedByIndex(next)
-        setIsDecoding(false)
+        setDecodedByIndex((prev) => ({ ...prev, ...next }))
+        if (isExpanded) setIsDecoding(false)
       }
     }
 
-    setDecodedByIndex({})
+    if (isExpanded) setDecodedByIndex({})
     run()
     return () => {
       cancelled = true
@@ -552,9 +651,11 @@ export const OperationRow: React.FC<OperationRowProps> = ({
   }, [
     abiByAddress,
     allowRemoteDecode,
+    mapWithConcurrency,
     isExpanded,
     network,
     operation.details,
+    prewarmExplanation,
     publicClient,
   ])
 
@@ -574,7 +675,7 @@ export const OperationRow: React.FC<OperationRowProps> = ({
   }
 
   const canShowExplanation = Boolean(operation.details?.callsDetails?.length)
-  const explanation = explanationQuery.data ?? fallbackExplanation
+  const explanation = explanationQuery.data
   const isAwaitingInitialDecode =
     canShowExplanation &&
     isExpanded &&
@@ -586,7 +687,9 @@ export const OperationRow: React.FC<OperationRowProps> = ({
     (isDecoding ||
       isAwaitingInitialDecode ||
       (!!explanationPayload && explanationQuery.isLoading))
-  const hasExplanationError = !!explanationPayload && explanationQuery.isError
+  const hasExplanationError =
+    (Boolean(explanationPayload) && explanationQuery.isError) ||
+    (!isExplanationLoading && !explanation)
 
   return (
     <>
@@ -832,9 +935,11 @@ export const OperationRow: React.FC<OperationRowProps> = ({
                     What this operation does
                   </p>
                   {isExplanationLoading ? (
-                    <p className="text-sm text-text-dark-secondary">
-                      Preparing a plain-language explanation…
-                    </p>
+                    <div className="space-y-2">
+                      <div className="h-4 w-3/4 animate-pulse rounded bg-surface-elevated/80" />
+                      <div className="h-4 w-full animate-pulse rounded bg-surface-elevated/80" />
+                      <div className="h-4 w-5/6 animate-pulse rounded bg-surface-elevated/80" />
+                    </div>
                   ) : hasExplanationError ? (
                     <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">
                       We couldn’t generate a plain-language explanation right
@@ -844,8 +949,7 @@ export const OperationRow: React.FC<OperationRowProps> = ({
                   ) : (
                     <div className="space-y-3">
                       <p className="text-sm leading-7 text-text-dark-primary">
-                        {explanation?.summary ??
-                          'This operation is being prepared for review. Open Developer Details for the exact technical transaction data.'}
+                        {explanation?.summary}
                       </p>
                       {explanation?.perCall?.length ? (
                         <div className="space-y-2 rounded-xl border border-border-dark/60 bg-surface p-4">

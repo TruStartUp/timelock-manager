@@ -20,6 +20,9 @@ type ExplainCallInput = {
 export type OperationExplanation = {
   summary: string
   perCall?: string[]
+  cacheHit?: boolean
+  fingerprint?: string
+  generatedAt?: string
 }
 
 export type ExplainOperationPayload = {
@@ -57,6 +60,14 @@ type ExplanationContext = {
   decodedByIndex?: Record<number, { decoded?: DecodedCall; error?: string }>
   humanAmountByIndex?: HumanAmountByIndex
 }
+
+const EXPLAIN_PROMPT_VERSION = 'v2'
+const EXPLANATION_CACHE_TTL_MS = 24 * 60 * 60 * 1000
+const explanationCache = new Map<
+  string,
+  { expiresAt: number; value: OperationExplanation }
+>()
+const inFlightExplanation = new Map<string, Promise<OperationExplanation>>()
 
 const stringifyValue = (value: unknown): string => {
   if (typeof value === 'string') return value
@@ -96,8 +107,50 @@ const getCallDescription = (call: {
 
 export const getOperationExplanationQueryKey = (
   chainId: number | undefined,
-  operation: ExplainableOperation
-) => ['operation-explanation', chainId ?? 'unknown', operation.fullId] as const
+  operation: ExplainableOperation,
+  fingerprint: string | null
+) =>
+  [
+    'operation-explanation',
+    chainId ?? 'unknown',
+    operation.fullId,
+    fingerprint ?? 'no-fingerprint',
+  ] as const
+
+const hashDjb2 = (input: string): string => {
+  let hash = 5381
+  for (let i = 0; i < input.length; i += 1) {
+    hash = (hash * 33) ^ input.charCodeAt(i)
+  }
+  return (hash >>> 0).toString(16).padStart(8, '0')
+}
+
+export const buildExplanationFingerprint = (
+  payload: ExplainOperationPayload
+): string => {
+  const normalizedCalls = payload.calls.map((call) => ({
+    index: call.index,
+    target: call.target.toLowerCase(),
+    nativeValue: call.nativeValue,
+    signature: call.signature || 'unknown',
+    functionName: call.functionName ?? 'unknown',
+    params: call.params.map((param) => ({
+      name: param.name,
+      type: param.type,
+      value: param.value,
+      display: param.display ?? null,
+    })),
+  }))
+
+  const serialized = JSON.stringify({
+    chainId: payload.chainId ?? null,
+    operationId: payload.operationId ?? null,
+    promptVersion: EXPLAIN_PROMPT_VERSION,
+    calls: normalizedCalls,
+  })
+
+  return `opx-${hashDjb2(serialized)}`
+}
 
 export const buildUnknownOperationExplanation = (
   operation: ExplainableOperation,
@@ -149,12 +202,8 @@ export const buildExplainOperationPayload = (
     const decoded = decodedByIndex[index]?.decoded
     const humanAmount = humanAmountByIndex[index]
     const functionName =
-      decoded?.functionName ?? functionNameFromSignature(call.signature)
+      decoded?.functionName ?? functionNameFromSignature(call.signature) ?? null
     const signature = decoded?.signature ?? call.signature ?? 'unknown'
-
-    if (!functionName || signature === 'unknown') {
-      return null
-    }
 
     const params = decoded?.params?.map((param, paramIndex) => ({
       name: param.name,
@@ -192,34 +241,77 @@ export const buildExplainOperationPayload = (
     }
   })
 
-  if (payloadCalls.some((call) => call === null)) {
-    return null
-  }
+  if (payloadCalls.length === 0) return null
 
   return {
     chainId,
     operationId: operation.fullId,
-    calls: payloadCalls,
+    calls: payloadCalls.filter(Boolean) as ExplainCallInput[],
   }
 }
 
 export const fetchOperationExplanation = async (
-  payload: ExplainOperationPayload
+  payload: ExplainOperationPayload,
+  fingerprint?: string,
+  signal?: AbortSignal
 ): Promise<OperationExplanation> => {
-  const res = await fetch('/api/explain_operation', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  })
-
-  if (!res.ok) {
-    const text = await res.text()
-    throw new Error(text || `Request failed (${res.status})`)
+  const requestFingerprint = fingerprint ?? buildExplanationFingerprint(payload)
+  const now = Date.now()
+  const cached = explanationCache.get(requestFingerprint)
+  if (cached && cached.expiresAt > now) {
+    return {
+      ...cached.value,
+      cacheHit: true,
+      fingerprint: requestFingerprint,
+    }
   }
 
-  const data = (await res.json()) as OperationExplanation
-  return {
-    summary: data.summary || 'Explanation generated.',
-    perCall: data.perCall,
+  const inFlight = inFlightExplanation.get(requestFingerprint)
+  if (inFlight) return inFlight
+
+  const request = (async () => {
+    const res = await fetch('/api/explain_operation', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal,
+      body: JSON.stringify({ ...payload, fingerprint: requestFingerprint }),
+    })
+
+    if (!res.ok) {
+      const text = await res.text()
+      throw new Error(text || `Request failed (${res.status})`)
+    }
+
+    const data = (await res.json()) as OperationExplanation
+    const normalized = {
+      summary: data.summary || 'Explanation generated.',
+      perCall: data.perCall,
+      cacheHit: data.cacheHit ?? false,
+      fingerprint: data.fingerprint ?? requestFingerprint,
+      generatedAt: data.generatedAt,
+    }
+    explanationCache.set(requestFingerprint, {
+      expiresAt: Date.now() + EXPLANATION_CACHE_TTL_MS,
+      value: normalized,
+    })
+    return normalized
+  })()
+
+  inFlightExplanation.set(requestFingerprint, request)
+  try {
+    return await request
+  } finally {
+    inFlightExplanation.delete(requestFingerprint)
   }
+}
+
+export const prewarmOperationExplanation = async (args: {
+  payload: ExplainOperationPayload
+  fingerprint?: string
+}): Promise<void> => {
+  const fingerprint = args.fingerprint ?? buildExplanationFingerprint(args.payload)
+  const now = Date.now()
+  const cached = explanationCache.get(fingerprint)
+  if (cached && cached.expiresAt > now) return
+  await fetchOperationExplanation(args.payload, fingerprint)
 }

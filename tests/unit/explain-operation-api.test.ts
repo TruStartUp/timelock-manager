@@ -107,9 +107,10 @@ describe('explain_operation API', () => {
     await handler(req, res)
 
     expect(res.statusCode).toBe(200)
-    expect(res.body).toEqual({
+    expect(res.body).toMatchObject({
       summary: 'This operation transfers 1.5 RBTC to the destination address.',
       perCall: ['Call 1 transfers 1.5 RBTC to the specified recipient.'],
+      cacheHit: false,
     })
   })
 
@@ -123,7 +124,12 @@ describe('explain_operation API', () => {
       })
     )
 
-    const req = createReq(VALID_BODY)
+    const req = createReq({
+      ...VALID_BODY,
+      fingerprint: 'test-upstream-error-fingerprint',
+      operationId:
+        '0xbb1234567890abcdef1234567890abcdef1234567890abcdef1234567890c456',
+    })
     const res = createMockRes()
 
     await handler(req, res)
@@ -134,5 +140,39 @@ describe('explain_operation API', () => {
       status: 502,
       message: 'bad gateway',
     })
+  })
+
+  it('serves cached responses on repeated fingerprints', async () => {
+    const upstreamFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      text: async () =>
+        JSON.stringify({
+          output_text: JSON.stringify({
+            summary: 'Cached summary',
+            perCall: ['Cached call'],
+          }),
+        }),
+    })
+    vi.stubGlobal('fetch', upstreamFetch)
+
+    const body = {
+      ...VALID_BODY,
+      fingerprint: 'test-cache-hit-fingerprint',
+      operationId:
+        '0xcc1234567890abcdef1234567890abcdef1234567890abcdef1234567890c456',
+    }
+
+    const req1 = createReq(body)
+    const res1 = createMockRes()
+    await handler(req1, res1)
+    expect(res1.statusCode).toBe(200)
+    expect((res1.body as any).cacheHit).toBe(false)
+
+    const req2 = createReq(body)
+    const res2 = createMockRes()
+    await handler(req2, res2)
+    expect(res2.statusCode).toBe(200)
+    expect((res2.body as any).cacheHit).toBe(true)
+    expect(upstreamFetch).toHaveBeenCalledTimes(1)
   })
 })

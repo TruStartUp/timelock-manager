@@ -1851,6 +1851,8 @@ function VirtualizedOperationsList(props: {
 }) {
   const parentRef = React.useRef<HTMLDivElement | null>(null)
   const shouldVirtualize = process.env.NODE_ENV !== 'test'
+  const shouldPrewarm = process.env.NODE_ENV !== 'test'
+  const PREWARM_VISIBLE_ROWS = 6
 
   const rowVirtualizer = useVirtualizer({
     count: props.operations.length,
@@ -1865,6 +1867,24 @@ function VirtualizedOperationsList(props: {
     if (!shouldVirtualize) return
     rowVirtualizer.measure()
   }, [props.expandedRowId, rowVirtualizer, shouldVirtualize])
+
+  const prewarmIndexSet = React.useMemo(() => {
+    if (!shouldPrewarm) return new Set<number>()
+    if (!shouldVirtualize) {
+      return new Set(
+        props.operations
+          .slice(0, PREWARM_VISIBLE_ROWS)
+          .map((_, index) => index)
+      )
+    }
+
+    return new Set(
+      rowVirtualizer
+        .getVirtualItems()
+        .slice(0, PREWARM_VISIBLE_ROWS)
+        .map((item) => item.index)
+    )
+  }, [PREWARM_VISIBLE_ROWS, props.operations, rowVirtualizer, shouldPrewarm, shouldVirtualize])
 
   return (
     <div className="app-card w-full overflow-x-auto">
@@ -1931,6 +1951,7 @@ function VirtualizedOperationsList(props: {
                     <OperationRow
                       operation={operation}
                       isExpanded={props.expandedRowId === operation.id}
+                      prewarmExplanation={prewarmIndexSet.has(virtualRow.index)}
                       onRowClick={props.onRowClick}
                       onExecute={props.onExecute}
                       onCancel={props.onCancel}
@@ -1968,11 +1989,12 @@ function VirtualizedOperationsList(props: {
             </div>
           ) : (
             <div className="w-full">
-              {props.operations.map((operation) => (
+              {props.operations.map((operation, index) => (
                 <OperationRow
                   key={operation.fullId}
                   operation={operation}
                   isExpanded={props.expandedRowId === operation.id}
+                  prewarmExplanation={prewarmIndexSet.has(index)}
                   onRowClick={props.onRowClick}
                   onExecute={props.onExecute}
                   onCancel={props.onCancel}

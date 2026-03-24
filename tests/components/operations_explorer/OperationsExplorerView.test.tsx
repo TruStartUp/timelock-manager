@@ -506,7 +506,7 @@ describe('OperationsExplorerView', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
-  test('shows deterministic fallback text for unknown calls without calling the explainer', async () => {
+  test('requests explanation even when calldata is not decodable, using minimal payload', async () => {
     render(<OperationsExplorerView />, { wrapper: TestWrapper })
 
     const secondRow = screen.getByText(/0x2d12\.\.\.a1b2/i).closest('[role="row"]')
@@ -517,12 +517,12 @@ describe('OperationsExplorerView', () => {
     await waitFor(() => {
       expect(
         screen.getByText(
-          /The exact effect could not be determined automatically because the function could not be decoded/i
+          /This operation transfers tokens to the configured recipient/i
         )
       ).toBeInTheDocument()
     })
 
-    expect(fetchMock).not.toHaveBeenCalled()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
   test('EXECUTE button opens confirm dialog and calls execute on confirm', async () => {
