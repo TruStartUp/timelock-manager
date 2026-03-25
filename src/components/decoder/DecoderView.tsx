@@ -5,6 +5,7 @@ import { useContractABI } from '@/hooks/useContractABI'
 import { CHAIN_TO_NETWORK } from '@/services/blockscout/client'
 import { ABISource, ABIConfidence, setManualABI } from '@/services/blockscout/abi'
 import { decodeCalldata, type DecodedCall } from '@/lib/decoder'
+import { fetchOperationExplanation } from '@/lib/operationExplanation'
 
 const ERC20_METADATA_ABI = [
   {
@@ -407,18 +408,7 @@ const DecoderView: React.FC = () => {
         }),
       }
 
-      const res = await fetch('/api/explain_operation', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
-
-      if (!res.ok) {
-        const text = await res.text()
-        throw new Error(text || `Request failed (${res.status})`)
-      }
-
-      const data = (await res.json()) as { summary?: string; perCall?: string[] }
+      const data = await fetchOperationExplanation(payload)
       setExplainState({
         status: 'success',
         summary: data.summary || 'Explanation generated.',

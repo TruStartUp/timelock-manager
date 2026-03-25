@@ -147,42 +147,47 @@ const SettingsView = () => {
 
   const isConnectedToMainnet = connectedChainId === rootstock.id
   const isConnectedToTestnet = connectedChainId === rootstockTestnet.id
+  const sectionCardClass =
+    'mb-6 overflow-hidden rounded-xl border border-border-color bg-surface shadow-sm'
+  const sectionHeaderClass =
+    'flex w-full items-center justify-between gap-3 px-5 py-4 text-left transition-colors hover:bg-surface-elevated/60'
+  const sectionBodyClass = 'border-t border-border-color px-5 py-4'
 
   return (
     <main className="flex-1 p-8 md:p-12 overflow-y-auto">
       <div className="mx-auto max-w-4xl">
         <div className="flex flex-wrap justify-between gap-3 mb-10">
           <div className="flex min-w-72 flex-col gap-3">
-            <p className="text-white text-4xl font-black leading-tight tracking-[-0.033em]">
+            <p className="text-text-primary text-4xl font-black leading-tight tracking-[-0.033em]">
               Configuration
             </p>
-            <p className="text-[#bbad9b] text-base font-normal leading-normal">
+            <p className="text-text-secondary text-base font-normal leading-normal">
               Manage network preferences, custom RPC URLs, and contract ABIs.
             </p>
           </div>
         </div>
 
         {/* T015: Timelock Configurations Section */}
-        <div className="mb-6 rounded-lg border border-[#55493a] bg-[#231a0f] overflow-hidden">
+        <div className={sectionCardClass}>
           <button
             type="button"
-            className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left hover:bg-[#2a2218] transition-colors"
+            className={sectionHeaderClass}
             onClick={() => toggleSection('timelock')}
             aria-expanded={sectionOpen.timelock}
           >
-            <h2 className="text-white text-[22px] font-bold leading-tight tracking-[-0.015em]">
+            <h2 className="text-text-primary text-[22px] font-bold leading-tight tracking-[-0.015em]">
               Timelock configurations
             </h2>
             <span
-              className={`material-symbols-outlined text-[#bbad9b] transition-transform ${sectionOpen.timelock ? 'rotate-180' : ''}`}
+              className={`material-symbols-outlined text-text-secondary transition-transform ${sectionOpen.timelock ? 'rotate-180' : ''}`}
               aria-hidden
             >
               expand_more
             </span>
           </button>
           {sectionOpen.timelock ? (
-            <div className="border-t border-[#55493a] px-5 py-4 space-y-3">
-              <p className="text-[#bbad9b] text-sm">
+            <div className={`${sectionBodyClass} space-y-3`}>
+              <p className="text-text-secondary text-sm">
                 Timelocks and their subgraph URLs that this app uses for the Dashboard, Operations Explorer, and Permissions views.
               </p>
               <TimelockSettings />
@@ -192,39 +197,39 @@ const SettingsView = () => {
 
 
         {/* Network Configuration */}
-        <div className="mb-6 rounded-lg border border-[#55493a] bg-[#231a0f] overflow-hidden">
+        <div className={sectionCardClass}>
           <button
             type="button"
-            className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left hover:bg-[#2a2218] transition-colors"
+            className={sectionHeaderClass}
             onClick={() => toggleSection('network')}
             aria-expanded={sectionOpen.network}
           >
-            <h2 className="text-white text-[22px] font-bold leading-tight tracking-[-0.015em]">
+            <h2 className="text-text-primary text-[22px] font-bold leading-tight tracking-[-0.015em]">
               Network Configuration
             </h2>
             <span
-              className={`material-symbols-outlined text-[#bbad9b] transition-transform ${sectionOpen.network ? 'rotate-180' : ''}`}
+              className={`material-symbols-outlined text-text-secondary transition-transform ${sectionOpen.network ? 'rotate-180' : ''}`}
               aria-hidden
             >
               expand_more
             </span>
           </button>
           {sectionOpen.network ? (
-            <div className="border-t border-[#55493a] px-5 py-4 flex flex-col gap-6">
+            <div className={`${sectionBodyClass} flex flex-col gap-6`}>
           <div className="flex flex-col gap-3">
-            <label className="flex items-center gap-4 rounded-lg border border-solid border-primary p-[15px] cursor-pointer bg-primary/10">
+            <label className="flex items-center gap-4 rounded-xl border border-primary/40 p-[15px] cursor-pointer bg-primary/10">
               <input
                 checked={isConnectedToMainnet}
                 readOnly
-                className="h-5 w-5 appearance-none rounded-full border-2 border-[#55493a] bg-transparent checked:border-primary checked:bg-primary focus:outline-none focus:ring-0 focus:ring-offset-0 ring-offset-background-dark"
+                className="h-5 w-5 appearance-none rounded-full border-2 border-border-color bg-transparent checked:border-primary checked:bg-primary focus:outline-none focus:ring-0 focus:ring-offset-0 ring-offset-background"
                 name="network-selection"
                 type="radio"
               />
               <div className="flex grow flex-col">
-                <p className="text-white text-sm font-medium leading-normal">
+                <p className="text-text-primary text-sm font-medium leading-normal">
                   Rootstock Mainnet
                 </p>
-                <p className="text-[#bbad9b] text-sm font-normal leading-normal">
+                <p className="text-text-secondary text-sm font-normal leading-normal">
                   Connect to the main Rootstock network.
                 </p>
               </div>
@@ -234,19 +239,19 @@ const SettingsView = () => {
                 </span>
               ) : null}
             </label>
-            <label className="flex items-center gap-4 rounded-lg border border-solid border-[#55493a] p-[15px] cursor-pointer hover:border-primary/50 transition-colors">
+            <label className="flex items-center gap-4 rounded-xl border border-border-color p-[15px] cursor-pointer hover:border-primary/50 transition-colors">
               <input
                 checked={isConnectedToTestnet}
                 readOnly
-                className="h-5 w-5 appearance-none rounded-full border-2 border-[#55493a] bg-transparent checked:border-primary checked:bg-primary focus:outline-none focus:ring-0 focus:ring-offset-0 ring-offset-background-dark"
+                className="h-5 w-5 appearance-none rounded-full border-2 border-border-color bg-transparent checked:border-primary checked:bg-primary focus:outline-none focus:ring-0 focus:ring-offset-0 ring-offset-background"
                 name="network-selection"
                 type="radio"
               />
               <div className="flex grow flex-col">
-                <p className="text-white text-sm font-medium leading-normal">
+                <p className="text-text-primary text-sm font-medium leading-normal">
                   Rootstock Testnet
                 </p>
-                <p className="text-[#bbad9b] text-sm font-normal leading-normal">
+                <p className="text-text-secondary text-sm font-normal leading-normal">
                   Connect to the test network for development.
                 </p>
               </div>
@@ -258,16 +263,16 @@ const SettingsView = () => {
             </label>
           </div>
           <div className="@container">
-            <div className="flex flex-1 flex-col items-start justify-between gap-4 rounded-lg border border-[#55493a] bg-[#231a0f] p-5 @[480px]:flex-row @[480px]:items-center">
+            <div className="flex flex-1 flex-col items-start justify-between gap-4 rounded-xl border border-border-color bg-surface-elevated/40 p-5 @[480px]:flex-row @[480px]:items-center">
               <div className="flex flex-col gap-1">
-                <p className="text-white text-base font-bold leading-tight">
+                <p className="text-text-primary text-base font-bold leading-tight">
                   Use Custom RPC Endpoint
                 </p>
-                <p className="text-[#bbad9b] text-base font-normal leading-normal">
+                <p className="text-text-secondary text-base font-normal leading-normal">
                   Enable to connect to a custom RPC instead of the default.
                 </p>
               </div>
-              <label className="relative flex h-[31px] w-[51px] cursor-pointer items-center rounded-full border-none bg-[#3a3227] p-0.5 has-[:checked]:justify-end has-[:checked]:bg-primary">
+              <label className="relative flex h-[31px] w-[51px] cursor-pointer items-center rounded-full border-none bg-border-color p-0.5 has-[:checked]:justify-end has-[:checked]:bg-primary">
                 <div
                   className="h-full w-[27px] rounded-full bg-white transition-transform"
                   style={{
@@ -288,12 +293,12 @@ const SettingsView = () => {
             </div>
           </div>
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-white" htmlFor="rpc-url">
+            <label className="text-sm font-medium text-text-primary" htmlFor="rpc-url">
               Custom RPC URL
             </label>
             <div className="relative">
               <input
-                className="w-full rounded-lg border border-[#55493a] bg-[#231a0f] px-4 py-2.5 text-white placeholder:text-[#bbad9b] focus:border-primary focus:ring-primary/50"
+                className="w-full rounded-xl border border-border-color bg-surface px-4 py-2.5 text-text-primary placeholder:text-text-secondary focus:border-primary focus:ring-primary/50"
                 disabled={!isCustomRpcEnabled}
                 id="rpc-url"
                 placeholder="https://mainnet.rsk.co"
@@ -322,13 +327,13 @@ const SettingsView = () => {
                 {knownChainLabel ? ` — ${knownChainLabel}` : ''}
               </p>
             ) : null}
-            <p className="text-xs text-[#bbad9b]">
+            <p className="text-xs text-text-secondary">
               Network is controlled by your wallet in the header. These options show which Rootstock network you are currently connected to.
             </p>
           </div>
           <div className="flex justify-end gap-3 pt-4">
             <button
-              className="rounded-full px-6 py-2.5 text-sm font-semibold text-white bg-[#3a3227] hover:bg-[#55493a] transition-colors"
+              className="rounded-full border border-border-color bg-surface px-6 py-2.5 text-sm font-semibold text-text-primary transition-colors hover:bg-surface-elevated"
               onClick={() => {
                 setRpcTest({ status: 'idle' })
                 setRpcUrlDraft('')
@@ -338,7 +343,7 @@ const SettingsView = () => {
               Reset to Default
             </button>
             <button
-              className="rounded-full px-6 py-2.5 text-sm font-semibold text-black bg-primary hover:bg-primary/80 transition-colors disabled:bg-primary/40 disabled:cursor-not-allowed"
+              className="rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-white hover:bg-primary/80 transition-colors disabled:bg-primary/40 disabled:cursor-not-allowed"
               disabled={isCustomRpcEnabled && rpcTest.status !== 'success'}
               onClick={saveNetworkSettings}
             >
@@ -350,24 +355,24 @@ const SettingsView = () => {
         </div>
 
         {/* ABI Management */}
-        <div className="mb-6 rounded-lg border border-[#55493a] bg-[#231a0f] overflow-hidden">
+        <div className={sectionCardClass}>
           <button
             type="button"
-            className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left hover:bg-[#2a2218] transition-colors"
+            className={sectionHeaderClass}
             onClick={() => toggleSection('abi')}
             aria-expanded={sectionOpen.abi}
           >
             <div>
-              <h2 className="text-white text-[22px] font-bold leading-tight tracking-[-0.015em]">
+              <h2 className="text-text-primary text-[22px] font-bold leading-tight tracking-[-0.015em]">
                 ABI Management
               </h2>
-              <p className="text-[#bbad9b] text-base font-normal leading-normal mt-2">
+              <p className="text-text-secondary text-base font-normal leading-normal mt-2">
                 Manage ABIs used to interact with Timelock and AccessManager
                 contracts.
               </p>
             </div>
             <span
-              className={`material-symbols-outlined text-[#bbad9b] transition-transform flex-shrink-0 ${sectionOpen.abi ? 'rotate-180' : ''}`}
+              className={`material-symbols-outlined text-text-secondary transition-transform flex-shrink-0 ${sectionOpen.abi ? 'rotate-180' : ''}`}
               aria-hidden
             >
               expand_more
@@ -375,11 +380,11 @@ const SettingsView = () => {
           </button>
 
           {sectionOpen.abi ? (
-          <div className="border-t border-[#55493a] px-5 py-4 flex flex-col gap-6">
+          <div className={`${sectionBodyClass} flex flex-col gap-6`}>
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="flex gap-3">
               <button
-                className="flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold text-white bg-[#3a3227] hover:bg-[#55493a] transition-colors"
+                className="flex items-center gap-2 rounded-full border border-border-color bg-surface px-4 py-2.5 text-sm font-semibold text-text-primary transition-colors hover:bg-surface-elevated"
                 onClick={() => setShowImport((v) => !v)}
               >
                 <span className="material-symbols-outlined text-base">
@@ -388,7 +393,7 @@ const SettingsView = () => {
                 Import ABI
               </button>
               <button
-                className="flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold text-white bg-[#3a3227] hover:bg-[#55493a] transition-colors"
+                className="flex items-center gap-2 rounded-full border border-border-color bg-surface px-4 py-2.5 text-sm font-semibold text-text-primary transition-colors hover:bg-surface-elevated"
                 onClick={exportAll}
                 disabled={abiManager.entries.length === 0}
               >
@@ -401,25 +406,25 @@ const SettingsView = () => {
           </div>
 
           {showImport ? (
-            <div className="rounded-lg border border-[#55493a] bg-[#231a0f] p-4">
+            <div className="rounded-xl border border-border-color bg-surface-elevated/40 p-4">
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium text-white">
+                  <label className="text-sm font-medium text-text-primary">
                     Contract Name
                   </label>
                   <input
-                    className="w-full rounded-lg border border-[#55493a] bg-[#1c140b] px-4 py-2.5 text-white placeholder:text-[#bbad9b] focus:border-primary focus:ring-primary/50"
+                    className="w-full rounded-xl border border-border-color bg-surface px-4 py-2.5 text-text-primary placeholder:text-text-secondary focus:border-primary focus:ring-primary/50"
                     placeholder="MyContract"
                     value={importName}
                     onChange={(e) => setImportName(e.target.value)}
                   />
                 </div>
                 <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium text-white">
+                  <label className="text-sm font-medium text-text-primary">
                     Contract Address
                   </label>
                   <input
-                    className="w-full rounded-lg border border-[#55493a] bg-[#1c140b] px-4 py-2.5 text-white placeholder:text-[#bbad9b] focus:border-primary focus:ring-primary/50"
+                    className="w-full rounded-xl border border-border-color bg-surface px-4 py-2.5 text-text-primary placeholder:text-text-secondary focus:border-primary focus:ring-primary/50"
                     placeholder="0x..."
                     value={importAddress}
                     onChange={(e) => setImportAddress(e.target.value)}
@@ -431,9 +436,9 @@ const SettingsView = () => {
               </div>
 
               <div className="mt-3 flex flex-col gap-2">
-                <label className="text-sm font-medium text-white">ABI JSON</label>
+                <label className="text-sm font-medium text-text-primary">ABI JSON</label>
                 <textarea
-                  className="w-full min-h-40 rounded-lg border border-[#55493a] bg-[#1c140b] px-4 py-2.5 font-mono text-sm text-white placeholder:text-[#bbad9b] focus:border-primary focus:ring-primary/50"
+                  className="w-full min-h-40 rounded-xl border border-border-color bg-surface px-4 py-2.5 font-mono text-sm text-text-primary placeholder:text-text-secondary focus:border-primary focus:ring-primary/50"
                   placeholder='[{"type":"function","name":"...","inputs":[],"outputs":[],"stateMutability":"view"}]'
                   value={importAbiJson}
                   onChange={(e) => setImportAbiJson(e.target.value)}
@@ -448,7 +453,7 @@ const SettingsView = () => {
 
               <div className="mt-4 flex justify-end gap-3">
                 <button
-                  className="rounded-full px-6 py-2.5 text-sm font-semibold text-white bg-[#3a3227] hover:bg-[#55493a] transition-colors"
+                  className="rounded-full border border-border-color bg-surface px-6 py-2.5 text-sm font-semibold text-text-primary transition-colors hover:bg-surface-elevated"
                   onClick={() => {
                     setShowImport(false)
                     setImportError(null)
@@ -457,7 +462,7 @@ const SettingsView = () => {
                   Cancel
                 </button>
                 <button
-                  className="rounded-full px-6 py-2.5 text-sm font-semibold text-black bg-primary hover:bg-primary/80 transition-colors disabled:bg-primary/40 disabled:cursor-not-allowed"
+                  className="rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-white hover:bg-primary/80 transition-colors disabled:bg-primary/40 disabled:cursor-not-allowed"
                   onClick={handleImport}
                   disabled={!importAbiJson.trim() || !importAddress.trim()}
                 >
@@ -469,23 +474,23 @@ const SettingsView = () => {
 
           <div className="flex flex-col gap-3">
             {abiManager.entries.length === 0 ? (
-              <div className="rounded-lg border border-[#55493a] bg-[#231a0f] p-4 text-[#bbad9b]">
+              <div className="rounded-xl border border-border-color bg-surface-elevated/40 p-4 text-text-secondary">
                 No custom ABIs saved yet. Import ABIs for unverified or custom contracts so Operations Explorer and the Decoder can show human-readable function calls.
               </div>
             ) : (
               abiManager.entries.map((e) => (
                 <div
                   key={e.address}
-                  className="flex items-center justify-between rounded-lg border border-[#55493a] bg-[#231a0f] p-4"
+                  className="flex items-center justify-between rounded-xl border border-border-color bg-surface-elevated/40 p-4"
                 >
                   <div className="flex flex-col">
-                    <p className="text-white font-medium">{e.name}</p>
-                    <p className="text-sm text-[#bbad9b] font-mono">
+                    <p className="text-text-primary font-medium">{e.name}</p>
+                    <p className="text-sm text-text-secondary font-mono">
                       {shortenAddress(e.address)}
                     </p>
                   </div>
                   <button
-                    className="p-2 rounded-full hover:bg-[#3a3227] text-[#bbad9b] hover:text-white transition-colors"
+                    className="rounded-full p-2 text-text-secondary transition-colors hover:bg-surface hover:text-text-primary"
                     onClick={() => abiManager.remove(e.address as Address)}
                     title="Delete ABI"
                   >
@@ -500,68 +505,68 @@ const SettingsView = () => {
         </div>
 
         {/* Deploy a new timelock contract */}
-        <div className="mb-6 rounded-lg border border-[#55493a] bg-[#231a0f] overflow-hidden">
+        <div className={sectionCardClass}>
           <button
             type="button"
-            className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left hover:bg-[#2a2218] transition-colors"
+            className={sectionHeaderClass}
             onClick={() => toggleSection('deploy')}
             aria-expanded={sectionOpen.deploy}
           >
-            <h2 className="text-white text-[22px] font-bold leading-tight tracking-[-0.015em]">
+            <h2 className="text-text-primary text-[22px] font-bold leading-tight tracking-[-0.015em]">
               Deploy a new timelock contract
             </h2>
             <span
-              className={`material-symbols-outlined text-[#bbad9b] transition-transform ${sectionOpen.deploy ? 'rotate-180' : ''}`}
+              className={`material-symbols-outlined text-text-secondary transition-transform ${sectionOpen.deploy ? 'rotate-180' : ''}`}
               aria-hidden
             >
               expand_more
             </span>
           </button>
           {sectionOpen.deploy ? (
-            <div className="border-t border-[#55493a] px-5 py-4">
-              <p className="text-[#bbad9b] text-sm mb-4">
+            <div className={sectionBodyClass}>
+              <p className="text-text-secondary text-sm mb-4">
                 Deploy a new OpenZeppelin TimelockController on Rootstock from this app.
               </p>
               <Link
                 href="/deploy_timelock"
-                className="inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold text-black bg-primary hover:bg-primary/80 transition-colors"
+                className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-primary/80"
               >
-                <span className="material-symbols-outlined text-lg">add_circle</span>
-                Deploy Timelock
+                <span className="material-symbols-outlined text-lg !text-white">add_circle</span>
+                <span className="!text-white">Deploy Timelock</span>
               </Link>
             </div>
           ) : null}
         </div>    
 
         {/* Subgraph deployment */}
-        <div className="mb-6 rounded-lg border border-[#55493a] bg-[#231a0f] overflow-hidden">
+        <div className={sectionCardClass}>
           <button
             type="button"
-            className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left hover:bg-[#2a2218] transition-colors"
+            className={sectionHeaderClass}
             onClick={() => toggleSection('subgraph')}
             aria-expanded={sectionOpen.subgraph}
           >
-            <h2 className="text-white text-[22px] font-bold leading-tight tracking-[-0.015em]">
+            <h2 className="text-text-primary text-[22px] font-bold leading-tight tracking-[-0.015em]">
               Subgraph deployment
             </h2>
             <span
-              className={`material-symbols-outlined text-[#bbad9b] transition-transform ${sectionOpen.subgraph ? 'rotate-180' : ''}`}
+              className={`material-symbols-outlined text-text-secondary transition-transform ${sectionOpen.subgraph ? 'rotate-180' : ''}`}
               aria-hidden
             >
               expand_more
             </span>
           </button>
           {sectionOpen.subgraph ? (
-            <div className="border-t border-[#55493a] px-5 py-4 space-y-4">
-              <p className="text-text-dark-secondary text-sm">
+            <div className={`${sectionBodyClass} space-y-4`}>
+              <p className="text-text-secondary text-sm">
                 Use this when you already have a timelock contract deployed and want to prepare and deploy a subgraph that indexes its events. The Graph Studio deploy key is
                 always used locally on your machine and is never sent to this app.
               </p>
               <Link
                 href="/subgraph/deploy"
-                className="inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold text-black bg-primary hover:bg-primary/80"
+                className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-primary/80"
               >
-                Open subgraph deploy
+                <span className="!text-white">Open subgraph deploy</span>
               </Link>
             </div>
           ) : null}

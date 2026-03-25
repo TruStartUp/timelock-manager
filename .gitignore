@@ -44,3 +44,5 @@ yarn-error.log*
 /contracts/node_modules
 /contracts/artifacts
 /contracts/cache
+
+tmp/

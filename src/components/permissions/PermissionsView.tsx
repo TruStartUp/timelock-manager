@@ -51,7 +51,7 @@ const RoleMemberRow = ({ member, isDefaultAdmin, connectedAddress, blockscoutUrl
   })
   
   return (
-    <div className="flex items-center justify-between gap-3 rounded-lg bg-background-dark px-4 py-2.5">
+    <div className="flex items-center justify-between gap-3 rounded-lg border border-border-color bg-surface-elevated/55 px-4 py-2.5">
       {/* Left: address + tags */}
       <div className="flex min-w-0 items-center gap-3 flex-wrap">
         {hasMultipleRoles && (
@@ -69,10 +69,10 @@ const RoleMemberRow = ({ member, isDefaultAdmin, connectedAddress, blockscoutUrl
           href={`${blockscoutUrl}/address/${member}`}
           target="_blank"
           rel="noopener noreferrer"
-          className={`font-mono text-sm bg-white/10 px-3 py-1 rounded-full hover:bg-white/15 transition-colors ${
+          className={`font-mono text-sm border border-border-color bg-surface px-3 py-1 rounded-full hover:bg-surface-elevated transition-colors ${
             isConnectedWallet
               ? 'text-primary border border-primary/50'
-              : 'text-text-light'
+              : 'text-text-primary'
           }`}
           title="View address on Blockscout"
         >
@@ -102,7 +102,7 @@ const RoleMemberRow = ({ member, isDefaultAdmin, connectedAddress, blockscoutUrl
           href={`${blockscoutUrl}/address/${member}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex size-9 items-center justify-center rounded-md text-text-dark hover:text-white hover:bg-white/5 transition-colors"
+          className="inline-flex size-9 items-center justify-center rounded-md text-text-secondary hover:text-text-primary hover:bg-surface-elevated transition-colors"
           aria-label="Open on Blockscout"
           title="Open on Blockscout"
         >
@@ -119,7 +119,7 @@ const RoleMemberRow = ({ member, isDefaultAdmin, connectedAddress, blockscoutUrl
                 console.error('Failed to copy:', err)
               }
             }}
-            className="inline-flex size-9 items-center justify-center rounded-md text-text-dark hover:text-white hover:bg-white/5 transition-colors"
+            className="inline-flex size-9 items-center justify-center rounded-md text-text-secondary hover:text-text-primary hover:bg-surface-elevated transition-colors"
             title={copiedAddress === member ? 'Copied!' : 'Copy address'}
             aria-label={copiedAddress === member ? 'Copied address' : 'Copy address'}
           >
@@ -128,10 +128,10 @@ const RoleMemberRow = ({ member, isDefaultAdmin, connectedAddress, blockscoutUrl
             </span>
           </button>
           {copiedAddress === member && (
-            <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-surface-dark text-white text-xs px-2 py-1 rounded shadow-lg whitespace-nowrap z-10">
+            <div className="absolute -top-8 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded border border-border-color bg-surface px-2 py-1 text-xs text-text-primary shadow-lg">
               Copied!
               <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-full">
-                <div className="border-4 border-transparent border-t-surface-dark"></div>
+                <div className="border-4 border-transparent border-t-surface"></div>
               </div>
             </div>
           )}
@@ -263,15 +263,15 @@ const PermissionsView = () => {
           )}
         </div>
         <div className="col-span-12 lg:col-span-4 xl:col-span-3 flex flex-col gap-6">
-          <h2 className="text-xl font-semibold text-white">All Roles</h2>
+          <h2 className="text-xl font-semibold text-text-primary">All Roles</h2>
           <div className="px-0 py-0">
             <label className="flex flex-col min-w-40 h-12 w-full">
               <div className="flex w-full flex-1 items-stretch rounded-full h-full">
-                <div className="text-text-dark flex bg-surface-dark items-center justify-center pl-4 rounded-l-full">
+                <div className="text-text-secondary flex bg-surface items-center justify-center pl-4 rounded-l-full border border-r-0 border-border-color">
                   <span className="material-symbols-outlined">search</span>
                 </div>
                 <input
-                  className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-full text-text-light focus:outline-0 focus:ring-2 focus:ring-primary/50 border-none bg-surface-dark h-full placeholder:text-text-dark px-4 rounded-l-none pl-2 text-base font-normal leading-normal"
+                  className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-full border border-border-color bg-surface h-full px-4 pl-2 text-base font-normal leading-normal text-text-primary placeholder:text-text-secondary rounded-l-none"
                   placeholder="Filter roles..."
                   value={searchValue}
                   onChange={(e) => setSearchValue(e.target.value)}
@@ -285,7 +285,7 @@ const PermissionsView = () => {
               Array.from({ length: 4 }).map((_, index) => (
                 <div
                   key={`loading-${index}`}
-                  className="flex items-center gap-4 p-3 rounded-lg animate-pulse bg-surface-dark"
+                  className="flex items-center gap-4 rounded-lg border border-border-color bg-surface p-3 animate-pulse"
                 >
                   <div className="size-10 bg-border-color rounded-md"></div>
                   <div className="h-5 w-32 bg-border-color rounded flex-1"></div>
@@ -320,14 +320,14 @@ const PermissionsView = () => {
                     className={`flex items-center gap-4 p-3 justify-between rounded-lg cursor-pointer transition-colors ${
                       isSelected
                         ? 'bg-primary/20'
-                        : 'hover:bg-surface-dark'
+                        : 'hover:bg-surface-elevated/70'
                     }`}
                   >
                     <div className="flex items-center gap-4">
                       <div
                         className={`${
-                          isSelected ? 'text-primary' : 'text-text-light'
-                        } flex items-center justify-center rounded-md bg-surface-dark shrink-0 size-10`}
+                          isSelected ? 'text-primary' : 'text-text-secondary'
+                        } flex items-center justify-center rounded-md bg-surface shrink-0 size-10 border border-border-color`}
                       >
                         <span className="material-symbols-outlined">
                           {getRoleIcon(displayName)}
@@ -337,7 +337,7 @@ const PermissionsView = () => {
                         className={`${
                           isSelected
                             ? 'text-primary font-medium'
-                            : 'text-text-light font-normal'
+                            : 'text-text-primary font-normal'
                         } text-base leading-normal flex-1 truncate`}
                       >
                         {displayName}
@@ -346,7 +346,7 @@ const PermissionsView = () => {
                     <div className="shrink-0">
                       <div
                         className={`${
-                          isSelected ? 'text-primary' : 'text-text-dark'
+                          isSelected ? 'text-primary' : 'text-text-secondary'
                         } flex size-7 items-center justify-center`}
                       >
                         <span className="material-symbols-outlined">
@@ -362,7 +362,7 @@ const PermissionsView = () => {
         </div>
         <div className="col-span-12 lg:col-span-8 xl:col-span-9 flex flex-col gap-6">
           {isLoading ? (
-            <div className="bg-surface-dark rounded-xl p-6">
+            <div className="app-card p-6">
               <div className="animate-pulse space-y-4">
                 <div className="h-8 w-48 bg-border-color rounded"></div>
                 <div className="h-4 w-96 bg-border-color rounded"></div>
@@ -374,7 +374,7 @@ const PermissionsView = () => {
               </div>
             </div>
           ) : isError ? (
-            <div className="bg-surface-dark rounded-xl p-6">
+            <div className="app-card p-6">
               <div className="rounded border border-red-500/50 bg-red-500/10 p-4">
                 <p className="text-red-500 text-sm">
                   Failed to load roles data. Please check your connection and try again.
@@ -382,12 +382,12 @@ const PermissionsView = () => {
               </div>
             </div>
           ) : selectedRole ? (
-            <div className="bg-surface-dark rounded-xl p-6">
-              <div className="pb-4 border-b border-white/10">
-                <h3 className="text-2xl font-semibold text-white">
+            <div className="app-card p-6">
+              <div className="pb-4 border-b border-border-color">
+                <h3 className="text-2xl font-semibold text-text-primary">
                   {ROLE_NAMES[selectedRole.roleHash] || selectedRole.roleName}
                 </h3>
-                <p className="text-text-dark mt-1">
+                <p className="text-text-secondary mt-1">
                   {selectedRole.roleHash === TIMELOCK_ROLES.DEFAULT_ADMIN_ROLE
                     ? 'Grants permission to modify Timelock settings and manage other roles.'
                     : selectedRole.roleHash === TIMELOCK_ROLES.PROPOSER_ROLE
@@ -400,7 +400,7 @@ const PermissionsView = () => {
                 </p>
               </div>
               <div className="mt-6">
-                <h4 className="text-lg font-semibold text-white">
+                <h4 className="text-lg font-semibold text-text-primary">
                   Current Holders ({selectedRole.memberCount})
                 </h4>
                 {selectedRole.currentMembers.length === 0 ? (
@@ -426,14 +426,14 @@ const PermissionsView = () => {
               </div>
             </div>
           ) : (
-            <div className="bg-surface-dark rounded-xl p-6">
+            <div className="app-card p-6">
               <p className="text-text-secondary">
                 Select a role on the left to see which addresses hold it and how it has changed over time.
               </p>
             </div>
           )}
-          <div className="bg-surface-dark rounded-xl p-6">
-            <h4 className="text-lg font-semibold text-white mb-4">
+          <div className="app-card p-6">
+            <h4 className="text-lg font-semibold text-text-primary mb-4">
               Role History
             </h4>
             {selectedRoleHistory.length === 0 ? (
@@ -441,7 +441,7 @@ const PermissionsView = () => {
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
-                  <thead className="text-text-dark border-b border-white/10">
+                  <thead className="text-text-secondary border-b border-border-color">
                     <tr>
                       <th className="p-3 font-medium">Action</th>
                       <th
@@ -456,13 +456,13 @@ const PermissionsView = () => {
                   </thead>
                   <tbody>
                     {selectedRoleHistory.map((event) => (
-                      <tr key={event.id} className="border-b border-white/10">
+                      <tr key={event.id} className="border-b border-border-color">
                         <td className="p-3">
                           <span
                             className={`inline-flex items-center gap-2 px-2 py-1 rounded-full text-xs font-medium ${
                               event.granted
-                                ? 'text-green-300 bg-green-500/10 border border-green-500/20'
-                                : 'text-red-300 bg-red-500/10 border border-red-500/20'
+                                ? 'border border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-green-500/20 dark:bg-green-500/10 dark:text-green-300'
+                                : 'border border-rose-300 bg-rose-50 text-rose-800 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300'
                             }`}
                           >
                             {event.granted ? 'Role Granted' : 'Role Revoked'}
@@ -470,7 +470,7 @@ const PermissionsView = () => {
                         </td>
                         <td className="p-3">
                           <div className="flex items-center gap-2">
-                            <span className="font-mono text-text-light">
+                            <span className="font-mono text-text-primary">
                               {truncateAddress(event.account)}
                             </span>
                             <div className="relative">
@@ -483,7 +483,7 @@ const PermissionsView = () => {
                                     console.error('Failed to copy:', err)
                                   }
                                 }}
-                                className="text-text-dark hover:text-white transition-colors"
+                                className="text-text-secondary hover:text-text-primary transition-colors"
                                 title={copiedHistoryAddress === event.account ? 'Copied!' : 'Copy address'}
                               >
                                 <span className="material-symbols-outlined text-base">
@@ -491,10 +491,10 @@ const PermissionsView = () => {
                                 </span>
                               </button>
                               {copiedHistoryAddress === event.account && (
-                                <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-surface-dark text-white text-xs px-2 py-1 rounded shadow-lg whitespace-nowrap z-10">
+                                <div className="absolute -top-8 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded border border-border-color bg-surface px-2 py-1 text-xs text-text-primary shadow-lg">
                                   Copied!
                                   <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-full">
-                                    <div className="border-4 border-transparent border-t-surface-dark"></div>
+                                    <div className="border-4 border-transparent border-t-surface"></div>
                                   </div>
                                 </div>
                               )}
@@ -511,7 +511,7 @@ const PermissionsView = () => {
                             {truncateAddress(event.transactionHash)}
                           </a>
                         </td>
-                        <td className="p-3 text-text-dark text-right">
+                        <td className="p-3 text-text-secondary text-right">
                           {formatTimestamp(event.blockTimestamp)}
                         </td>
                       </tr>

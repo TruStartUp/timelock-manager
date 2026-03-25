@@ -22,6 +22,8 @@ import { useTimelocks } from '@/hooks/useTimelocks'
 
 type OperationStatus = 'All' | 'Pending' | 'Ready' | 'Executed' | 'Canceled'
 
+const DEFAULT_DOCS_URL = 'https://david-personal.gitbook.io/timelock-manager/'
+
 const STATUS_TOOLTIPS: Record<Exclude<OperationStatus, 'All'>, string> = {
   Pending:
     'This action is scheduled, but it’s still waiting for the required time to pass.',
@@ -38,7 +40,7 @@ function TooltipIcon(props: { text: string; ariaLabel: string }) {
         role="button"
         tabIndex={0}
         aria-label={ariaLabel}
-        className="group inline-flex size-4 items-center justify-center rounded-full border border-current/30 bg-black/10 text-[11px] font-bold leading-none text-current/80 outline-none hover:text-current focus-visible:ring-2 focus-visible:ring-primary/50"
+        className="group inline-flex size-4 items-center justify-center rounded-full border border-current/30 bg-surface-elevated/60 text-[11px] font-bold leading-none text-current/80 outline-none hover:text-current focus-visible:ring-2 focus-visible:ring-primary/30"
         onClick={(e) => {
           // Do not toggle the surrounding filter
           e.preventDefault()
@@ -53,15 +55,99 @@ function TooltipIcon(props: { text: string; ariaLabel: string }) {
         }}
       >
         ?
-        <span className="pointer-events-none absolute left-1/2 top-full z-50 mt-2 w-72 -translate-x-1/2 rounded-md border border-border-dark bg-background-dark px-3 py-2 text-xs font-medium text-text-dark-primary opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+        <span className="pointer-events-none absolute left-1/2 top-full z-50 mt-2 w-72 -translate-x-1/2 rounded-lg border border-border-dark bg-surface px-3 py-2 text-xs font-medium text-text-dark-primary opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
           {text}
           <span className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-full">
             <span className="block size-0 border-x-8 border-b-8 border-x-transparent border-b-border-dark" />
-            <span className="relative -top-[7px] block size-0 border-x-7 border-b-7 border-x-transparent border-b-background-dark" />
+            <span className="relative -top-[7px] block size-0 border-x-7 border-b-7 border-x-transparent border-b-surface" />
           </span>
         </span>
       </span>
     </span>
+  )
+}
+
+function TimelockExplorerEmptyState({
+  icon,
+  title,
+  body,
+  ctaHref,
+  ctaLabel,
+  docsUrl,
+}: {
+  icon: string
+  title: string
+  body: string
+  ctaHref: string
+  ctaLabel: string
+  docsUrl: string
+}) {
+  return (
+    <main className="flex flex-col gap-6 p-4 md:p-6">
+      <section className="app-card overflow-hidden">
+        <div className="border-b border-border-color px-6 py-6">
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary/85">
+              Timelock Management
+            </p>
+            <h1 className="text-3xl font-bold tracking-tight text-text-primary">
+              Timelock Operations
+            </h1>
+            <p className="text-sm text-text-secondary">
+              Review scheduled, ready, executed, and canceled operations for the active controller.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <div className="flex items-center justify-center py-6">
+        <div className="app-card w-full max-w-3xl p-8 text-center">
+          <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-primary/12 text-primary">
+            <span className="material-symbols-outlined text-2xl">{icon}</span>
+          </div>
+          <h2 className="text-2xl font-bold text-text-primary">{title}</h2>
+          <p className="mt-2 text-text-secondary">{body}</p>
+          <div className="mt-6">
+            <Link href={ctaHref} className="app-button-primary px-6">
+              {ctaLabel}
+            </Link>
+          </div>
+
+          <div className="mt-6 rounded-2xl border border-primary/20 bg-primary/8 p-6 text-left">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
+                <span className="material-symbols-outlined text-xl">lock_clock</span>
+              </div>
+              <div className="space-y-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary/85">
+                    What Is A Timelock?
+                  </p>
+                  <h3 className="mt-1 text-lg font-semibold text-text-primary">
+                    A review window before governance changes go live
+                  </h3>
+                </div>
+                <p className="text-sm leading-relaxed text-text-secondary">
+                  A timelock delays administrative actions before they execute on-chain. That delay gives contributors time to review proposals, verify calldata, and react before a change becomes active.
+                </p>
+                <p className="text-sm leading-relaxed text-text-secondary">
+                  Once you configure and select a timelock, this explorer will show queued actions, ready executions, execution history, and technical inspection details for that controller.
+                </p>
+                <a
+                  href={docsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+                >
+                  Learn more in the docs
+                  <span className="material-symbols-outlined text-base">open_in_new</span>
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
   )
 }
 
@@ -71,6 +157,7 @@ const ZERO_BYTES32 =
 interface Operation {
   id: string
   fullId: `0x${string}`
+  summary: string
   status: Exclude<OperationStatus, 'All'>
   calls: number
   targets: string[]
@@ -116,7 +203,7 @@ const OperationsExplorerView: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
-  const [expandedRowId, setExpandedRowId] = useState<string | null>(null)
+  const [selectedOperationId, setSelectedOperationId] = useState<string | null>(null)
   // T116: pagination state
   const [pageSize, setPageSize] = useState<number>(50)
   const [pageIndex, setPageIndex] = useState<number>(0)
@@ -139,8 +226,9 @@ const OperationsExplorerView: React.FC = () => {
   const lastFocusedElRef = useRef<HTMLElement | null>(null)
   const executeDialogCloseRef = useRef<HTMLButtonElement | null>(null)
   const cancelDialogCloseRef = useRef<HTMLButtonElement | null>(null)
-  const { selected } = useTimelocks()
+  const { selected, configurations } = useTimelocks()
   const timelockAddress = (selected?.address as Address | undefined) ?? undefined
+  const docsUrl = process.env.NEXT_PUBLIC_DOCS_URL ?? DEFAULT_DOCS_URL
 
   // Initialize status filter from URL query param (e.g. /operations_explorer?status=pending)
   useEffect(() => {
@@ -576,7 +664,7 @@ const OperationsExplorerView: React.FC = () => {
       dateTo: dateToTs,
     },
     {
-      enabled: !dateRangeError,
+      enabled: !!timelockAddress && !dateRangeError,
       pagination: {
         first: pageSize,
         skip: pageIndex * pageSize,
@@ -662,11 +750,32 @@ const OperationsExplorerView: React.FC = () => {
           ? [primaryTarget]
           : []
       const callsCount = isBatch ? subgraphCalls.length : primaryTarget ? 1 : 0
+      const firstCallSignature = subgraphCalls[0]?.signature ?? null
+      const firstFunctionName =
+        firstCallSignature && firstCallSignature.includes('(')
+          ? firstCallSignature.split('(')[0]
+          : firstCallSignature
+      const selector =
+        primaryData && primaryData !== '0x' && primaryData.length >= 10
+          ? primaryData.slice(0, 10)
+          : null
+      const targetLabel = primaryTarget ? shortenAddress(primaryTarget) : 'unknown target'
+      const collapsedSummary =
+        callsCount > 1
+          ? firstFunctionName
+            ? `Batch (${callsCount} calls), starts with ${firstFunctionName}.`
+            : `Batch operation with ${callsCount} calls.`
+          : firstFunctionName
+            ? `${firstFunctionName} on ${targetLabel}.`
+            : selector
+              ? `Contract call ${selector} on ${targetLabel}.`
+              : `Administrative update on ${targetLabel}.`
 
       // Format operation for UI
       const uiOperation: Operation = {
         id: shortenAddress(op.id),
         fullId: op.id,
+        summary: collapsedSummary,
         status: mapSubgraphStatus(op.status),
         calls: callsCount,
         targets: targets.map(shortenAddress),
@@ -819,9 +928,28 @@ const OperationsExplorerView: React.FC = () => {
     }
   }
 
-  const handleRowClick = (id: string) => {
-    setExpandedRowId(expandedRowId === id ? null : id)
+  const handleDetailsClick = (id: string) => {
+    setSelectedOperationId((prev) => (prev === id ? null : id))
   }
+
+  const selectedOperation = useMemo(
+    () => clientFilteredOperations.find((op) => op.id === selectedOperationId) ?? null,
+    [clientFilteredOperations, selectedOperationId]
+  )
+
+  useEffect(() => {
+    if (!selectedOperationId) return
+    const stillVisible = clientFilteredOperations.some(
+      (op) => op.id === selectedOperationId
+    )
+    if (!stillVisible) setSelectedOperationId(null)
+  }, [clientFilteredOperations, selectedOperationId])
+
+  useEffect(() => {
+    if (configurations.length === 0 || !selected) {
+      setSelectedOperationId(null)
+    }
+  }, [configurations.length, selected])
 
   const handleExecute = (id: string) => {
     // Find the operation by shortened ID
@@ -891,6 +1019,26 @@ const OperationsExplorerView: React.FC = () => {
 
   return (
     <>
+      {configurations.length === 0 ? (
+        <TimelockExplorerEmptyState
+          icon="playlist_add"
+          title="No timelocks configured yet"
+          body="Add a timelock configuration in Settings to start monitoring queued and executed governance actions."
+          ctaHref="/settings"
+          ctaLabel="Go to Settings"
+          docsUrl={docsUrl}
+        />
+      ) : !selected ? (
+        <TimelockExplorerEmptyState
+          icon="warning"
+          title="Select a timelock to explore operations"
+          body="Choose an active timelock from the header selector to load governance operations for that controller."
+          ctaHref="/settings"
+          ctaLabel="Manage timelocks in Settings"
+          docsUrl={docsUrl}
+        />
+      ) : (
+        <>
       {/* T111: Execute simulation preview dialog */}
       {confirmExecuteOperation ? (
         <div
@@ -950,7 +1098,7 @@ const OperationsExplorerView: React.FC = () => {
                       (call, idx) => (
                         <div
                           key={idx}
-                          className="rounded border border-border-dark/60 bg-black/10 p-3 space-y-2"
+                          className="rounded-xl border border-border-dark/60 bg-surface p-3 space-y-2"
                         >
                           <div className="text-xs font-semibold text-text-dark-secondary">
                             Call {idx + 1}
@@ -1036,7 +1184,7 @@ const OperationsExplorerView: React.FC = () => {
                       return (
                         <div
                           key={idx}
-                          className="rounded border border-border-dark/60 bg-black/10 p-3 space-y-2"
+                          className="rounded-xl border border-border-dark/60 bg-surface p-3 space-y-2"
                         >
                           <div className="flex items-center justify-between gap-2">
                             <span className="text-xs font-semibold text-text-dark-secondary">
@@ -1044,11 +1192,11 @@ const OperationsExplorerView: React.FC = () => {
                             </span>
                             {decoded ? (
                               isVerifiedBlockscout(decoded) ? (
-                                <span className="inline-flex items-center rounded-full border border-green-500/30 bg-green-500/10 px-2 py-0.5 text-[10px] font-semibold text-green-200">
+                                <span className="inline-flex items-center rounded-full border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 dark:border-green-500/30 dark:bg-green-500/10 dark:text-green-200">
                                   Verified
                                 </span>
                               ) : (
-                                <span className="inline-flex items-center rounded-full border border-yellow-500/30 bg-yellow-500/10 px-2 py-0.5 text-[10px] font-semibold text-yellow-200">
+                                <span className="inline-flex items-center rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800 dark:border-yellow-500/30 dark:bg-yellow-500/10 dark:text-yellow-200">
                                   Unverified
                                 </span>
                               )
@@ -1119,11 +1267,11 @@ const OperationsExplorerView: React.FC = () => {
                     Call summary
                   </span>
                   {isVerifiedBlockscout(decodedExecute) ? (
-                    <span className="inline-flex items-center rounded-full border border-green-500/30 bg-green-500/10 px-2 py-0.5 text-[11px] font-semibold text-green-200">
+                    <span className="inline-flex items-center rounded-full border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-800 dark:border-green-500/30 dark:bg-green-500/10 dark:text-green-200">
                       Verified contract
                     </span>
                   ) : (
-                    <span className="inline-flex items-center rounded-full border border-yellow-500/30 bg-yellow-500/10 px-2 py-0.5 text-[11px] font-semibold text-yellow-200">
+                    <span className="inline-flex items-center rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800 dark:border-yellow-500/30 dark:bg-yellow-500/10 dark:text-yellow-200">
                       Unverified - showing raw hex
                     </span>
                   )}
@@ -1161,7 +1309,7 @@ const OperationsExplorerView: React.FC = () => {
                         {decodedExecute.params.map((p, i) => (
                           <div
                             key={i}
-                            className="rounded border border-border-dark/60 bg-black/10 p-2"
+                            className="rounded-lg border border-border-dark/60 bg-surface p-2"
                           >
                             <div className="text-text-dark-secondary">
                               {p.name} ({p.type})
@@ -1235,7 +1383,7 @@ const OperationsExplorerView: React.FC = () => {
 
             <div className="mt-6 flex items-center justify-end gap-3">
               <button
-                className="rounded-md border border-border-dark bg-transparent px-4 py-2 text-sm font-semibold text-text-dark-secondary hover:bg-white/5"
+                className="rounded-md border border-border-dark bg-transparent px-4 py-2 text-sm font-semibold text-text-dark-secondary hover:bg-surface-elevated/40"
                 onClick={() => setConfirmExecuteOperation(null)}
                 disabled={isExecuting}
               >
@@ -1381,7 +1529,7 @@ const OperationsExplorerView: React.FC = () => {
 
             <div className="mt-6 flex items-center justify-end gap-3">
               <button
-                className="rounded-md border border-border-dark bg-transparent px-4 py-2 text-sm font-semibold text-text-dark-secondary hover:bg-white/5"
+                className="rounded-md border border-border-dark bg-transparent px-4 py-2 text-sm font-semibold text-text-dark-secondary hover:bg-surface-elevated/40"
                 onClick={() => setConfirmCancelOperation(null)}
                 disabled={isCancelling}
               >
@@ -1437,7 +1585,7 @@ const OperationsExplorerView: React.FC = () => {
         </div>
         <Link
           href="/new_proposal"
-          className="flex min-w-[84px] cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-full h-10 px-4 bg-primary text-background-dark text-sm font-bold leading-normal tracking-[0.015em] hover:opacity-90 transition-opacity"
+          className="flex min-w-[84px] cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-full h-10 px-4 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em] hover:opacity-90 transition-opacity"
           aria-label="Schedule a new timelock operation"
           title="Schedule a new timelock operation"
         >
@@ -1458,7 +1606,7 @@ const OperationsExplorerView: React.FC = () => {
         </p>
 
         {/* Toolbar / Filters */}
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between rounded-lg bg-surface-dark p-3">
+        <div className="app-card flex flex-col gap-4 p-3 md:flex-row md:items-center md:justify-between">
           {/* Filter Chips */}
           <div className="flex flex-wrap gap-2">
             {(
@@ -1474,8 +1622,8 @@ const OperationsExplorerView: React.FC = () => {
                 key={filter}
                 className={`flex h-9 shrink-0 items-center justify-center gap-x-2 rounded-full text-sm font-medium leading-normal transition-colors ${
                   selectedFilter === filter
-                    ? 'bg-primary text-background-dark'
-                    : 'bg-border-dark text-text-dark-primary hover:bg-white/10'
+                    ? 'bg-primary text-white'
+                    : 'bg-border-dark text-text-dark-primary hover:bg-surface-elevated'
                 }`}
               >
                 <button
@@ -1519,18 +1667,18 @@ const OperationsExplorerView: React.FC = () => {
               type="date"
               value={dateFrom}
               onChange={(e) => setDateFrom(e.target.value)}
-              className="h-11 rounded-lg bg-border-dark px-3 text-sm text-text-dark-primary placeholder:text-text-dark-secondary focus:outline-0 focus:ring-0"
+              className="h-11 rounded-lg border border-border-dark bg-border-dark px-3 text-sm text-text-dark-primary placeholder:text-text-dark-secondary focus:outline-0 focus:ring-2 focus:ring-primary/20"
               aria-label="Date from"
             />
             <input
               type="date"
               value={dateTo}
               onChange={(e) => setDateTo(e.target.value)}
-              className="h-11 rounded-lg bg-border-dark px-3 text-sm text-text-dark-primary placeholder:text-text-dark-secondary focus:outline-0 focus:ring-0"
+              className="h-11 rounded-lg border border-border-dark bg-border-dark px-3 text-sm text-text-dark-primary placeholder:text-text-dark-secondary focus:outline-0 focus:ring-2 focus:ring-primary/20"
               aria-label="Date to"
             />
             <button
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-border-dark text-text-dark-secondary hover:bg-white/10 transition-colors"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-border-dark bg-border-dark text-text-dark-secondary hover:bg-surface-elevated transition-colors"
               type="button"
               aria-label="Show advanced filters"
               title="Show advanced filters"
@@ -1587,11 +1735,11 @@ const OperationsExplorerView: React.FC = () => {
 
         {/* T116: Pagination controls */}
         {!isLoading && !isError ? (
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-surface-dark p-3">
+          <div className="app-card flex flex-wrap items-center justify-between gap-3 p-3">
             <div className="flex items-center gap-2 text-sm text-text-dark-secondary">
               <span>Rows per page</span>
               <select
-                className="h-9 rounded-lg bg-border-dark px-3 text-sm text-text-dark-primary focus:outline-0 focus:ring-0"
+                className="h-9 rounded-lg border border-border-dark bg-border-dark px-3 text-sm text-text-dark-primary focus:outline-0 focus:ring-2 focus:ring-primary/20"
                 value={pageSize}
                 onChange={(e) => {
                   const next = Number(e.target.value)
@@ -1616,7 +1764,7 @@ const OperationsExplorerView: React.FC = () => {
               <button
                 className={`flex h-9 items-center justify-center rounded-md px-3 text-xs font-bold transition-colors ${
                   canPrevPage
-                    ? 'bg-border-dark text-text-dark-primary hover:bg-white/10'
+                    ? 'bg-border-dark text-text-dark-primary hover:bg-surface-elevated'
                     : 'bg-border-dark text-text-dark-secondary opacity-50 cursor-not-allowed'
                 }`}
                 onClick={() => canPrevPage && setPageIndex((p) => Math.max(0, p - 1))}
@@ -1628,7 +1776,7 @@ const OperationsExplorerView: React.FC = () => {
               <button
                 className={`flex h-9 items-center justify-center rounded-md px-3 text-xs font-bold transition-colors ${
                   canNextPage
-                    ? 'bg-border-dark text-text-dark-primary hover:bg-white/10'
+                    ? 'bg-border-dark text-text-dark-primary hover:bg-surface-elevated'
                     : 'bg-border-dark text-text-dark-secondary opacity-50 cursor-not-allowed'
                 }`}
                 onClick={() => canNextPage && setPageIndex((p) => p + 1)}
@@ -1754,7 +1902,7 @@ const OperationsExplorerView: React.FC = () => {
 
         {/* Loading State */}
         {isLoading && (
-          <div className="rounded-lg bg-surface-dark p-6">
+          <div className="app-card p-6">
             <div className="flex items-center justify-between gap-4">
               <Skeleton className="h-6 w-48" />
               <Skeleton className="h-6 w-28" />
@@ -1763,16 +1911,14 @@ const OperationsExplorerView: React.FC = () => {
               {Array.from({ length: 8 }).map((_, i) => (
                 <div
                   key={`op-skel-${i}`}
-                  className="min-w-[1024px] border-b border-border-dark px-6 py-4"
+                  className="min-w-[980px] border-b border-border-dark px-6 py-4"
                 >
-                  <div className="grid grid-cols-7 items-center gap-6">
-                    <Skeleton className="h-4 w-24" />
+                  <div className="grid grid-cols-[minmax(360px,3.4fr)_minmax(130px,1fr)_minmax(190px,1.2fr)_minmax(180px,1.2fr)] items-center gap-6">
+                    <Skeleton className="h-4 w-56" />
                     <Skeleton className="h-4 w-28" />
-                    <Skeleton className="h-4 w-10 justify-self-center" />
-                    <Skeleton className="h-4 w-40" />
                     <Skeleton className="h-4 w-32" />
-                    <Skeleton className="h-4 w-28" />
                     <div className="flex justify-end gap-2">
+                      <Skeleton className="h-9 w-16" />
                       <Skeleton className="h-9 w-20" />
                       <Skeleton className="h-9 w-20" />
                     </div>
@@ -1799,8 +1945,8 @@ const OperationsExplorerView: React.FC = () => {
         {!isLoading && !isError && clientFilteredOperations.length > 0 && (
           <VirtualizedOperationsList
             operations={clientFilteredOperations}
-            expandedRowId={expandedRowId}
-            onRowClick={handleRowClick}
+            selectedOperationId={selectedOperationId}
+            onDetailsClick={handleDetailsClick}
             onExecute={handleExecute}
             onCancel={handleCancel}
             hasExecutorRole={hasExecutorRole}
@@ -1822,14 +1968,53 @@ const OperationsExplorerView: React.FC = () => {
           />
         )}
       </main>
+        </>
+      )}
+      {selected && selectedOperation ? (
+        <OperationDetailsDrawer
+          operation={selectedOperation}
+          isExpanded
+          onClose={() => setSelectedOperationId(null)}
+          onDetailsClick={handleDetailsClick}
+          onExecute={handleExecute}
+          onCancel={handleCancel}
+          hasExecutorRole={hasExecutorRole}
+          isCheckingExecutorRole={isCheckingExecutorRole}
+          isExecuting={isExecuting}
+          isExecuteSuccess={isExecuteSuccess}
+          isExecuteError={isExecuteError}
+          hasCancellerRole={hasCancellerRole}
+          isCheckingCancellerRole={isCheckingCancellerRole}
+          isCancelling={
+            isCancelling &&
+            activeCancelOperationId !== null &&
+            activeCancelOperationId === selectedOperation.fullId
+          }
+          isCancelSuccess={
+            isCancelSuccess &&
+            activeCancelOperationId !== null &&
+            activeCancelOperationId === selectedOperation.fullId
+          }
+          isCancelError={
+            isCancelError &&
+            activeCancelOperationId !== null &&
+            activeCancelOperationId === selectedOperation.fullId
+          }
+          minDelay={minDelay}
+          getStatusColor={getStatusColor}
+          getStatusTextColor={getStatusTextColor}
+          formatTargets={formatTargets}
+          formatAbsoluteTime={formatAbsoluteTime}
+        />
+      ) : null}
     </>
   )
 }
 
 function VirtualizedOperationsList(props: {
   operations: Operation[]
-  expandedRowId: string | null
-  onRowClick: (id: string) => void
+  selectedOperationId: string | null
+  onDetailsClick: (id: string) => void
   onExecute: (id: string) => void
   onCancel: (operation: Operation) => void
   hasExecutorRole: boolean
@@ -1850,7 +2035,12 @@ function VirtualizedOperationsList(props: {
   formatAbsoluteTime: (timestamp: bigint) => string
 }) {
   const parentRef = React.useRef<HTMLDivElement | null>(null)
-  const shouldVirtualize = process.env.NODE_ENV !== 'test'
+  // Keep rows non-virtualized for this explorer table because row heights are
+  // dynamic (LLM summaries + expanded details) and absolute-position virtualization
+  // can cause overlap while heights are recalculated.
+  const shouldVirtualize = false
+  const shouldPrewarm = process.env.NODE_ENV !== 'test'
+  const PREWARM_VISIBLE_ROWS = 25
 
   const rowVirtualizer = useVirtualizer({
     count: props.operations.length,
@@ -1864,34 +2054,35 @@ function VirtualizedOperationsList(props: {
   React.useLayoutEffect(() => {
     if (!shouldVirtualize) return
     rowVirtualizer.measure()
-  }, [props.expandedRowId, rowVirtualizer, shouldVirtualize])
+  }, [props.selectedOperationId, rowVirtualizer, shouldVirtualize])
+
+  const prewarmIndexSet = React.useMemo(() => {
+    if (!shouldPrewarm) return new Set<number>()
+    // Prewarm from the top of the current page so non-expanded rows still get
+    // human summaries without needing explicit row expansion.
+    return new Set(
+      props.operations
+        .slice(0, PREWARM_VISIBLE_ROWS)
+        .map((_, index) => index)
+    )
+  }, [PREWARM_VISIBLE_ROWS, props.operations, shouldPrewarm])
 
   return (
-    <div className="w-full overflow-x-auto rounded-lg bg-surface-dark">
+    <div className="app-card w-full overflow-x-auto">
       <div role="table" aria-label="Timelock operations" className="w-full">
         {/* Header */}
         <div
           role="rowgroup"
-          className="min-w-[1024px] border-b border-border-dark text-xs uppercase text-text-dark-secondary"
+          className="min-w-[980px] border-b border-border-dark text-xs uppercase text-text-dark-secondary"
         >
-          <div role="row" className="grid grid-cols-7 px-6 py-4">
-            <div role="columnheader" className="flex items-center gap-1">
-              ID <span className="material-symbols-outlined text-base!">swap_vert</span>
-            </div>
+          <div role="row" className="grid grid-cols-[minmax(360px,3.4fr)_minmax(130px,1fr)_minmax(190px,1.2fr)_minmax(180px,1.2fr)] px-6 py-4">
+            <div role="columnheader">Summary</div>
             <div role="columnheader" className="flex items-center gap-1">
               Status{' '}
               <span className="material-symbols-outlined text-base!">swap_vert</span>
             </div>
-            <div role="columnheader" className="text-center">
-              Calls
-            </div>
-            <div role="columnheader">Targets</div>
             <div role="columnheader" className="flex items-center gap-1">
-              Ready at <span className="material-symbols-outlined text-base!">swap_vert</span>
-            </div>
-            <div role="columnheader" className="flex items-center gap-1">
-              Proposer{' '}
-              <span className="material-symbols-outlined text-base!">swap_vert</span>
+              Time / Countdown <span className="material-symbols-outlined text-base!">swap_vert</span>
             </div>
             <div role="columnheader" className="text-right">
               Actions
@@ -1930,8 +2121,9 @@ function VirtualizedOperationsList(props: {
                   >
                     <OperationRow
                       operation={operation}
-                      isExpanded={props.expandedRowId === operation.id}
-                      onRowClick={props.onRowClick}
+                      isExpanded={props.selectedOperationId === operation.id}
+                      prewarmExplanation={prewarmIndexSet.has(virtualRow.index)}
+                      onDetailsClick={props.onDetailsClick}
                       onExecute={props.onExecute}
                       onCancel={props.onCancel}
                       hasExecutorRole={props.hasExecutorRole}
@@ -1961,6 +2153,7 @@ function VirtualizedOperationsList(props: {
                       getStatusTextColor={props.getStatusTextColor}
                       formatTargets={props.formatTargets}
                       formatAbsoluteTime={props.formatAbsoluteTime}
+                      showExpandedContent={false}
                     />
                   </div>
                 )
@@ -1968,12 +2161,13 @@ function VirtualizedOperationsList(props: {
             </div>
           ) : (
             <div className="w-full">
-              {props.operations.map((operation) => (
+              {props.operations.map((operation, index) => (
                 <OperationRow
                   key={operation.fullId}
                   operation={operation}
-                  isExpanded={props.expandedRowId === operation.id}
-                  onRowClick={props.onRowClick}
+                  isExpanded={props.selectedOperationId === operation.id}
+                  prewarmExplanation={prewarmIndexSet.has(index)}
+                  onDetailsClick={props.onDetailsClick}
                   onExecute={props.onExecute}
                   onCancel={props.onCancel}
                   hasExecutorRole={props.hasExecutorRole}
@@ -2003,6 +2197,7 @@ function VirtualizedOperationsList(props: {
                   getStatusTextColor={props.getStatusTextColor}
                   formatTargets={props.formatTargets}
                   formatAbsoluteTime={props.formatAbsoluteTime}
+                  showExpandedContent={false}
                 />
               ))}
             </div>
@@ -2010,6 +2205,64 @@ function VirtualizedOperationsList(props: {
         </div>
       </div>
     </div>
+  )
+}
+
+function OperationDetailsDrawer(
+  props: React.ComponentProps<typeof OperationRow> & { onClose: () => void }
+) {
+  const { operation, onClose, ...rowProps } = props
+
+  React.useEffect(() => {
+    const onEsc = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onEsc)
+    return () => window.removeEventListener('keydown', onEsc)
+  }, [onClose])
+
+  return (
+    <>
+      <div
+        className="fixed inset-0 z-40 bg-slate-950/65 backdrop-blur-sm"
+        aria-hidden="true"
+        onClick={onClose}
+      />
+      <aside
+        role="dialog"
+        aria-modal="true"
+        aria-label="Operation details"
+        className="fixed inset-y-0 right-0 z-50 w-full overflow-y-auto border-l border-border-dark bg-background shadow-2xl lg:w-[70vw]"
+      >
+        <div className="sticky top-0 z-10 border-b border-border-dark bg-background/95 px-6 py-4 backdrop-blur">
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-text-dark-secondary">
+                Operation Detail
+              </p>
+              <p className="truncate font-mono text-text-dark-primary">{operation.id}</p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg p-2 text-text-dark-secondary hover:bg-surface-elevated hover:text-text-dark-primary"
+              aria-label="Close operation details panel"
+            >
+              <span className="material-symbols-outlined">close</span>
+            </button>
+          </div>
+        </div>
+        <div className="p-6">
+          <OperationRow
+            {...rowProps}
+            operation={operation}
+            isExpanded
+            detailMode="drawer"
+            showExpandedContent
+          />
+        </div>
+      </aside>
+    </>
   )
 }
 

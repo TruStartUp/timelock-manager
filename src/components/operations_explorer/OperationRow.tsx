@@ -6,16 +6,26 @@
  */
 
 import React from 'react'
-import { type Address, type Abi, formatUnits } from 'viem'
-import { useChainId, usePublicClient } from 'wagmi'
+import { useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
-import { useOperationStatus } from '@/hooks/useOperationStatus'
+import { type Abi, type Address, formatUnits } from 'viem'
+import { useChainId, usePublicClient } from 'wagmi'
+import { decodeCalldata, type DecodedCall } from '@/lib/decoder'
 import { getDangerousCallFromCalldata } from '@/lib/dangerous'
+import {
+  buildExplanationFingerprint,
+  buildExplainOperationPayload,
+  fetchOperationExplanation,
+  getOperationExplanationQueryKey,
+} from '@/lib/operationExplanation'
 import { formatSecondsToTime } from '@/lib/status'
 import { useABIManager } from '@/hooks/useABIManager'
-import { decodeCalldata, type DecodedCall } from '@/lib/decoder'
-import { CHAIN_TO_NETWORK, getBlockscoutExplorerUrl } from '@/services/blockscout/client'
+import { useOperationStatus } from '@/hooks/useOperationStatus'
 import { ABISource, ABIConfidence } from '@/services/blockscout/abi'
+import {
+  CHAIN_TO_NETWORK,
+  getBlockscoutExplorerUrl,
+} from '@/services/blockscout/client'
 
 const ERC20_METADATA_ABI = [
   {
@@ -40,6 +50,7 @@ const tokenMetaCache = new Map<string, TokenMeta>()
 interface Operation {
   id: string
   fullId: `0x${string}`
+  summary: string
   status: 'Pending' | 'Ready' | 'Executed' | 'Canceled'
   calls: number
   targets: string[]
@@ -49,11 +60,9 @@ interface Operation {
   executedAt: bigint | null
   delay: bigint
   scheduledAt: bigint
-  // Transaction hashes
   scheduledTx: `0x${string}`
   executedTx: `0x${string}` | null
   cancelledTx: `0x${string}` | null
-  // Execution parameters (from subgraph) - included for type compatibility with parent view
   target: `0x${string}` | null
   value: bigint | null
   data: `0x${string}` | null
@@ -76,7 +85,7 @@ interface Operation {
 interface OperationRowProps {
   operation: Operation
   isExpanded: boolean
-  onRowClick: (id: string) => void
+  onDetailsClick: (id: string) => void
   onExecute: (id: string) => void
   onCancel: (operation: Operation) => void
   hasExecutorRole: boolean
@@ -94,12 +103,15 @@ interface OperationRowProps {
   getStatusTextColor: (status: string) => string
   formatTargets: (targets: string[]) => string
   formatAbsoluteTime: (timestamp: bigint) => string
+  prewarmExplanation?: boolean
+  showExpandedContent?: boolean
+  detailMode?: 'inline' | 'drawer'
 }
 
 export const OperationRow: React.FC<OperationRowProps> = ({
   operation,
   isExpanded,
-  onRowClick,
+  onDetailsClick,
   onExecute,
   onCancel,
   hasExecutorRole,
@@ -117,10 +129,14 @@ export const OperationRow: React.FC<OperationRowProps> = ({
   getStatusTextColor,
   formatTargets,
   formatAbsoluteTime,
+  prewarmExplanation = false,
+  showExpandedContent = true,
+  detailMode = 'inline',
 }) => {
-  const dangerous = React.useMemo(() => {
-    return getDangerousCallFromCalldata(operation.data)
-  }, [operation.data])
+  const dangerous = React.useMemo(
+    () => getDangerousCallFromCalldata(operation.data),
+    [operation.data]
+  )
 
   const abiManager = useABIManager()
   const abiByAddress = React.useMemo(() => {
@@ -136,13 +152,9 @@ export const OperationRow: React.FC<OperationRowProps> = ({
   const network = CHAIN_TO_NETWORK[chainId]
   const allowRemoteDecode =
     typeof window !== 'undefined' && process.env.NODE_ENV !== 'test'
+  const [isDeveloperDetailsOpen, setIsDeveloperDetailsOpen] = React.useState(false)
 
-  // Get live operation status with countdown timer
-  const {
-    status: liveStatus,
-    timeUntilReady,
-    timestamp,
-  } = useOperationStatus(
+  const { status: liveStatus, timeUntilReady, timestamp } = useOperationStatus(
     operation.timelockAddress,
     operation.fullId,
     {
@@ -151,77 +163,109 @@ export const OperationRow: React.FC<OperationRowProps> = ({
     }
   )
 
-  // Map live status to UI status
-  const statusMap: Record<string, 'Pending' | 'Ready' | 'Executed' | 'Canceled'> = {
-    'PENDING': 'Pending',
-    'READY': 'Ready',
-    'EXECUTED': 'Executed',
-    'CANCELLED': 'Canceled',
+  const statusMap: Record<
+    string,
+    'Pending' | 'Ready' | 'Executed' | 'Canceled'
+  > = {
+    PENDING: 'Pending',
+    READY: 'Ready',
+    EXECUTED: 'Executed',
+    CANCELLED: 'Canceled',
   }
   const displayStatus = statusMap[liveStatus] || operation.status
 
-  // Derive a meaningful timestamp for display:
-  // - Pending/Ready: prefer contract getTimestamp() (but ignore 0=UNSET, 1=DONE), else compute scheduledAt + delay
-  // - Executed/Canceled: prefer event timestamps
   const getDisplayTimestamp = (): bigint | null => {
     if (displayStatus === 'Executed') {
-      return operation.executedAt ?? null
+      if (operation.executedAt) return operation.executedAt
+      if (typeof timestamp === 'bigint' && timestamp > BigInt(1)) return timestamp
+      if (operation.scheduledAt > BigInt(0)) {
+        const delay =
+          typeof operation.delay === 'bigint' ? operation.delay : BigInt(0)
+        return operation.scheduledAt + delay
+      }
+      return null
     }
+
     if (displayStatus === 'Canceled') {
-      return operation.cancelledAt ?? null
+      if (operation.cancelledAt) return operation.cancelledAt
+      if (typeof timestamp === 'bigint' && timestamp > BigInt(1)) return timestamp
+      if (operation.scheduledAt > BigInt(0)) return operation.scheduledAt
+      return null
     }
 
-    // OpenZeppelin TimelockController: 0=UNSET, 1=DONE. Neither is a real ETA.
-    if (typeof timestamp === 'bigint' && timestamp > BigInt(1)) {
-      return timestamp
-    }
+    if (typeof timestamp === 'bigint' && timestamp > BigInt(1)) return timestamp
 
-    // Fallback: scheduledAt + delay (both are seconds)
-    if (typeof operation.scheduledAt === 'bigint' && operation.scheduledAt > BigInt(0)) {
-      const delay = typeof operation.delay === 'bigint' ? operation.delay : BigInt(0)
+    if (
+      typeof operation.scheduledAt === 'bigint' &&
+      operation.scheduledAt > BigInt(0)
+    ) {
+      const delay =
+        typeof operation.delay === 'bigint' ? operation.delay : BigInt(0)
       return operation.scheduledAt + delay
     }
 
     return null
   }
 
-  // Calculate ETA display
+  const formatRelativeFromNow = React.useCallback((timestamp: bigint): string => {
+    const nowSeconds = Math.floor(Date.now() / 1000)
+    const diff = Number(timestamp) - nowSeconds
+    const abs = Math.abs(diff)
+
+    if (abs < 60) return diff >= 0 ? 'in less than a minute' : 'just now'
+
+    const units = [
+      { label: 'day', seconds: 86400 },
+      { label: 'hour', seconds: 3600 },
+      { label: 'minute', seconds: 60 },
+    ] as const
+
+    for (const unit of units) {
+      const value = Math.floor(abs / unit.seconds)
+      if (value >= 1) {
+        const suffix = value === 1 ? '' : 's'
+        return diff >= 0
+          ? `in ${value} ${unit.label}${suffix}`
+          : `${value} ${unit.label}${suffix} ago`
+      }
+    }
+
+    return diff >= 0 ? 'soon' : 'recently'
+  }, [])
+
   const getETADisplay = () => {
     const ts = getDisplayTimestamp()
     const absolute = ts ? formatAbsoluteTime(ts) : '-'
 
-    if (displayStatus === 'Executed' || displayStatus === 'Canceled') {
-      return { relative: '-', absolute }
+    if (displayStatus === 'Executed' && ts) {
+      return { relative: formatRelativeFromNow(ts), absolute }
+    }
+
+    if (displayStatus === 'Canceled' && ts) {
+      return { relative: formatRelativeFromNow(ts), absolute }
     }
 
     if (displayStatus === 'Pending' && timeUntilReady) {
-      return {
-        relative: `in ${timeUntilReady}`,
-        absolute,
-      }
+      return { relative: `Ready in ${timeUntilReady}`, absolute }
     }
 
     if (displayStatus === 'Ready') {
-      return {
-        relative: 'Ready',
-        absolute,
-      }
+      return { relative: 'Ready now', absolute }
     }
 
-    // Fallback
     if (displayStatus === 'Pending' && ts) {
       const now = Math.floor(Date.now() / 1000)
       const secondsUntil = Math.max(0, Number(ts) - now)
       return {
-        relative: secondsUntil > 0 ? `in ${formatSecondsToTime(secondsUntil)}` : 'Ready',
+        relative:
+          secondsUntil > 0
+            ? `Ready in ${formatSecondsToTime(secondsUntil)}`
+            : 'Ready now',
         absolute,
       }
     }
 
-    return {
-      relative: '-',
-      absolute,
-    }
+    return { relative: '-', absolute }
   }
 
   const eta = getETADisplay()
@@ -242,7 +286,6 @@ export const OperationRow: React.FC<OperationRowProps> = ({
     Record<number, { decoded?: DecodedCall; error?: string }>
   >({})
   const [isDecoding, setIsDecoding] = React.useState(false)
-
   const [humanAmountByIndex, setHumanAmountByIndex] = React.useState<
     Record<
       number,
@@ -256,13 +299,89 @@ export const OperationRow: React.FC<OperationRowProps> = ({
       | undefined
     >
   >({})
+  const callsDetails = React.useMemo(
+    () => operation.details?.callsDetails ?? [],
+    [operation.details?.callsDetails]
+  )
+  const requiresDecodeForExplanation = React.useMemo(
+    () =>
+      callsDetails.some(
+        (call) => !!call.data && call.data !== '0x' && call.data.length >= 10
+      ),
+    [callsDetails]
+  )
+  const DECODE_CONCURRENCY = 3
+  const PREWARM_CALL_CAP = 8
 
-  const [explainState, setExplainState] = React.useState<
-    | { status: 'idle' }
-    | { status: 'loading' }
-    | { status: 'success'; summary: string; perCall?: string[] }
-    | { status: 'error'; message: string }
-  >({ status: 'idle' })
+  const mapWithConcurrency = React.useCallback(
+    async <T, R>(
+      items: T[],
+      limit: number,
+      worker: (item: T, index: number) => Promise<R>
+    ): Promise<R[]> => {
+      if (items.length === 0) return []
+      const out = new Array<R>(items.length)
+      let cursor = 0
+
+      const runWorker = async () => {
+        while (true) {
+          const index = cursor
+          cursor += 1
+          if (index >= items.length) return
+          out[index] = await worker(items[index], index)
+        }
+      }
+
+      await Promise.all(
+        Array.from({ length: Math.min(limit, items.length) }, () => runWorker())
+      )
+      return out
+    },
+    []
+  )
+
+  const explanationPayload = React.useMemo(() => {
+    if (
+      (!isExpanded && !prewarmExplanation) ||
+      !operation.details?.callsDetails?.length ||
+      isDecoding
+    ) {
+      return null
+    }
+
+    return buildExplainOperationPayload(operation, chainId, {
+      decodedByIndex,
+      humanAmountByIndex,
+    })
+  }, [
+    chainId,
+    decodedByIndex,
+    humanAmountByIndex,
+    isDecoding,
+    isExpanded,
+    operation,
+    prewarmExplanation,
+    requiresDecodeForExplanation,
+  ])
+
+  const explanationFingerprint = React.useMemo(() => {
+    if (!explanationPayload) return null
+    return buildExplanationFingerprint(explanationPayload)
+  }, [explanationPayload])
+
+  const explanationQuery = useQuery({
+    queryKey: getOperationExplanationQueryKey(
+      chainId,
+      operation,
+      explanationFingerprint
+    ),
+    queryFn: ({ signal }) =>
+      fetchOperationExplanation(explanationPayload!, explanationFingerprint ?? undefined, signal),
+    staleTime: 1000 * 60 * 30,
+    enabled:
+      Boolean(explanationPayload && explanationFingerprint) &&
+      (isExpanded || prewarmExplanation),
+  })
 
   const isSameHumanAmountMap = React.useCallback(
     (
@@ -292,50 +411,49 @@ export const OperationRow: React.FC<OperationRowProps> = ({
     []
   )
 
-  const getAbiBadge = React.useCallback(
-    (decoded: DecodedCall | undefined) => {
-      if (!decoded) {
-        return {
-          label: '⚠️ Unverified - showing raw hex',
-          className:
-            'inline-flex items-center rounded-full border border-yellow-500/30 bg-yellow-500/10 px-2 py-0.5 text-[11px] font-semibold text-yellow-200',
-        }
-      }
-
-      // FR-025: Blockscout-verified contracts show green indicator.
-      const isVerifiedBlockscout =
-        decoded.source === ABISource.BLOCKSCOUT &&
-        decoded.confidence === ABIConfidence.HIGH
-
-      if (isVerifiedBlockscout) {
-        return {
-          label: '✅ Verified contract',
-          className:
-            'inline-flex items-center rounded-full border border-green-500/30 bg-green-500/10 px-2 py-0.5 text-[11px] font-semibold text-green-200',
-        }
-      }
-
-      // Non-verified sources (manual/custom/4byte) are treated as unverified for spec purposes.
+  const getAbiBadge = React.useCallback((decoded: DecodedCall | undefined) => {
+    if (!decoded) {
       return {
         label: '⚠️ Unverified - showing raw hex',
         className:
-          'inline-flex items-center rounded-full border border-yellow-500/30 bg-yellow-500/10 px-2 py-0.5 text-[11px] font-semibold text-yellow-200',
+          'inline-flex items-center rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800 dark:border-yellow-500/30 dark:bg-yellow-500/10 dark:text-yellow-200',
       }
+    }
+
+    const isVerifiedBlockscout =
+      decoded.source === ABISource.BLOCKSCOUT &&
+      decoded.confidence === ABIConfidence.HIGH
+
+    if (isVerifiedBlockscout) {
+      return {
+        label: '✅ Verified contract',
+        className:
+          'inline-flex items-center rounded-full border border-emerald-400 bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-950 shadow-sm dark:border-green-500/30 dark:bg-green-500/10 dark:text-green-200',
+      }
+    }
+
+    return {
+      label: '⚠️ Unverified - showing raw hex',
+      className:
+        'inline-flex items-center rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800 dark:border-yellow-500/30 dark:bg-yellow-500/10 dark:text-yellow-200',
+    }
+  }, [])
+
+  const isBlockscoutVerified = React.useCallback(
+    (decoded: DecodedCall | undefined) => {
+      return (
+        !!decoded &&
+        decoded.source === ABISource.BLOCKSCOUT &&
+        decoded.confidence === ABIConfidence.HIGH
+      )
     },
     []
   )
 
-  const isBlockscoutVerified = React.useCallback((decoded: DecodedCall | undefined) => {
-    return (
-      !!decoded &&
-      decoded.source === ABISource.BLOCKSCOUT &&
-      decoded.confidence === ABIConfidence.HIGH
-    )
-  }, [])
-
-  const blockscoutUrl = React.useMemo(() => {
-    return getBlockscoutExplorerUrl(chainId)
-  }, [chainId])
+  const blockscoutUrl = React.useMemo(
+    () => getBlockscoutExplorerUrl(chainId),
+    [chainId]
+  )
 
   const getTxHashDisplay = React.useCallback(
     (txHash: `0x${string}` | null, label: string) => {
@@ -372,7 +490,7 @@ export const OperationRow: React.FC<OperationRowProps> = ({
       try {
         const decimals = await publicClient.readContract({
           address: tokenAddress,
-          abi: ERC20_METADATA_ABI as any,
+          abi: ERC20_METADATA_ABI as never,
           functionName: 'decimals',
           args: [],
         })
@@ -381,7 +499,7 @@ export const OperationRow: React.FC<OperationRowProps> = ({
         try {
           const s = await publicClient.readContract({
             address: tokenAddress,
-            abi: ERC20_METADATA_ABI as any,
+            abi: ERC20_METADATA_ABI as never,
             functionName: 'symbol',
             args: [],
           })
@@ -400,10 +518,9 @@ export const OperationRow: React.FC<OperationRowProps> = ({
     [chainId, publicClient]
   )
 
-  // Compute human-formatted amounts for common ERC20 calls once decoded params are available.
   React.useEffect(() => {
     let cancelled = false
-    if (!isExpanded) return
+    if (!isExpanded || !isDeveloperDetailsOpen) return
 
     const run = async () => {
       const next: Record<number, (typeof humanAmountByIndex)[number]> = {}
@@ -415,10 +532,10 @@ export const OperationRow: React.FC<OperationRowProps> = ({
         if (!decoded) continue
 
         const fn = (decoded.functionName || '').toLowerCase()
-        const isErc20Common = fn === 'approve' || fn === 'transfer' || fn === 'transferfrom'
+        const isErc20Common =
+          fn === 'approve' || fn === 'transfer' || fn === 'transferfrom'
         if (!isErc20Common) continue
 
-        // For approve/transfer/transferFrom the amount is typically the last uint256 param.
         const params = decoded.params ?? []
         const amountParamIndex = [...params]
           .map((p, i) => ({ p, i }))
@@ -443,7 +560,9 @@ export const OperationRow: React.FC<OperationRowProps> = ({
         if (!meta || !Number.isFinite(meta.decimals)) continue
 
         const formattedUnits = formatUnits(amount, meta.decimals)
-        const formatted = meta.symbol ? `${formattedUnits} ${meta.symbol}` : formattedUnits
+        const formatted = meta.symbol
+          ? `${formattedUnits} ${meta.symbol}`
+          : formattedUnits
 
         next[index] = {
           paramIndex: amountParamIndex,
@@ -455,7 +574,9 @@ export const OperationRow: React.FC<OperationRowProps> = ({
       }
 
       if (!cancelled) {
-        setHumanAmountByIndex((prev) => (isSameHumanAmountMap(prev, next) ? prev : next))
+        setHumanAmountByIndex((prev) =>
+          isSameHumanAmountMap(prev, next) ? prev : next
+        )
       }
     }
 
@@ -463,350 +584,471 @@ export const OperationRow: React.FC<OperationRowProps> = ({
     return () => {
       cancelled = true
     }
-  }, [decodedByIndex, getTokenMeta, isExpanded, isSameHumanAmountMap, operation.details?.callsDetails])
-
-  const requestExplanation = React.useCallback(async () => {
-    try {
-      setExplainState({ status: 'loading' })
-      const calls = operation.details?.callsDetails ?? []
-
-      const payload = {
-        chainId,
-        operationId: operation.fullId,
-        calls: calls.map((call, index) => {
-          const decoded = decodedByIndex[index]?.decoded
-          const humanAmount = humanAmountByIndex[index]
-          return {
-            index,
-            target: call.target,
-            nativeValue: call.value,
-            signature: decoded?.signature ?? call.signature ?? decoded?.functionName ?? 'unknown',
-            functionName: decoded?.functionName ?? null,
-            params: decoded?.params
-              ? decoded.params.map((p, i) => ({
-                  name: p.name,
-                  type: p.type,
-                  value: stringifyValue(p.value),
-                  display:
-                    humanAmount && i === humanAmount.paramIndex
-                      ? humanAmount.formatted
-                      : undefined,
-                  notes:
-                    humanAmount && i === humanAmount.paramIndex
-                      ? 'display is the human-formatted token amount (decimals applied); value is the raw on-chain/base-unit amount.'
-                      : undefined,
-                }))
-              : [],
-          }
-        }),
-      }
-
-      const res = await fetch('/api/explain_operation', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
-
-      if (!res.ok) {
-        const text = await res.text()
-        throw new Error(text || `Request failed (${res.status})`)
-      }
-
-      const data = (await res.json()) as {
-        summary?: string
-        perCall?: string[]
-      }
-      setExplainState({
-        status: 'success',
-        summary: data.summary || 'Explanation generated.',
-        perCall: data.perCall,
-      })
-    } catch (err) {
-      setExplainState({
-        status: 'error',
-        message: err instanceof Error ? err.message : String(err),
-      })
-    }
-  }, [chainId, decodedByIndex, humanAmountByIndex, operation.details?.callsDetails, operation.fullId, stringifyValue])
+  }, [
+    decodedByIndex,
+    getTokenMeta,
+    isDeveloperDetailsOpen,
+    isExpanded,
+    isSameHumanAmountMap,
+    operation.details?.callsDetails,
+  ])
 
   React.useEffect(() => {
     let cancelled = false
-    if (!isExpanded || !operation.details) return
+    const shouldRunDecode = isExpanded || prewarmExplanation
+    const operationDetails = operation.details
+    if (!shouldRunDecode || !operationDetails) return
 
     const run = async () => {
-      setIsDecoding(true)
+      if (isExpanded) setIsDecoding(true)
       const next: Record<number, { decoded?: DecodedCall; error?: string }> = {}
 
-      const calls = operation.details?.callsDetails ?? []
-      for (let i = 0; i < calls.length; i++) {
-        const call = calls[i]
-        const calldata = call.data
-        const target = call.target as Address
-        if (!calldata || typeof calldata !== 'string' || calldata.length < 10) continue
+      const calls = operationDetails.callsDetails ?? []
+      const cappedCalls =
+        !isExpanded && calls.length > PREWARM_CALL_CAP
+          ? calls.slice(0, PREWARM_CALL_CAP)
+          : calls
 
-        const abi = abiByAddress[target.toLowerCase()]
-        // If we have a custom ABI, decode immediately.
-        // Otherwise, attempt to resolve via Blockscout (browser only; disabled in tests).
-        if ((!abi || abi.length === 0) && !allowRemoteDecode) continue
+      const results = await mapWithConcurrency(
+        cappedCalls,
+        DECODE_CONCURRENCY,
+        async (call, i) => {
+          const calldata = call.data
+          const target = call.target as Address
+          if (!calldata || typeof calldata !== 'string' || calldata.length < 10) {
+            return { index: i, value: undefined }
+          }
 
-        try {
-          const decoded = await decodeCalldata({
-            calldata: calldata as any,
-            target,
-            abi: abi && abi.length > 0 ? abi : undefined,
-            network: allowRemoteDecode ? network : undefined,
-            publicClient: allowRemoteDecode ? (publicClient ?? undefined) : undefined,
-            abiByAddress,
-          })
-          next[i] = { decoded }
-        } catch (err) {
-          next[i] = { error: err instanceof Error ? err.message : String(err) }
+          const abi = abiByAddress[target.toLowerCase()]
+          if ((!abi || abi.length === 0) && !allowRemoteDecode) {
+            return { index: i, value: { error: 'ABI unavailable for automatic decoding' } }
+          }
+
+          try {
+            const decoded = await decodeCalldata({
+              calldata: calldata as never,
+              target,
+              abi: abi && abi.length > 0 ? abi : undefined,
+              network: allowRemoteDecode ? network : undefined,
+              publicClient: allowRemoteDecode ? publicClient ?? undefined : undefined,
+              abiByAddress,
+            })
+            return { index: i, value: { decoded } }
+          } catch (err) {
+            return {
+              index: i,
+              value: { error: err instanceof Error ? err.message : String(err) },
+            }
+          }
         }
+      )
+
+      for (const item of results) {
+        if (item?.value) next[item.index] = item.value
       }
 
       if (!cancelled) {
-        setDecodedByIndex(next)
-        setIsDecoding(false)
+        setDecodedByIndex((prev) => ({ ...prev, ...next }))
+        if (isExpanded) setIsDecoding(false)
       }
     }
 
-    setDecodedByIndex({})
+    if (isExpanded) setDecodedByIndex({})
     run()
     return () => {
       cancelled = true
     }
-  }, [abiByAddress, allowRemoteDecode, isExpanded, network, operation.details, publicClient])
+  }, [
+    abiByAddress,
+    allowRemoteDecode,
+    mapWithConcurrency,
+    isExpanded,
+    network,
+    operation.details,
+    prewarmExplanation,
+    publicClient,
+  ])
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault()
-      onRowClick(operation.id)
-    }
+  React.useEffect(() => {
+    if (!isExpanded) setIsDeveloperDetailsOpen(false)
+  }, [isExpanded])
+
+  const handleDeveloperToggle = (e: React.SyntheticEvent<HTMLDetailsElement>) => {
+    setIsDeveloperDetailsOpen(e.currentTarget.open)
   }
 
-  return (
-    <React.Fragment>
-      {/* Main Row (div-based for virtualization) */}
+  const canShowExplanation = Boolean(operation.details?.callsDetails?.length)
+  const explanation = explanationQuery.data
+  const isAwaitingInitialDecode =
+    canShowExplanation &&
+    isExpanded &&
+    requiresDecodeForExplanation &&
+    !isDecoding &&
+    Object.keys(decodedByIndex).length === 0
+  const isExplanationLoading =
+    canShowExplanation &&
+    (isDecoding ||
+      isAwaitingInitialDecode ||
+      (!!explanationPayload && explanationQuery.isLoading))
+  const hasExplanationError =
+    (Boolean(explanationPayload) && explanationQuery.isError) ||
+    (!isExplanationLoading && !explanation)
+  const summaryText = explanationQuery.data?.summary || operation.summary
+  const hasEnhancedSummary = Boolean(explanationQuery.data?.summary)
+  const summaryIconMeta = React.useMemo(() => {
+    if (!hasEnhancedSummary) {
+      return {
+        icon:
+          explanationQuery.isLoading ||
+          isDecoding ||
+          (requiresDecodeForExplanation && Object.keys(decodedByIndex).length === 0)
+            ? 'hourglass_top'
+            : 'description',
+        iconClass: 'bg-surface-elevated text-text-dark-secondary',
+      }
+    }
+
+    const text = summaryText.toLowerCase()
+    if (
+      text.includes('borrow') ||
+      text.includes('cap') ||
+      text.includes('interest') ||
+      text.includes('rate')
+    ) {
+      return {
+        icon: 'trending_up',
+        iconClass: 'bg-blue-500/10 text-blue-400',
+      }
+    }
+    if (
+      text.includes('admin') ||
+      text.includes('role') ||
+      text.includes('ownership') ||
+      text.includes('permission')
+    ) {
+      return {
+        icon: 'admin_panel_settings',
+        iconClass: 'bg-purple-500/10 text-purple-400',
+      }
+    }
+    if (
+      text.includes('collateral') ||
+      text.includes('security') ||
+      text.includes('protect')
+    ) {
+      return {
+        icon: 'security',
+        iconClass: 'bg-emerald-500/10 text-emerald-400',
+      }
+    }
+    if (displayStatus === 'Canceled') {
+      return {
+        icon: 'cancel',
+        iconClass: 'bg-slate-500/10 text-slate-400',
+      }
+    }
+    return {
+      icon: 'tune',
+      iconClass: 'bg-primary/10 text-primary',
+    }
+  }, [
+    decodedByIndex,
+    displayStatus,
+    explanationQuery.isLoading,
+    hasEnhancedSummary,
+    isDecoding,
+    requiresDecodeForExplanation,
+    summaryText,
+  ])
+
+  const details = operation.details
+  const shouldRenderExpanded = isExpanded && Boolean(details) && showExpandedContent
+
+  const expandedContent = shouldRenderExpanded ? (
+    <div
+      className={
+        detailMode === 'drawer'
+          ? 'overflow-hidden rounded-xl border border-border-dark bg-surface-elevated/30'
+          : 'min-w-[980px] overflow-hidden bg-surface-elevated/30'
+      }
+    >
       <div
-        role="row"
-        tabIndex={0}
-        aria-expanded={isExpanded}
-        className={`grid min-w-[1024px] grid-cols-7 items-center border-b border-border-dark px-6 py-4 transition-colors cursor-pointer outline-none ${
-          isExpanded ? 'bg-primary/10 hover:bg-primary/20' : 'hover:bg-white/5'
-        }`}
-        onClick={() => onRowClick(operation.id)}
-        onKeyDown={handleKeyDown}
+        className={
+          detailMode === 'drawer'
+            ? 'space-y-6 p-6'
+            : 'space-y-6 border-b border-border-dark p-6'
+        }
       >
-        <div role="cell" className="font-mono text-text-dark-primary">
-          {operation.id}
-        </div>
-        <div role="cell">
-          <div className="flex items-center gap-2">
-            <div
-              className={`h-2.5 w-2.5 rounded-full ${getStatusColor(displayStatus)}`}
-            ></div>
-            <span className={`font-medium ${getStatusTextColor(displayStatus)}`}>
-              {displayStatus}
-            </span>
-            {dangerous ? (
-              <span
-                className="inline-flex items-center rounded-full border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-[11px] font-semibold text-red-300"
-                title={`Dangerous function detected: ${dangerous.functionName}`}
-              >
-                <span className="material-symbols-outlined mr-1 text-[14px] leading-none">
-                  warning
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,2fr)_auto]">
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-2 mb-1">
+                <span
+                  className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ${getStatusTextColor(
+                    displayStatus
+                  )} bg-current/10`}
+                >
+                  {displayStatus}
                 </span>
-                {dangerous.functionName}
-              </span>
+                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-text-dark-secondary">
+                  Human Summary
+                </span>
+                {Object.values(decodedByIndex).length > 0 &&
+                details!.callsDetails.length > 0 &&
+                details!.callsDetails.every((_, i) =>
+                  isBlockscoutVerified(decodedByIndex[i]?.decoded)
+                ) ? (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400 bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-950 shadow-sm dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">
+                    <span className="material-symbols-outlined text-sm!">verified</span>
+                    Verified target
+                  </span>
+                ) : null}
+              </div>
+              <p className="text-lg font-semibold text-text-dark-primary">
+                What this operation does
+              </p>
+              {isExplanationLoading ? (
+                <div className="space-y-2">
+                  <p className="text-sm leading-7 text-text-dark-secondary">
+                    {operation.summary}
+                  </p>
+                  <div className="h-1.5 w-28 animate-pulse rounded bg-surface-elevated/80" />
+                </div>
+              ) : hasExplanationError ? (
+                <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">
+                  We couldn’t generate a plain-language explanation right now.
+                  Use Developer Details below to verify the raw transaction data.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-sm leading-7 text-text-dark-primary">
+                    {explanation?.summary}
+                  </p>
+                  {explanation?.perCall?.length ? (
+                    <div className="space-y-2 rounded-xl border border-border-dark/60 bg-surface p-4">
+                      <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-text-dark-secondary">
+                        Step By Step
+                      </p>
+                      <div className="space-y-2 text-sm text-text-dark-secondary">
+                        {explanation.perCall.map((line, i) => (
+                          <p key={i}>{line}</p>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-xl border border-border-dark/60 bg-surface p-4 text-xs text-text-dark-secondary">
+              This explanation is generated to help non-technical reviewers.
+              Decoded parameters, raw calldata, and developer details remain the
+              source of truth.
+            </div>
+
+            <div className="rounded-xl border border-border-dark/60 bg-surface p-4">
+              <p className="mb-3 text-xs font-bold uppercase tracking-[0.18em] text-text-dark-secondary">
+                Proposal Timeline
+              </p>
+              <div className="space-y-3 text-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-text-dark-primary">Scheduled</p>
+                    <p className="text-xs text-text-dark-secondary">Transaction queued in timelock</p>
+                  </div>
+                  <div className="text-right text-xs text-text-dark-secondary">
+                    <p>{details!.scheduled}</p>
+                  </div>
+                </div>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-text-dark-primary">Ready</p>
+                    <p className="text-xs text-text-dark-secondary">Minimum delay has passed</p>
+                  </div>
+                  <div className="text-right text-xs text-text-dark-secondary">
+                    <p>{eta.absolute}</p>
+                    <p>{eta.relative}</p>
+                  </div>
+                </div>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-text-dark-primary">
+                      {displayStatus === 'Canceled' ? 'Canceled' : 'Executed'}
+                    </p>
+                    <p className="text-xs text-text-dark-secondary">
+                      {displayStatus === 'Executed'
+                        ? 'Operation executed on-chain'
+                        : displayStatus === 'Canceled'
+                          ? 'Operation canceled'
+                          : 'Pending execution'}
+                    </p>
+                  </div>
+                  <div className="text-right text-xs text-text-dark-secondary">
+                    <p>
+                      {displayStatus === 'Executed'
+                        ? operation.executedAt
+                          ? formatAbsoluteTime(operation.executedAt)
+                          : 'Waiting...'
+                        : displayStatus === 'Canceled'
+                          ? operation.cancelledAt
+                            ? formatAbsoluteTime(operation.cancelledAt)
+                            : 'Waiting...'
+                          : 'Waiting...'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {dangerous ? (
+              <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200">
+                <div className="font-semibold">Dangerous function detected</div>
+                <div className="mt-1 text-red-200/80">
+                  This operation appears to call{' '}
+                  <span className="font-mono">{dangerous.functionName}</span>.
+                  Double-check the target and calldata before executing.
+                </div>
+              </div>
             ) : null}
           </div>
-        </div>
-        <div
-          role="cell"
-          className="text-center font-medium text-text-dark-primary"
-        >
-          {operation.calls}
-        </div>
-        <div role="cell" className="font-mono text-text-dark-secondary">
-          {formatTargets(operation.targets)}
-        </div>
-        <div role="cell">
-          <div className="flex flex-col">
-            <span className="font-medium text-text-dark-primary">
-              {eta.relative}
-            </span>
-            <span className="text-xs text-text-dark-secondary">{eta.absolute}</span>
-          </div>
-        </div>
-        <div role="cell" className="font-mono text-text-dark-secondary">
-          {operation.proposer}
-        </div>
-        <div role="cell" onClick={(e) => e.stopPropagation()}>
-          <div className="flex justify-end gap-2">
-            {displayStatus === 'Ready' && (
+
+          <div className="flex flex-wrap items-start gap-2 lg:justify-end">
+            {displayStatus === 'Ready' ? (
               <>
                 <button
-                  className={`flex items-center justify-center gap-2 rounded-md h-9 px-3 text-xs font-bold transition-colors ${
+                  className={`flex items-center justify-center rounded-lg px-4 py-2 text-sm font-bold transition-colors ${
                     isExecuting
                       ? 'bg-primary/20 text-primary cursor-wait'
                       : isExecuteSuccess
-                      ? 'bg-green-500/20 text-green-500'
-                      : isExecuteError
-                      ? 'bg-red-500/20 text-red-500'
-                      : hasExecutorRole
-                      ? 'bg-status-ready/20 text-status-ready hover:bg-status-ready/30'
-                      : 'bg-border-dark text-text-dark-secondary cursor-not-allowed opacity-50'
+                        ? 'bg-green-500/20 text-green-500'
+                        : isExecuteError
+                          ? 'bg-red-500/20 text-red-500'
+                          : hasExecutorRole
+                            ? 'bg-primary text-white hover:bg-primary/90'
+                            : 'bg-border-dark text-text-dark-secondary cursor-not-allowed opacity-50'
                   }`}
-                  onClick={() => hasExecutorRole && !isExecuting && onExecute(operation.id)}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    hasExecutorRole && !isExecuting && onExecute(operation.id)
+                  }}
                   disabled={!hasExecutorRole || isCheckingExecutorRole || isExecuting}
                   title={
                     isExecuting
                       ? 'Transaction pending...'
                       : isExecuteSuccess
-                      ? 'Execution successful!'
-                      : isExecuteError
-                      ? 'Execution failed'
-                      : isCheckingExecutorRole
-                      ? 'Checking permissions...'
-                      : !hasExecutorRole
-                      ? 'Your wallet does not have the EXECUTOR_ROLE'
-                      : 'Execute this operation'
+                        ? 'Execution successful!'
+                        : isExecuteError
+                          ? 'Execution failed'
+                          : isCheckingExecutorRole
+                            ? 'Checking permissions...'
+                            : !hasExecutorRole
+                              ? 'Your wallet does not have the EXECUTOR_ROLE'
+                              : 'Execute this operation'
                   }
                 >
-                  {isExecuting && (
-                    <div className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
-                  )}
-                  {isExecuteSuccess && (
-                    <span className="material-symbols-outlined text-base!">check_circle</span>
-                  )}
-                  {isExecuteError && (
-                    <span className="material-symbols-outlined text-base!">error</span>
-                  )}
-                  {isExecuting
-                    ? 'EXECUTING...'
-                    : isExecuteSuccess
-                    ? 'SUCCESS'
-                    : isExecuteError
-                    ? 'FAILED'
-                    : isCheckingExecutorRole
-                    ? 'CHECKING...'
-                    : 'EXECUTE'}
+                  Execute Now
                 </button>
                 <button
-                  className={`flex items-center justify-center gap-2 rounded-md h-9 px-3 text-xs font-bold transition-colors ${
+                  className={`flex items-center justify-center rounded-lg px-4 py-2 text-sm font-bold transition-colors ${
                     isCancelling
                       ? 'bg-primary/20 text-primary cursor-wait'
                       : isCancelSuccess
-                      ? 'bg-green-500/20 text-green-500'
-                      : isCancelError
-                      ? 'bg-red-500/20 text-red-500'
-                      : hasCancellerRole
-                      ? 'bg-status-canceled/20 text-status-canceled hover:bg-status-canceled/30'
-                      : 'bg-border-dark text-text-dark-secondary cursor-not-allowed opacity-50'
+                        ? 'bg-green-500/20 text-green-500'
+                        : isCancelError
+                          ? 'bg-red-500/20 text-red-500'
+                          : hasCancellerRole
+                            ? 'bg-status-canceled/20 text-status-canceled hover:bg-status-canceled/30'
+                            : 'bg-border-dark text-text-dark-secondary cursor-not-allowed opacity-50'
                   }`}
-                  onClick={() =>
+                  onClick={(e) => {
+                    e.stopPropagation()
                     hasCancellerRole && !isCancelling && onCancel(operation)
-                  }
+                  }}
                   disabled={!hasCancellerRole || isCheckingCancellerRole || isCancelling}
                   title={
                     isCancelling
                       ? 'Transaction pending...'
                       : isCancelSuccess
-                      ? 'Cancellation successful!'
-                      : isCancelError
-                      ? 'Cancellation failed'
-                      : isCheckingCancellerRole
-                      ? 'Checking permissions...'
-                      : !hasCancellerRole
-                      ? 'Your wallet does not have the CANCELLER_ROLE'
-                      : 'Cancel this operation'
+                        ? 'Cancellation successful!'
+                        : isCancelError
+                          ? 'Cancellation failed'
+                          : isCheckingCancellerRole
+                            ? 'Checking permissions...'
+                            : !hasCancellerRole
+                              ? 'Your wallet does not have the CANCELLER_ROLE'
+                              : 'Cancel this operation'
                   }
                 >
-                  {isCancelling && (
-                    <div className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
-                  )}
-                  {isCancelSuccess && (
-                    <span className="material-symbols-outlined text-base!">check_circle</span>
-                  )}
-                  {isCancelError && (
-                    <span className="material-symbols-outlined text-base!">error</span>
-                  )}
-                  {isCancelling
-                    ? 'CANCELLING...'
-                    : isCancelSuccess
-                    ? 'SUCCESS'
-                    : isCancelError
-                    ? 'FAILED'
-                    : isCheckingCancellerRole
-                    ? 'CHECKING...'
-                    : 'CANCEL'}
+                  Cancel
                 </button>
               </>
-            )}
-            {displayStatus === 'Pending' && (
+            ) : null}
+            {displayStatus === 'Pending' ? (
               <button
-                className={`flex items-center justify-center gap-2 rounded-md h-9 px-3 text-xs font-bold transition-colors ${
+                className={`flex items-center justify-center rounded-lg px-4 py-2 text-sm font-bold transition-colors ${
                   isCancelling
                     ? 'bg-primary/20 text-primary cursor-wait'
                     : isCancelSuccess
-                    ? 'bg-green-500/20 text-green-500'
-                    : isCancelError
-                    ? 'bg-red-500/20 text-red-500'
-                    : hasCancellerRole
-                    ? 'bg-status-canceled/20 text-status-canceled hover:bg-status-canceled/30'
-                    : 'bg-border-dark text-text-dark-secondary cursor-not-allowed opacity-50'
+                      ? 'bg-green-500/20 text-green-500'
+                      : isCancelError
+                        ? 'bg-red-500/20 text-red-500'
+                        : hasCancellerRole
+                          ? 'bg-status-canceled/20 text-status-canceled hover:bg-status-canceled/30'
+                          : 'bg-border-dark text-text-dark-secondary cursor-not-allowed opacity-50'
                 }`}
-                onClick={() =>
+                onClick={(e) => {
+                  e.stopPropagation()
                   hasCancellerRole && !isCancelling && onCancel(operation)
-                }
+                }}
                 disabled={!hasCancellerRole || isCheckingCancellerRole || isCancelling}
                 title={
                   isCancelling
                     ? 'Transaction pending...'
                     : isCancelSuccess
-                    ? 'Cancellation successful!'
-                    : isCancelError
-                    ? 'Cancellation failed'
-                    : isCheckingCancellerRole
-                    ? 'Checking permissions...'
-                    : !hasCancellerRole
-                    ? 'Your wallet does not have the CANCELLER_ROLE'
-                    : 'Cancel this operation'
+                      ? 'Cancellation successful!'
+                      : isCancelError
+                        ? 'Cancellation failed'
+                        : isCheckingCancellerRole
+                          ? 'Checking permissions...'
+                          : !hasCancellerRole
+                            ? 'Your wallet does not have the CANCELLER_ROLE'
+                            : 'Cancel this operation'
                 }
               >
-                {isCancelling && (
-                  <div className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
-                )}
-                {isCancelSuccess && (
-                  <span className="material-symbols-outlined text-base!">check_circle</span>
-                )}
-                {isCancelError && (
-                  <span className="material-symbols-outlined text-base!">error</span>
-                )}
-                {isCancelling
-                  ? 'CANCELLING...'
-                  : isCancelSuccess
-                  ? 'SUCCESS'
-                  : isCancelError
-                  ? 'FAILED'
-                  : isCheckingCancellerRole
-                  ? 'CHECKING...'
-                  : 'CANCEL'}
+                Cancel
               </button>
-            )}
+            ) : null}
           </div>
         </div>
-      </div>
 
-      {/* Expanded Details Row */}
-      {isExpanded && operation.details && (
-        <div className="min-w-[1024px] bg-primary/5 overflow-hidden">
-          <div className="grid grid-cols-1 gap-6 p-6 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] border-b border-border-dark overflow-hidden">
+        <details
+          className="overflow-hidden rounded-xl border border-border-dark bg-surface"
+          open={isDeveloperDetailsOpen}
+          onToggle={handleDeveloperToggle}
+        >
+          <summary className="flex cursor-pointer items-center justify-between px-6 py-4 hover:bg-surface-elevated">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-slate-400 text-xl">
+                code
+              </span>
+              <span className="font-bold text-sm text-text-dark-primary">
+                Developer Details
+              </span>
+              <span className="text-[10px] font-normal uppercase tracking-wide text-text-dark-secondary">
+                Technical Verification
+              </span>
+            </div>
+            <span className="material-symbols-outlined text-text-dark-secondary">
+              {isDeveloperDetailsOpen ? 'expand_less' : 'expand_more'}
+            </span>
+          </summary>
+
+          <div className="grid grid-cols-1 gap-6 border-t border-border-dark p-6 xl:grid-cols-[minmax(280px,0.85fr)_minmax(0,2.65fr)]">
             <div className="min-w-0 overflow-hidden">
-              <h4 className="text-xs font-bold uppercase text-text-dark-secondary mb-2">
+              <h4 className="mb-2 text-xs font-bold uppercase text-text-dark-secondary">
                 Operation Details
               </h4>
-              <div className="flex min-w-0 flex-col gap-1 text-sm font-mono overflow-hidden">
+              <div className="flex min-w-0 flex-col gap-1 overflow-hidden text-sm font-mono">
                 <p>
                   <span className="text-text-dark-secondary">Status:</span>{' '}
                   <span className="text-text-dark-primary">{displayStatus}</span>
@@ -840,95 +1082,45 @@ export const OperationRow: React.FC<OperationRowProps> = ({
                 <div className="min-w-0 overflow-hidden">
                   <span className="text-text-dark-secondary">ID:</span>
                   <span className="text-text-dark-primary break-all block w-full mt-0.5">
-                    {operation.details.fullId}
+                    {details!.fullId}
                   </span>
                 </div>
                 <p>
                   <span className="text-text-dark-secondary">Predecessor:</span>{' '}
-                  <span className="text-text-dark-primary break-all">
-                    {operation.predecessor}
-                  </span>
+                  <span className="text-text-dark-primary break-all">{operation.predecessor}</span>
                 </p>
                 <p>
                   <span className="text-text-dark-secondary">Salt:</span>{' '}
-                  <span className="text-text-dark-primary break-all">
-                    {operation.salt}
-                  </span>
+                  <span className="text-text-dark-primary break-all">{operation.salt}</span>
                 </p>
                 <p>
                   <span className="text-text-dark-secondary">Proposer:</span>{' '}
-                  <span className="text-text-dark-primary">
-                    {operation.details.fullProposer}
-                  </span>
+                  <span className="text-text-dark-primary">{details!.fullProposer}</span>
                 </p>
                 <p>
                   <span className="text-text-dark-secondary">Scheduled:</span>{' '}
-                  <span className="text-text-dark-primary">
-                    {operation.details.scheduled}
-                  </span>
+                  <span className="text-text-dark-primary">{details!.scheduled}</span>
                 </p>
                 {getTxHashDisplay(operation.scheduledTx, 'Scheduled Tx')}
-                {displayStatus === 'Executed' && getTxHashDisplay(operation.executedTx, 'Executed Tx')}
-                {displayStatus === 'Canceled' && getTxHashDisplay(operation.cancelledTx, 'Cancelled Tx')}
+                {displayStatus === 'Executed'
+                  ? getTxHashDisplay(operation.executedTx, 'Executed Tx')
+                  : null}
+                {displayStatus === 'Canceled'
+                  ? getTxHashDisplay(operation.cancelledTx, 'Cancelled Tx')
+                  : null}
               </div>
-              {dangerous ? (
-                <div className="mt-3 rounded border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-200">
-                  <div className="font-semibold">Dangerous function detected</div>
-                  <div className="mt-1 text-red-200/80">
-                    This operation appears to call{' '}
-                    <span className="font-mono">{dangerous.functionName}</span>.
-                    Double-check the target and calldata before executing.
-                  </div>
-                </div>
-              ) : null}
             </div>
+
             <div className="min-w-0 overflow-hidden">
-              <h4 className="text-xs font-bold uppercase text-text-dark-secondary mb-2">
-                Calls ({operation.details.callsDetails.length})
+              <h4 className="mb-2 text-xs font-bold uppercase text-text-dark-secondary">
+                Calls ({details!.callsDetails.length})
               </h4>
-              <div className="mb-3 flex items-center justify-end">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    requestExplanation()
-                  }}
-                  disabled={explainState.status === 'loading'}
-                  className={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-xs font-bold transition-colors ${
-                    explainState.status === 'loading'
-                      ? 'bg-primary/20 text-primary cursor-wait'
-                      : 'bg-border-dark text-text-dark-primary hover:bg-white/10'
-                  }`}
-                >
-                  {explainState.status === 'loading' ? 'Explaining…' : 'Explain this operation'}
-                </button>
-              </div>
-              {explainState.status === 'success' ? (
-                <div className="mb-3 rounded border border-border-dark/60 bg-black/10 p-3 text-sm">
-                  <div className="text-xs font-bold uppercase text-text-dark-secondary mb-1">
-                    Human translation
-                  </div>
-                  <div className="text-text-dark-primary whitespace-pre-wrap">
-                    {explainState.summary}
-                  </div>
-                  {explainState.perCall && explainState.perCall.length > 0 ? (
-                    <div className="mt-2 space-y-2 text-text-dark-secondary text-xs">
-                      {explainState.perCall.map((line, i) => (
-                        <div key={i}>{line}</div>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
-              {explainState.status === 'error' ? (
-                <div className="mb-3 rounded border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-300">
-                  Failed to generate explanation: {explainState.message}
-                </div>
-              ) : null}
-              <div className="flex flex-col gap-2 text-sm font-mono bg-background-dark p-3 rounded-md">
-                {operation.details.callsDetails.map((call, index) => (
-                  <div key={index} className="rounded border border-border-dark/60 bg-black/10 p-3">
+              <div className="flex flex-col gap-3 rounded-xl border border-border-color bg-surface-elevated/55 p-4 text-sm font-mono">
+                {details!.callsDetails.map((call, index) => (
+                  <div
+                    key={index}
+                    className="rounded-xl border border-border-color bg-surface p-4 shadow-sm"
+                  >
                     <div className="flex flex-wrap items-baseline justify-between gap-2">
                       <div className="flex items-baseline gap-2">
                         <span className="text-primary">{index + 1}.</span>
@@ -955,11 +1147,8 @@ export const OperationRow: React.FC<OperationRowProps> = ({
                         )}
                       </div>
 
-                      {/* FR-025: ABI confidence indicator */}
                       <span
-                        className={
-                          getAbiBadge(decodedByIndex[index]?.decoded).className
-                        }
+                        className={getAbiBadge(decodedByIndex[index]?.decoded).className}
                         title="ABI verification status"
                       >
                         {getAbiBadge(decodedByIndex[index]?.decoded).label}
@@ -969,9 +1158,7 @@ export const OperationRow: React.FC<OperationRowProps> = ({
                     <div className="mt-2 space-y-1">
                       <div>
                         <span className="text-text-dark-secondary">Target:</span>{' '}
-                        <span className="text-text-dark-primary break-all">
-                          {call.target}
-                        </span>
+                        <span className="text-text-dark-primary break-all">{call.target}</span>
                       </div>
                       <div>
                         <span className="text-text-dark-secondary">Native value:</span>{' '}
@@ -980,14 +1167,11 @@ export const OperationRow: React.FC<OperationRowProps> = ({
                       {call.data ? (
                         <div>
                           <span className="text-text-dark-secondary">Calldata:</span>{' '}
-                          <span className="text-text-dark-primary break-all">
-                            {call.data}
-                          </span>
+                          <span className="text-text-dark-primary break-all">{call.data}</span>
                         </div>
                       ) : null}
                     </div>
 
-                    {/* FR-026: Link to decoder with preloaded calldata */}
                     {call.data ? (
                       <div className="mt-2">
                         <Link
@@ -1010,7 +1194,6 @@ export const OperationRow: React.FC<OperationRowProps> = ({
                       </div>
                     ) : null}
 
-                    {/* Only show typed args when we have Blockscout-verified ABI. */}
                     {isBlockscoutVerified(decodedByIndex[index]?.decoded) &&
                     decodedByIndex[index]?.decoded &&
                     decodedByIndex[index]!.decoded!.params.length > 0 ? (
@@ -1022,12 +1205,8 @@ export const OperationRow: React.FC<OperationRowProps> = ({
                           {decodedByIndex[index]!.decoded!.params.map((p, i) => (
                             <div key={i} className="flex flex-col gap-0.5">
                               <div>
-                                <span className="text-text-dark-secondary">
-                                  {p.name}
-                                </span>{' '}
-                                <span className="text-text-dark-secondary">
-                                  ({p.type})
-                                </span>
+                                <span className="text-text-dark-secondary">{p.name}</span>{' '}
+                                <span className="text-text-dark-secondary">({p.type})</span>
                               </div>
                               <pre className="whitespace-pre-wrap wrap-break-word text-text-dark-primary">
                                 {stringifyValue(p.value)}
@@ -1035,9 +1214,7 @@ export const OperationRow: React.FC<OperationRowProps> = ({
                               {humanAmountByIndex[index] &&
                               humanAmountByIndex[index]!.paramIndex === i ? (
                                 <div className="text-text-dark-primary">
-                                  <span className="text-text-dark-secondary">
-                                    Human:
-                                  </span>{' '}
+                                  <span className="text-text-dark-secondary">Human:</span>{' '}
                                   {humanAmountByIndex[index]!.formatted}
                                 </div>
                               ) : null}
@@ -1051,8 +1228,286 @@ export const OperationRow: React.FC<OperationRowProps> = ({
               </div>
             </div>
           </div>
+        </details>
+      </div>
+    </div>
+  ) : null
+
+  if (detailMode === 'drawer') {
+    return expandedContent
+  }
+
+  return (
+    <>
+      <div
+        role="row"
+        tabIndex={0}
+        aria-expanded={isExpanded}
+        className={`grid min-w-[980px] grid-cols-[minmax(360px,3.4fr)_minmax(130px,1fr)_minmax(190px,1.2fr)_minmax(180px,1.2fr)] items-center border-b border-border-dark px-6 py-4 transition-colors cursor-pointer outline-none ${
+          isExpanded
+            ? 'bg-primary/8 hover:bg-primary/12'
+            : 'hover:bg-surface-elevated/40'
+        }`}
+      >
+        <div role="cell" className="min-w-0 pr-3">
+          <div className="flex items-center gap-3">
+            <div
+              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${summaryIconMeta.iconClass}`}
+              aria-hidden="true"
+            >
+              <span className="material-symbols-outlined text-[18px]">
+                {summaryIconMeta.icon}
+              </span>
+            </div>
+            <div className="min-w-0">
+              <p className="font-mono text-text-dark-primary">{operation.id}</p>
+              {explanationQuery.data?.summary ? (
+                <p className="mt-1 max-h-10 overflow-hidden text-sm leading-5 text-text-dark-primary">
+                  {explanationQuery.data.summary}
+                </p>
+              ) : explanationQuery.isLoading ||
+                isDecoding ? (
+                <>
+                  <p className="mt-1 max-h-10 overflow-hidden text-sm leading-5 text-text-dark-secondary">
+                    {operation.summary}
+                  </p>
+                  <div className="mt-2 h-1.5 w-28 animate-pulse rounded bg-surface-elevated/80" />
+                </>
+              ) : (
+                <p className="mt-1 max-h-10 overflow-hidden text-sm leading-5 text-text-dark-secondary">
+                  {operation.summary}
+                </p>
+              )}
+            </div>
+          </div>
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+            <span className="rounded-full bg-surface-elevated px-2 py-1 text-text-dark-secondary">
+              {operation.calls} call{operation.calls === 1 ? '' : 's'}
+            </span>
+            <span className="rounded-full bg-surface-elevated px-2 py-1 font-mono text-text-dark-secondary">
+              {formatTargets(operation.targets)}
+            </span>
+            <span className="rounded-full bg-surface-elevated px-2 py-1 font-mono text-text-dark-secondary">
+              {operation.proposer}
+            </span>
+            {dangerous ? (
+              <span
+                className="inline-flex items-center rounded-full border border-red-500/30 bg-red-500/10 px-2 py-1 font-semibold text-red-300"
+                title={`Dangerous function detected: ${dangerous.functionName}`}
+              >
+                <span className="material-symbols-outlined mr-1 text-[14px] leading-none">
+                  warning
+                </span>
+                Sensitive
+              </span>
+            ) : null}
+          </div>
         </div>
-      )}
-    </React.Fragment>
+        <div role="cell">
+          <div className="flex items-center gap-2">
+            <span className={`h-2.5 w-2.5 rounded-full ${getStatusColor(displayStatus)}`} />
+            <span className={`font-semibold ${getStatusTextColor(displayStatus)}`}>
+              {displayStatus}
+            </span>
+            {displayStatus === 'Ready' ? (
+              <span className="rounded-full bg-status-ready/15 px-2 py-0.5 text-[11px] font-semibold text-status-ready">
+                Action
+              </span>
+            ) : null}
+          </div>
+        </div>
+        <div role="cell">
+          <div className="flex items-start gap-2">
+              <span className="material-symbols-outlined mt-0.5 text-base text-text-dark-secondary">
+                {displayStatus === 'Ready'
+                  ? 'bolt'
+                  : displayStatus === 'Pending'
+                    ? 'schedule'
+                    : displayStatus === 'Canceled'
+                      ? 'history'
+                    : 'event_available'}
+              </span>
+              <div className="flex flex-col">
+                <span className="font-medium text-text-dark-primary">{eta.relative}</span>
+                <span className="text-xs text-text-dark-secondary">{eta.absolute}</span>
+              </div>
+            </div>
+          </div>
+        <div role="cell" onClick={(e) => e.stopPropagation()}>
+          <div className="flex justify-end gap-2">
+            <button
+              className="rounded-md px-3 py-2 text-xs font-semibold text-primary hover:bg-primary/10"
+              onClick={() => onDetailsClick(operation.id)}
+            >
+              {isExpanded ? 'Hide details' : 'Details'}
+            </button>
+            {displayStatus === 'Ready' ? (
+              <>
+                <button
+                  className={`flex items-center justify-center gap-2 rounded-md h-9 px-3 text-xs font-bold transition-colors ${
+                    isExecuting
+                      ? 'bg-primary/20 text-primary cursor-wait'
+                      : isExecuteSuccess
+                        ? 'bg-green-500/20 text-green-500'
+                        : isExecuteError
+                          ? 'bg-red-500/20 text-red-500'
+                          : hasExecutorRole
+                            ? 'bg-status-ready/20 text-status-ready hover:bg-status-ready/30'
+                            : 'bg-border-dark text-text-dark-secondary cursor-not-allowed opacity-50'
+                  }`}
+                  onClick={() =>
+                    hasExecutorRole && !isExecuting && onExecute(operation.id)
+                  }
+                  disabled={!hasExecutorRole || isCheckingExecutorRole || isExecuting}
+                  title={
+                    isExecuting
+                      ? 'Transaction pending...'
+                      : isExecuteSuccess
+                        ? 'Execution successful!'
+                        : isExecuteError
+                          ? 'Execution failed'
+                          : isCheckingExecutorRole
+                            ? 'Checking permissions...'
+                            : !hasExecutorRole
+                              ? 'Your wallet does not have the EXECUTOR_ROLE'
+                              : 'Execute this operation'
+                  }
+                >
+                  {isExecuting ? (
+                    <div className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  ) : null}
+                  {isExecuteSuccess ? (
+                    <span className="material-symbols-outlined text-base!">
+                      check_circle
+                    </span>
+                  ) : null}
+                  {isExecuteError ? (
+                    <span className="material-symbols-outlined text-base!">
+                      error
+                    </span>
+                  ) : null}
+                  {isExecuting
+                    ? 'EXECUTING...'
+                    : isExecuteSuccess
+                      ? 'SUCCESS'
+                      : isExecuteError
+                        ? 'FAILED'
+                        : isCheckingExecutorRole
+                          ? 'CHECKING...'
+                          : 'EXECUTE'}
+                </button>
+                <button
+                  className={`flex items-center justify-center gap-2 rounded-md h-9 px-3 text-xs font-bold transition-colors ${
+                    isCancelling
+                      ? 'bg-primary/20 text-primary cursor-wait'
+                      : isCancelSuccess
+                        ? 'bg-green-500/20 text-green-500'
+                        : isCancelError
+                          ? 'bg-red-500/20 text-red-500'
+                          : hasCancellerRole
+                            ? 'bg-status-canceled/20 text-status-canceled hover:bg-status-canceled/30'
+                            : 'bg-border-dark text-text-dark-secondary cursor-not-allowed opacity-50'
+                  }`}
+                  onClick={() =>
+                    hasCancellerRole && !isCancelling && onCancel(operation)
+                  }
+                  disabled={!hasCancellerRole || isCheckingCancellerRole || isCancelling}
+                  title={
+                    isCancelling
+                      ? 'Transaction pending...'
+                      : isCancelSuccess
+                        ? 'Cancellation successful!'
+                        : isCancelError
+                          ? 'Cancellation failed'
+                          : isCheckingCancellerRole
+                            ? 'Checking permissions...'
+                            : !hasCancellerRole
+                              ? 'Your wallet does not have the CANCELLER_ROLE'
+                              : 'Cancel this operation'
+                  }
+                >
+                  {isCancelling ? (
+                    <div className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  ) : null}
+                  {isCancelSuccess ? (
+                    <span className="material-symbols-outlined text-base!">
+                      check_circle
+                    </span>
+                  ) : null}
+                  {isCancelError ? (
+                    <span className="material-symbols-outlined text-base!">
+                      error
+                    </span>
+                  ) : null}
+                  {isCancelling
+                    ? 'CANCELLING...'
+                    : isCancelSuccess
+                      ? 'SUCCESS'
+                      : isCancelError
+                        ? 'FAILED'
+                        : isCheckingCancellerRole
+                          ? 'CHECKING...'
+                          : 'CANCEL'}
+                </button>
+              </>
+            ) : null}
+            {displayStatus === 'Pending' ? (
+              <button
+                className={`flex items-center justify-center gap-2 rounded-md h-9 px-3 text-xs font-bold transition-colors ${
+                  isCancelling
+                    ? 'bg-primary/20 text-primary cursor-wait'
+                    : isCancelSuccess
+                      ? 'bg-green-500/20 text-green-500'
+                      : isCancelError
+                        ? 'bg-red-500/20 text-red-500'
+                        : hasCancellerRole
+                          ? 'bg-status-canceled/20 text-status-canceled hover:bg-status-canceled/30'
+                          : 'bg-border-dark text-text-dark-secondary cursor-not-allowed opacity-50'
+                }`}
+                onClick={() =>
+                  hasCancellerRole && !isCancelling && onCancel(operation)
+                }
+                disabled={!hasCancellerRole || isCheckingCancellerRole || isCancelling}
+                title={
+                  isCancelling
+                    ? 'Transaction pending...'
+                    : isCancelSuccess
+                      ? 'Cancellation successful!'
+                      : isCancelError
+                        ? 'Cancellation failed'
+                        : isCheckingCancellerRole
+                          ? 'Checking permissions...'
+                          : !hasCancellerRole
+                            ? 'Your wallet does not have the CANCELLER_ROLE'
+                            : 'Cancel this operation'
+                }
+              >
+                {isCancelling ? (
+                  <div className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                ) : null}
+                {isCancelSuccess ? (
+                  <span className="material-symbols-outlined text-base!">
+                    check_circle
+                  </span>
+                ) : null}
+                {isCancelError ? (
+                  <span className="material-symbols-outlined text-base!">error</span>
+                ) : null}
+                {isCancelling
+                  ? 'CANCELLING...'
+                  : isCancelSuccess
+                    ? 'SUCCESS'
+                    : isCancelError
+                      ? 'FAILED'
+                      : isCheckingCancellerRole
+                        ? 'CHECKING...'
+                        : 'CANCEL'}
+              </button>
+            ) : null}
+          </div>
+        </div>
+      </div>
+      {expandedContent}
+    </>
   )
 }

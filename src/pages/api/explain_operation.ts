@@ -18,8 +18,25 @@ type ExplainCall = {
 type ExplainRequestBody = {
   chainId?: number
   operationId?: string | null
+  fingerprint?: string
   calls?: ExplainCall[]
 }
+
+type ExplainResponseBody = {
+  summary: string
+  perCall?: string[]
+  cacheHit?: boolean
+  fingerprint?: string
+  generatedAt?: string
+}
+
+const EXPLAIN_PROMPT_VERSION = 'v2'
+const EXPLANATION_TTL_MS = 24 * 60 * 60 * 1000
+const responseCache = new Map<
+  string,
+  { expiresAt: number; value: ExplainResponseBody }
+>()
+const inFlight = new Map<string, Promise<ExplainResponseBody>>()
 
 function asString(x: unknown): string {
   return typeof x === 'string' ? x : JSON.stringify(x)
@@ -38,6 +55,39 @@ function extractOutputText(responseJson: any): string | null {
   }
   const joined = parts.join('\n').trim()
   return joined ? joined : null
+}
+
+function hashDjb2(input: string): string {
+  let hash = 5381
+  for (let i = 0; i < input.length; i += 1) {
+    hash = (hash * 33) ^ input.charCodeAt(i)
+  }
+  return (hash >>> 0).toString(16).padStart(8, '0')
+}
+
+function buildFingerprint(body: ExplainRequestBody, calls: ExplainCall[]): string {
+  const normalizedCalls = calls.map((c) => ({
+    index: c.index,
+    target: c.target.toLowerCase(),
+    nativeValue: c.nativeValue,
+    signature: c.signature || 'unknown',
+    functionName: c.functionName ?? 'unknown',
+    params: c.params.map((p) => ({
+      name: p.name,
+      type: p.type,
+      value: p.value,
+      display: p.display ?? null,
+    })),
+  }))
+
+  return `opx-${hashDjb2(
+    JSON.stringify({
+      chainId: body.chainId ?? null,
+      operationId: body.operationId ?? null,
+      promptVersion: EXPLAIN_PROMPT_VERSION,
+      calls: normalizedCalls,
+    })
+  )}`
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -62,6 +112,30 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (calls.length === 0) {
     return res.status(400).json({ error: 'Missing calls' })
+  }
+
+  const fingerprint = body.fingerprint || buildFingerprint(body, calls)
+  const now = Date.now()
+  const cached = responseCache.get(fingerprint)
+  if (cached && cached.expiresAt > now) {
+    const cachedSummary = typeof cached.value.summary === 'string'
+      ? cached.value.summary.trim()
+      : ''
+    // Never reuse corrupt/empty summaries from cache.
+    if (!cachedSummary) {
+      responseCache.delete(fingerprint)
+    } else {
+      return res.status(200).json({
+        ...cached.value,
+        summary: cachedSummary,
+        cacheHit: true,
+        fingerprint,
+      })
+    }
+  }
+
+  if (cached && cached.expiresAt <= now) {
+    responseCache.delete(fingerprint)
   }
 
   // GPT‑5 via Responses API
@@ -103,67 +177,120 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const upstream = await fetch('https://api.openai.com/v1/responses', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model,
-        // Lower temperature reduces unit/decimal mistakes.
-        max_output_tokens: 2000,
-        reasoning: { effort: 'low' },
-        // Keep this compatible with the docs example (string input).
-        input:
-          system +
-          '\n\nExplain this timelock operation. Return JSON only. Input:\n' +
-          JSON.stringify(input),
-      }),
-    })
-
-    const text = await upstream.text()
-    if (!upstream.ok) {
-      return res.status(502).json({
-        error: 'OpenAI request failed',
-        status: upstream.status,
-        message: text.slice(0, 2000),
+    const task = inFlight.get(fingerprint) ?? (async () => {
+      const upstream = await fetch('https://api.openai.com/v1/responses', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model,
+          max_output_tokens: 2000,
+          reasoning: { effort: 'low' },
+          input:
+            system +
+            '\n\nExplain this timelock operation. Return JSON only. Input:\n' +
+            JSON.stringify(input),
+        }),
       })
-    }
 
-    const data = JSON.parse(text) as any
-    const content = extractOutputText(data)
-    if (!content) {
-      return res.status(502).json({ error: 'OpenAI response missing output_text' })
-    }
+      const text = await upstream.text()
+      if (!upstream.ok) {
+        throw new Error(
+          JSON.stringify({
+            type: 'upstream',
+            status: upstream.status,
+            message: text.slice(0, 2000),
+          })
+        )
+      }
 
-    // Try to parse the model's JSON response
-    let parsed: any = null
-    try {
-      parsed = JSON.parse(content)
-    } catch {
-      // Some models may wrap JSON; attempt to extract first JSON object.
-      const match = content.match(/\{[\s\S]*\}/)
-      if (match) parsed = JSON.parse(match[0])
-    }
+      const data = JSON.parse(text) as any
+      const content = extractOutputText(data)
+      if (!content) {
+        throw new Error(
+          JSON.stringify({ type: 'invalid_output', message: 'OpenAI response missing output_text' })
+        )
+      }
 
-    if (!parsed || typeof parsed !== 'object') {
-      return res.status(502).json({
-        error: 'Failed to parse model JSON',
-        raw: content.slice(0, 4000),
+      let parsed: any = null
+      try {
+        parsed = JSON.parse(content)
+      } catch {
+        const match = content.match(/\{[\s\S]*\}/)
+        if (match) parsed = JSON.parse(match[0])
+      }
+
+      if (!parsed || typeof parsed !== 'object') {
+        throw new Error(
+          JSON.stringify({
+            type: 'parse',
+            message: 'Failed to parse model JSON',
+            raw: content.slice(0, 4000),
+          })
+        )
+      }
+
+      const summary = asString(parsed.summary ?? '').trim()
+      if (!summary) {
+        throw new Error(
+          JSON.stringify({
+            type: 'invalid_output',
+            message: 'OpenAI response returned empty summary',
+          })
+        )
+      }
+
+      const responseBody: ExplainResponseBody = {
+        summary,
+        perCall: Array.isArray(parsed.perCall)
+          ? parsed.perCall.map((x: unknown) => asString(x))
+          : undefined,
+        cacheHit: false,
+        fingerprint,
+        generatedAt: new Date().toISOString(),
+      }
+
+      responseCache.set(fingerprint, {
+        expiresAt: Date.now() + EXPLANATION_TTL_MS,
+        value: responseBody,
       })
-    }
 
-    return res.status(200).json({
-      summary: asString(parsed.summary ?? ''),
-      perCall: Array.isArray(parsed.perCall)
-        ? parsed.perCall.map((x: unknown) => asString(x))
-        : undefined,
-    })
+      return responseBody
+    })()
+
+    inFlight.set(fingerprint, task)
+    const responseBody = await task
+    return res.status(200).json(responseBody)
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
+    try {
+      const parsed = JSON.parse(message) as any
+      if (parsed?.type === 'upstream') {
+        return res.status(502).json({
+          error: 'OpenAI request failed',
+          status: parsed.status,
+          message: parsed.message,
+        })
+      }
+      if (parsed?.type === 'parse') {
+        return res.status(502).json({
+          error: parsed.message,
+          raw: parsed.raw,
+        })
+      }
+      if (parsed?.type === 'invalid_output') {
+        return res.status(502).json({
+          error: parsed.message,
+          fingerprint,
+        })
+      }
+    } catch {
+      // Continue to generic error response
+    }
     return res.status(500).json({ error: 'Unexpected error', message })
+  } finally {
+    inFlight.delete(fingerprint)
   }
 }
-
-

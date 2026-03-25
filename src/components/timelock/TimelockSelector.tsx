@@ -15,7 +15,7 @@ export const TimelockSelector: React.FC = () => {
   // Show empty state if no configurations exist
   if (configurations.length === 0) {
     return (
-      <div className="flex items-center gap-3 rounded border border-border-color bg-surface px-3 py-2">
+      <div className="app-card flex items-center gap-3 px-3 py-2">
         <span className="material-symbols-outlined text-text-secondary">
           playlist_add
         </span>
@@ -39,7 +39,7 @@ export const TimelockSelector: React.FC = () => {
     <div className="flex flex-col items-end gap-1">
       <div className="relative w-64">
       <select
-        className="form-select flex w-full min-w-0 resize-none overflow-hidden rounded text-text-primary focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-border-color bg-surface h-12 px-4 pr-12 text-base font-normal leading-normal appearance-none"
+        className="form-select flex w-full min-w-0 resize-none overflow-hidden rounded-xl h-12 px-4 pr-12 text-base font-normal leading-normal appearance-none"
         value={selected?.id ?? ''}
         onChange={(e) => select(e.target.value || null)}
         aria-label="Select timelock configuration"
