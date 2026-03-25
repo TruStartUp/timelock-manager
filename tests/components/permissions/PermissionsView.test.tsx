@@ -7,6 +7,16 @@ import { WagmiProvider } from 'wagmi'
 import { config } from '@/wagmi'
 import React from 'react'
 
+vi.mock('next/router', () => ({
+  useRouter: () => ({
+    isReady: true,
+    query: {},
+    push: vi.fn(),
+    replace: vi.fn(),
+    pathname: '/permissions',
+  }),
+}))
+
 // Mock the useRoles hook
 vi.mock('@/hooks/useRoles', () => ({
   useRoles: vi.fn(() => ({

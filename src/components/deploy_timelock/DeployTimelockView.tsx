@@ -186,38 +186,38 @@ export default function DeployTimelockView() {
         <div className="mb-10">
           <Link
             href="/settings"
-            className="inline-flex items-center gap-2 text-text-dark-secondary text-sm font-medium hover:text-primary transition-colors mb-6"
+            className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-text-secondary transition-colors hover:text-primary"
           >
             <span className="material-symbols-outlined text-lg">arrow_back</span>
             Back to Settings
           </Link>
-          <h1 className="text-white text-4xl font-black leading-tight tracking-[-0.033em]">
+          <h1 className="text-text-primary text-4xl font-black leading-tight tracking-[-0.033em]">
             Deploy Timelock
           </h1>
-          <p className="text-text-dark-secondary text-base font-normal leading-normal mt-3">
+          <p className="mt-3 text-base font-normal leading-normal text-text-secondary">
             Deploy a new OpenZeppelin TimelockController contract on Rootstock. Configure min delay, proposers, executors, and optional admin.
           </p>
-          <p className="text-text-dark-secondary text-sm mt-2">
+          <p className="mt-2 text-sm text-text-secondary">
             Connect a wallet on Rootstock Mainnet or Testnet to deploy a new OpenZeppelin TimelockController from this app.
           </p>
         </div>
 
-        <div className="rounded-lg border border-[#55493a] bg-surface-dark p-8">
+        <div className="app-card p-8">
           {isDeploySuccess ? (
             <div className="space-y-4">
-              <p className="text-white font-medium">Contract deployed successfully.</p>
+              <p className="font-medium text-text-primary">Contract deployed successfully.</p>
               {deployedAddress && (
-                <p className="text-text-dark-secondary text-sm">
+                <p className="text-sm text-text-secondary">
                   Contract address: <code className="text-primary break-all">{deployedAddress}</code>
                 </p>
               )}
-              <p className="text-text-dark-secondary text-sm">
+              <p className="text-sm text-text-secondary">
                 Transaction: <code className="text-primary break-all">{txHash}</code>
               </p>
 
               {(chainId === ROOTSTOCK_CHAINS.MAINNET || chainId === ROOTSTOCK_CHAINS.TESTNET) && deployedAddress && txHash && (
-                <div className="space-y-2 pt-2">
-                  <p className="text-text-dark-secondary text-xs font-medium uppercase tracking-wide">Blockscout</p>
+                  <div className="space-y-2 pt-2">
+                  <p className="text-xs font-medium uppercase tracking-wide text-text-secondary">Blockscout</p>
                   <div className="flex flex-col gap-1">
                     <a
                       href={`${getBlockscoutExplorerUrl(chainId)}/address/${deployedAddress}`}
@@ -243,11 +243,11 @@ export default function DeployTimelockView() {
                 deployedAddress &&
                 receipt?.blockNumber != null &&
                 (chainId === ROOTSTOCK_CHAINS.MAINNET || chainId === ROOTSTOCK_CHAINS.TESTNET) && (
-                  <div className="space-y-3 pt-2 border-t border-[#55493a] mt-4">
-                    <p className="text-text-dark-secondary text-xs font-medium uppercase tracking-wide">
+                  <div className="mt-4 space-y-3 border-t border-border-color pt-2">
+                    <p className="text-xs font-medium uppercase tracking-wide text-text-secondary">
                       Subgraph for this timelock
                     </p>
-                    <p className="text-text-dark-secondary text-sm">
+                    <p className="text-sm text-text-secondary">
                       Generate a ready-to-deploy subgraph package for this timelock so you can deploy it from your
                       machine with your Graph Studio deploy key and then save the Query URL back into the app.
                     </p>
@@ -263,7 +263,7 @@ export default function DeployTimelockView() {
                         })
                         router.push(`/subgraph/deploy?${params.toString()}`)
                       }}
-                      className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold border border-[#55493a] text-white hover:bg-[#2a2218]"
+                      className="app-button-secondary inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold"
                     >
                       Go to subgraph deploy
                     </button>
@@ -275,16 +275,16 @@ export default function DeployTimelockView() {
                   <button
                     type="button"
                     onClick={addToApp}
-                    className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-white hover:bg-primary/80"
-                  >
-                    Add this timelock to the app
-                  </button>
+                      className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-primary/80"
+                    >
+                      Add this timelock to the app
+                    </button>
                   {(chainId === ROOTSTOCK_CHAINS.MAINNET || chainId === ROOTSTOCK_CHAINS.TESTNET) && (
                     <button
                       type="button"
                       onClick={handleVerify}
                       disabled={verifyPending}
-                      className="inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold border border-[#55493a] text-white hover:bg-[#2a2218] disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="app-button-secondary inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {verifyPending ? 'Verifying…' : 'Verify contract on Blockscout'}
                     </button>
@@ -292,12 +292,12 @@ export default function DeployTimelockView() {
                 </div>
               )}
               {verifySuccess && (
-                <div className="mt-3 rounded border border-green-500/40 bg-green-500/10 p-3 text-sm text-green-400">
+                <div className="mt-3 rounded border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-800 dark:border-green-500/40 dark:bg-green-500/10 dark:text-green-400">
                   Contract verified successfully on Blockscout.
                 </div>
               )}
               {verifyError && (
-                <div className="mt-3 rounded border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-400">
+                <div className="mt-3 rounded border border-rose-300 bg-rose-50 p-3 text-sm text-rose-800 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-400">
                   Verification failed. Check the parameters and try again, or verify the contract manually on Blockscout.
                 </div>
               )}
@@ -306,14 +306,14 @@ export default function DeployTimelockView() {
             <>
               <div className="space-y-6">
                 <div>
-                  <label className="block text-sm font-medium text-white mb-2" htmlFor="min-delay">
+                  <label className="mb-2 block text-sm font-medium text-text-primary" htmlFor="min-delay">
                     Min delay (seconds)
                   </label>
                   <input
                     id="min-delay"
                     type="number"
                     min={0}
-                    className="w-full rounded-lg border border-[#55493a] bg-surface-dark px-4 py-2.5 text-white placeholder:text-text-dark-secondary focus:border-primary focus:ring-primary/50"
+                    className="app-input w-full rounded-lg px-4 py-2.5 text-text-primary placeholder:text-text-secondary focus:border-primary focus:ring-primary/50"
                     placeholder="e.g. 86400 for 1 day"
                     value={minDelay}
                     onChange={(e) => {
@@ -322,14 +322,14 @@ export default function DeployTimelockView() {
                     }}
                   />
                   {errors.minDelay && <p className="text-sm text-red-400 mt-1">{errors.minDelay}</p>}
-                  <p className="text-text-dark-secondary text-xs mt-2">
+                  <p className="mt-2 text-xs text-text-secondary">
                     Minimum time (in seconds) between scheduling and execution. Longer delays give users more time to review and react to proposed changes.
                   </p>
                 </div>
 
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <label className="text-sm font-medium text-white">Proposers</label>
+                    <label className="text-sm font-medium text-text-primary">Proposers</label>
                     <button type="button" onClick={addProposer} className="text-sm text-primary hover:underline">
                       + Add
                     </button>
@@ -338,7 +338,7 @@ export default function DeployTimelockView() {
                     <div key={i} className="flex gap-2 mb-2">
                       <input
                         type="text"
-                        className="flex-1 rounded-lg border border-[#55493a] bg-surface-dark px-4 py-2.5 text-white placeholder:text-text-dark-secondary focus:border-primary focus:ring-primary/50"
+                        className="app-input flex-1 rounded-lg px-4 py-2.5 text-text-primary placeholder:text-text-secondary focus:border-primary focus:ring-primary/50"
                         placeholder="0x..."
                         value={p}
                         onChange={(e) => setProposer(i, e.target.value)}
@@ -348,24 +348,24 @@ export default function DeployTimelockView() {
                   ))}
                   {errors.proposers && <p className="text-sm text-red-400">{errors.proposers}</p>}
                   {proposers.map((_, i) => errors[`proposer_${i}`] && <p key={i} className="text-sm text-red-400">{errors[`proposer_${i}`]}</p>)}
-                  <p className="text-text-dark-secondary text-xs mt-2">
+                  <p className="mt-2 text-xs text-text-secondary">
                     Addresses that can schedule new operations on this timelock. At least one proposer is required.
                   </p>
                 </div>
 
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <label className="text-sm font-medium text-white">Executors</label>
+                    <label className="text-sm font-medium text-text-primary">Executors</label>
                     <button type="button" onClick={addExecutor} className="text-sm text-primary hover:underline">
                       + Add
                     </button>
                   </div>
-                  <p className="text-text-dark-secondary text-xs mb-2">Use 0x0000000000000000000000000000000000000000 for “any address”.</p>
+                  <p className="mb-2 text-xs text-text-secondary">Use 0x0000000000000000000000000000000000000000 for “any address”.</p>
                   {executors.map((e, i) => (
                     <div key={i} className="flex gap-2 mb-2">
                       <input
                         type="text"
-                        className="flex-1 rounded-lg border border-[#55493a] bg-surface-dark px-4 py-2.5 text-white placeholder:text-text-dark-secondary focus:border-primary focus:ring-primary/50"
+                        className="app-input flex-1 rounded-lg px-4 py-2.5 text-text-primary placeholder:text-text-secondary focus:border-primary focus:ring-primary/50"
                         placeholder="0x... or 0x0 for any"
                         value={e}
                         onChange={(ev) => setExecutor(i, ev.target.value)}
@@ -375,17 +375,17 @@ export default function DeployTimelockView() {
                   ))}
                   {errors.executors && <p className="text-sm text-red-400">{errors.executors}</p>}
                   {executors.map((_, i) => errors[`executor_${i}`] && <p key={i} className="text-sm text-red-400">{errors[`executor_${i}`]}</p>)}
-                  <p className="text-text-dark-secondary text-xs mt-2">
+                  <p className="mt-2 text-xs text-text-secondary">
                     Addresses that can execute ready operations. Use 0x0000000000000000000000000000000000000000 if you want any address to be able to execute (use with caution).
                   </p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-white mb-2" htmlFor="admin">Admin (optional)</label>
+                  <label className="mb-2 block text-sm font-medium text-text-primary" htmlFor="admin">Admin (optional)</label>
                   <input
                     id="admin"
                     type="text"
-                    className="w-full rounded-lg border border-[#55493a] bg-surface-dark px-4 py-2.5 text-white placeholder:text-text-dark-secondary focus:border-primary focus:ring-primary/50"
+                    className="app-input w-full rounded-lg px-4 py-2.5 text-text-primary placeholder:text-text-secondary focus:border-primary focus:ring-primary/50"
                     placeholder="Leave empty for no admin (self-administered)"
                     value={admin}
                     onChange={(e) => {
@@ -394,7 +394,7 @@ export default function DeployTimelockView() {
                     }}
                   />
                   {errors.admin && <p className="text-sm text-red-400 mt-1">{errors.admin}</p>}
-                  <p className="text-text-dark-secondary text-xs mt-2">
+                  <p className="mt-2 text-xs text-text-secondary">
                     Optional admin that can manage roles. Leave empty for a self-administered timelock with no single admin account.
                   </p>
                 </div>
@@ -412,7 +412,7 @@ export default function DeployTimelockView() {
                 >
                   {isDeployPending ? 'Deploying…' : 'Deploy Timelock'}
                 </button>
-                {!isConnected && <span className="text-text-dark-secondary text-sm">Connect a wallet to deploy.</span>}
+                {!isConnected && <span className="text-sm text-text-secondary">Connect a wallet to deploy.</span>}
               </div>
             </>
           )}

@@ -529,10 +529,10 @@ const SettingsView = () => {
               </p>
               <Link
                 href="/deploy_timelock"
-                className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-white hover:bg-primary/80 transition-colors"
+                className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-primary/80"
               >
-                <span className="material-symbols-outlined text-lg">add_circle</span>
-                Deploy Timelock
+                <span className="material-symbols-outlined text-lg !text-white">add_circle</span>
+                <span className="!text-white">Deploy Timelock</span>
               </Link>
             </div>
           ) : null}
@@ -558,15 +558,15 @@ const SettingsView = () => {
           </button>
           {sectionOpen.subgraph ? (
             <div className={`${sectionBodyClass} space-y-4`}>
-              <p className="text-text-dark-secondary text-sm">
+              <p className="text-text-secondary text-sm">
                 Use this when you already have a timelock contract deployed and want to prepare and deploy a subgraph that indexes its events. The Graph Studio deploy key is
                 always used locally on your machine and is never sent to this app.
               </p>
               <Link
                 href="/subgraph/deploy"
-                className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-white hover:bg-primary/80"
+                className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-primary/80"
               >
-                Open subgraph deploy
+                <span className="!text-white">Open subgraph deploy</span>
               </Link>
             </div>
           ) : null}

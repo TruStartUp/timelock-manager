@@ -1158,8 +1158,8 @@ const NewProposalView: React.FC = () => {
               </div>
 
               {operations.length === 0 ? (
-                <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-6">
-                  <p className="text-yellow-400 text-base">
+                <div className="rounded-xl border border-amber-300 bg-amber-100/90 p-6 shadow-sm dark:border-amber-500/30 dark:bg-amber-500/10">
+                  <p className="text-amber-900 text-base font-medium dark:text-amber-300">
                     No operations configured. Please go back to Step 1 and fetch a contract ABI.
                   </p>
                 </div>

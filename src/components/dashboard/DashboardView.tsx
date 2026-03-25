@@ -385,9 +385,9 @@ const DashboardView: React.FC = () => {
                 Monitor current timelock activity and access configuration for the selected controller.
               </p>
             </div>
-            <Link href="/new_proposal" className="app-button-primary">
-              <span className="material-symbols-outlined mr-1 text-base">add_circle</span>
-              Schedule New Operation
+            <Link href="/new_proposal" className="app-button-primary !text-white">
+              <span className="material-symbols-outlined mr-1 text-base !text-white">add_circle</span>
+              <span className="!text-white">Schedule New Operation</span>
             </Link>
           </div>
         </div>

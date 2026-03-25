@@ -4,19 +4,19 @@
   color-scheme: light;
 
   --theme-primary: #0f53b8;
-  --theme-background: #f6f7f8;
-  --theme-background-light: #f6f7f8;
+  --theme-background: #f3f6fb;
+  --theme-background-light: #eef3fa;
   --theme-background-dark: #101722;
   --theme-surface: #ffffff;
-  --theme-surface-elevated: #eef2f8;
+  --theme-surface-elevated: #e7eef9;
   --theme-surface-dark: #ffffff;
-  --theme-border: #d8dee9;
-  --theme-border-dark: #c8d0dd;
-  --theme-text-primary: #0f172a;
-  --theme-text-secondary: #475569;
-  --theme-text-muted: #64748b;
-  --theme-text-dark-primary: #0f172a;
-  --theme-text-dark-secondary: #475569;
+  --theme-border: #ccd7e7;
+  --theme-border-dark: #b8c7dd;
+  --theme-text-primary: #14233b;
+  --theme-text-secondary: #52627a;
+  --theme-text-muted: #6f7f96;
+  --theme-text-dark-primary: #14233b;
+  --theme-text-dark-secondary: #5c6c84;
   --theme-text-light: #f8fafc;
   --theme-status-pending: #f59e0b;
   --theme-status-ready: #10b981;
@@ -107,19 +107,25 @@ body[data-theme='dark'],
   }
 
   .app-card {
-    @apply rounded-xl border border-border-color bg-surface shadow-sm;
+    @apply rounded-xl border border-border-color bg-surface shadow-sm shadow-slate-900/5;
   }
 
   .app-panel {
-    @apply rounded-xl border border-border-color bg-surface-elevated/50;
+    @apply rounded-xl border border-border-color bg-surface-elevated/75;
   }
 
   .app-button-primary {
-    @apply inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/30;
+    @apply inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-primary/20 transition-colors hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/30;
+  }
+
+  .app-button-primary,
+  .app-button-primary:hover,
+  .app-button-primary:visited {
+    color: #fff;
   }
 
   .app-button-secondary {
-    @apply inline-flex items-center justify-center rounded-xl border border-border-color bg-surface px-4 py-2.5 text-sm font-semibold text-text-primary transition-colors hover:bg-surface-elevated focus:outline-none focus:ring-2 focus:ring-primary/20;
+    @apply inline-flex items-center justify-center rounded-xl border border-border-color bg-surface px-4 py-2.5 text-sm font-semibold text-text-primary transition-colors hover:border-primary/25 hover:bg-surface-elevated focus:outline-none focus:ring-2 focus:ring-primary/20;
   }
 
   .app-input {

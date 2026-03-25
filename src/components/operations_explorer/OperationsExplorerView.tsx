@@ -1192,11 +1192,11 @@ const OperationsExplorerView: React.FC = () => {
                             </span>
                             {decoded ? (
                               isVerifiedBlockscout(decoded) ? (
-                                <span className="inline-flex items-center rounded-full border border-green-500/30 bg-green-500/10 px-2 py-0.5 text-[10px] font-semibold text-green-200">
+                                <span className="inline-flex items-center rounded-full border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 dark:border-green-500/30 dark:bg-green-500/10 dark:text-green-200">
                                   Verified
                                 </span>
                               ) : (
-                                <span className="inline-flex items-center rounded-full border border-yellow-500/30 bg-yellow-500/10 px-2 py-0.5 text-[10px] font-semibold text-yellow-200">
+                                <span className="inline-flex items-center rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800 dark:border-yellow-500/30 dark:bg-yellow-500/10 dark:text-yellow-200">
                                   Unverified
                                 </span>
                               )
@@ -1267,11 +1267,11 @@ const OperationsExplorerView: React.FC = () => {
                     Call summary
                   </span>
                   {isVerifiedBlockscout(decodedExecute) ? (
-                    <span className="inline-flex items-center rounded-full border border-green-500/30 bg-green-500/10 px-2 py-0.5 text-[11px] font-semibold text-green-200">
+                    <span className="inline-flex items-center rounded-full border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-800 dark:border-green-500/30 dark:bg-green-500/10 dark:text-green-200">
                       Verified contract
                     </span>
                   ) : (
-                    <span className="inline-flex items-center rounded-full border border-yellow-500/30 bg-yellow-500/10 px-2 py-0.5 text-[11px] font-semibold text-yellow-200">
+                    <span className="inline-flex items-center rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800 dark:border-yellow-500/30 dark:bg-yellow-500/10 dark:text-yellow-200">
                       Unverified - showing raw hex
                     </span>
                   )}
@@ -2232,7 +2232,7 @@ function OperationDetailsDrawer(
         role="dialog"
         aria-modal="true"
         aria-label="Operation details"
-        className="fixed inset-y-0 right-0 z-50 w-full max-w-[920px] overflow-y-auto border-l border-border-dark bg-background shadow-2xl"
+        className="fixed inset-y-0 right-0 z-50 w-full overflow-y-auto border-l border-border-dark bg-background shadow-2xl lg:w-[70vw]"
       >
         <div className="sticky top-0 z-10 border-b border-border-dark bg-background/95 px-6 py-4 backdrop-blur">
           <div className="flex items-center justify-between gap-4">

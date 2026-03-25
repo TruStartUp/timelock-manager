@@ -416,7 +416,7 @@ export const OperationRow: React.FC<OperationRowProps> = ({
       return {
         label: '⚠️ Unverified - showing raw hex',
         className:
-          'inline-flex items-center rounded-full border border-yellow-500/30 bg-yellow-500/10 px-2 py-0.5 text-[11px] font-semibold text-yellow-200',
+          'inline-flex items-center rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800 dark:border-yellow-500/30 dark:bg-yellow-500/10 dark:text-yellow-200',
       }
     }
 
@@ -428,14 +428,14 @@ export const OperationRow: React.FC<OperationRowProps> = ({
       return {
         label: '✅ Verified contract',
         className:
-          'inline-flex items-center rounded-full border border-green-500/30 bg-green-500/10 px-2 py-0.5 text-[11px] font-semibold text-green-200',
+          'inline-flex items-center rounded-full border border-emerald-400 bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-950 shadow-sm dark:border-green-500/30 dark:bg-green-500/10 dark:text-green-200',
       }
     }
 
     return {
       label: '⚠️ Unverified - showing raw hex',
       className:
-        'inline-flex items-center rounded-full border border-yellow-500/30 bg-yellow-500/10 px-2 py-0.5 text-[11px] font-semibold text-yellow-200',
+        'inline-flex items-center rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800 dark:border-yellow-500/30 dark:bg-yellow-500/10 dark:text-yellow-200',
     }
   }, [])
 
@@ -798,7 +798,7 @@ export const OperationRow: React.FC<OperationRowProps> = ({
                 details!.callsDetails.every((_, i) =>
                   isBlockscoutVerified(decodedByIndex[i]?.decoded)
                 ) ? (
-                  <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-300">
+                  <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400 bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-950 shadow-sm dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">
                     <span className="material-symbols-outlined text-sm!">verified</span>
                     Verified target
                   </span>
@@ -1043,7 +1043,7 @@ export const OperationRow: React.FC<OperationRowProps> = ({
             </span>
           </summary>
 
-          <div className="grid grid-cols-1 gap-6 border-t border-border-dark p-6 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+          <div className="grid grid-cols-1 gap-6 border-t border-border-dark p-6 xl:grid-cols-[minmax(280px,0.85fr)_minmax(0,2.65fr)]">
             <div className="min-w-0 overflow-hidden">
               <h4 className="mb-2 text-xs font-bold uppercase text-text-dark-secondary">
                 Operation Details
@@ -1115,11 +1115,11 @@ export const OperationRow: React.FC<OperationRowProps> = ({
               <h4 className="mb-2 text-xs font-bold uppercase text-text-dark-secondary">
                 Calls ({details!.callsDetails.length})
               </h4>
-              <div className="flex flex-col gap-2 rounded-xl bg-background-dark p-3 text-sm font-mono">
+              <div className="flex flex-col gap-3 rounded-xl border border-border-color bg-surface-elevated/55 p-4 text-sm font-mono">
                 {details!.callsDetails.map((call, index) => (
                   <div
                     key={index}
-                    className="rounded-xl border border-border-dark/60 bg-surface p-3"
+                    className="rounded-xl border border-border-color bg-surface p-4 shadow-sm"
                   >
                     <div className="flex flex-wrap items-baseline justify-between gap-2">
                       <div className="flex items-baseline gap-2">
