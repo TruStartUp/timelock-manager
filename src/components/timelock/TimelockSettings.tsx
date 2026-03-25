@@ -1,8 +1,8 @@
 // src/components/timelock/TimelockSettings.tsx
 
-import React, { useState } from 'react';
-import { isAddress, type Address } from 'viem';
-import { useTimelocks } from '@/hooks/useTimelocks';
+import React, { useState } from 'react'
+import { isAddress, type Address } from 'viem'
+import { useTimelocks } from '@/hooks/useTimelocks'
 
 /**
  * AddTimelockForm Component
@@ -68,19 +68,22 @@ const AddTimelockForm: React.FC = () => {
 
     // Clear success message after 3 seconds
     setTimeout(() => setSuccessMessage(''), 3000);
-  };
+  }
+
+  const inputClass =
+    'w-full rounded-xl border border-border-color bg-surface px-4 py-2.5 text-text-primary placeholder:text-text-secondary focus:border-primary focus:ring-primary/50'
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <h3 className="text-white text-lg font-semibold">Add New Timelock</h3>
+      <h3 className="text-text-primary text-lg font-semibold">Add New Timelock</h3>
 
       {/* Name Field */}
       <div className="flex flex-col gap-2">
-        <label className="text-sm font-medium text-white" htmlFor="timelock-name">
+        <label className="text-sm font-medium text-text-primary" htmlFor="timelock-name">
           Name
         </label>
         <input
-          className="w-full rounded-lg border border-[#55493a] bg-[#231a0f] px-4 py-2.5 text-white placeholder:text-[#bbad9b] focus:border-primary focus:ring-primary/50"
+          className={inputClass}
           id="timelock-name"
           placeholder="My Timelock Controller"
           type="text"
@@ -97,11 +100,11 @@ const AddTimelockForm: React.FC = () => {
 
       {/* Address Field */}
       <div className="flex flex-col gap-2">
-        <label className="text-sm font-medium text-white" htmlFor="timelock-address">
+        <label className="text-sm font-medium text-text-primary" htmlFor="timelock-address">
           Contract Address
         </label>
         <input
-          className="w-full rounded-lg border border-[#55493a] bg-[#231a0f] px-4 py-2.5 text-white placeholder:text-[#bbad9b] font-mono focus:border-primary focus:ring-primary/50 lowercase"
+          className={`${inputClass} font-mono lowercase`}
           id="timelock-address"
           placeholder="0x..."
           type="text"
@@ -119,11 +122,11 @@ const AddTimelockForm: React.FC = () => {
 
       {/* Network Field */}
       <div className="flex flex-col gap-2">
-        <label className="text-sm font-medium text-white" htmlFor="timelock-network">
+        <label className="text-sm font-medium text-text-primary" htmlFor="timelock-network">
           Network
         </label>
         <select
-          className="w-full rounded-lg border border-[#55493a] bg-[#231a0f] px-4 py-2.5 text-white focus:border-primary focus:ring-primary/50"
+          className={inputClass}
           id="timelock-network"
           value={network}
           onChange={(e) => setNetwork(e.target.value as 'rsk_mainnet' | 'rsk_testnet')}
@@ -135,11 +138,11 @@ const AddTimelockForm: React.FC = () => {
 
       {/* Subgraph URL Field */}
       <div className="flex flex-col gap-2">
-        <label className="text-sm font-medium text-white" htmlFor="timelock-subgraph">
+        <label className="text-sm font-medium text-text-primary" htmlFor="timelock-subgraph">
           Subgraph URL
         </label>
         <input
-          className="w-full rounded-lg border border-[#55493a] bg-[#231a0f] px-4 py-2.5 text-white placeholder:text-[#bbad9b] focus:border-primary focus:ring-primary/50"
+          className={inputClass}
           id="timelock-subgraph"
           placeholder="https://api.studio.thegraph.com/query/..."
           type="text"
@@ -183,8 +186,8 @@ const TimelockList: React.FC = () => {
 
   if (configurations.length === 0) {
     return (
-      <div className="rounded-lg border border-[#55493a] bg-[#231a0f] p-6 text-center">
-        <p className="text-[#bbad9b]">
+      <div className="rounded-xl border border-border-color bg-surface-elevated/40 p-6 text-center">
+        <p className="text-text-secondary">
           No timelock configurations yet. Add one above to get started.
         </p>
       </div>
@@ -204,16 +207,16 @@ const TimelockList: React.FC = () => {
 
   return (
     <div>
-      <h3 className="text-white text-lg font-semibold mb-4">Configured Timelocks</h3>
+      <h3 className="text-text-primary text-lg font-semibold mb-4">Configured Timelocks</h3>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {configurations.map((config) => (
           <div
             key={config.id}
-            className="rounded-lg border border-[#55493a] bg-[#231a0f] p-4 hover:border-primary/50 transition-colors"
+            className="rounded-xl border border-border-color bg-surface-elevated/40 p-4 transition-colors hover:border-primary/50"
           >
             <div className="flex items-start justify-between gap-2">
               <div className="flex-1 min-w-0">
-                <h4 className="text-white font-semibold flex items-center gap-2 flex-wrap">
+                <h4 className="text-text-primary font-semibold flex items-center gap-2 flex-wrap">
                   {config.name}
                   {selected?.id === config.id && (
                     <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">
@@ -238,7 +241,7 @@ const TimelockList: React.FC = () => {
               </div>
               <button
                 onClick={() => handleRemove(config.id, config.name)}
-                className="rounded-full p-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 transition-colors"
+                className="rounded-full p-2 bg-red-500/15 text-red-300 transition-colors hover:bg-red-500/25"
                 title="Remove configuration"
                 aria-label={`Remove ${config.name}`}
               >
@@ -264,10 +267,10 @@ const TimelockList: React.FC = () => {
 export const TimelockSettings: React.FC = () => {
   return (
     <section className="flex flex-col gap-6">
-      <h2 className="text-white text-[22px] font-bold leading-tight tracking-[-0.015em] pb-3 border-b border-[#3a3227]">
+      <h2 className="border-b border-border-color pb-3 text-text-primary text-[22px] font-bold leading-tight tracking-[-0.015em]">
         Timelock Configurations
       </h2>
-      <p className="text-[#bbad9b] text-base">
+      <p className="text-text-secondary text-base">
         Manage your TimelockController contracts. Add new configurations or remove existing ones.
       </p>
 
@@ -275,7 +278,7 @@ export const TimelockSettings: React.FC = () => {
       <AddTimelockForm />
 
       {/* Divider */}
-      <div className="my-6 h-px w-full bg-[#3a3227]"></div>
+      <div className="my-6 h-px w-full bg-border-color"></div>
 
       {/* List View */}
       <TimelockList />

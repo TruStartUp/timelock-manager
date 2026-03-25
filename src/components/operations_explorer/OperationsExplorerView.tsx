@@ -22,6 +22,8 @@ import { useTimelocks } from '@/hooks/useTimelocks'
 
 type OperationStatus = 'All' | 'Pending' | 'Ready' | 'Executed' | 'Canceled'
 
+const DEFAULT_DOCS_URL = 'https://david-personal.gitbook.io/timelock-manager/'
+
 const STATUS_TOOLTIPS: Record<Exclude<OperationStatus, 'All'>, string> = {
   Pending:
     'This action is scheduled, but it’s still waiting for the required time to pass.',
@@ -62,6 +64,90 @@ function TooltipIcon(props: { text: string; ariaLabel: string }) {
         </span>
       </span>
     </span>
+  )
+}
+
+function TimelockExplorerEmptyState({
+  icon,
+  title,
+  body,
+  ctaHref,
+  ctaLabel,
+  docsUrl,
+}: {
+  icon: string
+  title: string
+  body: string
+  ctaHref: string
+  ctaLabel: string
+  docsUrl: string
+}) {
+  return (
+    <main className="flex flex-col gap-6 p-4 md:p-6">
+      <section className="app-card overflow-hidden">
+        <div className="border-b border-border-color px-6 py-6">
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary/85">
+              Timelock Management
+            </p>
+            <h1 className="text-3xl font-bold tracking-tight text-text-primary">
+              Timelock Operations
+            </h1>
+            <p className="text-sm text-text-secondary">
+              Review scheduled, ready, executed, and canceled operations for the active controller.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <div className="flex items-center justify-center py-6">
+        <div className="app-card w-full max-w-3xl p-8 text-center">
+          <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-primary/12 text-primary">
+            <span className="material-symbols-outlined text-2xl">{icon}</span>
+          </div>
+          <h2 className="text-2xl font-bold text-text-primary">{title}</h2>
+          <p className="mt-2 text-text-secondary">{body}</p>
+          <div className="mt-6">
+            <Link href={ctaHref} className="app-button-primary px-6">
+              {ctaLabel}
+            </Link>
+          </div>
+
+          <div className="mt-6 rounded-2xl border border-primary/20 bg-primary/8 p-6 text-left">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
+                <span className="material-symbols-outlined text-xl">lock_clock</span>
+              </div>
+              <div className="space-y-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary/85">
+                    What Is A Timelock?
+                  </p>
+                  <h3 className="mt-1 text-lg font-semibold text-text-primary">
+                    A review window before governance changes go live
+                  </h3>
+                </div>
+                <p className="text-sm leading-relaxed text-text-secondary">
+                  A timelock delays administrative actions before they execute on-chain. That delay gives contributors time to review proposals, verify calldata, and react before a change becomes active.
+                </p>
+                <p className="text-sm leading-relaxed text-text-secondary">
+                  Once you configure and select a timelock, this explorer will show queued actions, ready executions, execution history, and technical inspection details for that controller.
+                </p>
+                <a
+                  href={docsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+                >
+                  Learn more in the docs
+                  <span className="material-symbols-outlined text-base">open_in_new</span>
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
   )
 }
 
@@ -140,8 +226,9 @@ const OperationsExplorerView: React.FC = () => {
   const lastFocusedElRef = useRef<HTMLElement | null>(null)
   const executeDialogCloseRef = useRef<HTMLButtonElement | null>(null)
   const cancelDialogCloseRef = useRef<HTMLButtonElement | null>(null)
-  const { selected } = useTimelocks()
+  const { selected, configurations } = useTimelocks()
   const timelockAddress = (selected?.address as Address | undefined) ?? undefined
+  const docsUrl = process.env.NEXT_PUBLIC_DOCS_URL ?? DEFAULT_DOCS_URL
 
   // Initialize status filter from URL query param (e.g. /operations_explorer?status=pending)
   useEffect(() => {
@@ -577,7 +664,7 @@ const OperationsExplorerView: React.FC = () => {
       dateTo: dateToTs,
     },
     {
-      enabled: !dateRangeError,
+      enabled: !!timelockAddress && !dateRangeError,
       pagination: {
         first: pageSize,
         skip: pageIndex * pageSize,
@@ -858,6 +945,12 @@ const OperationsExplorerView: React.FC = () => {
     if (!stillVisible) setSelectedOperationId(null)
   }, [clientFilteredOperations, selectedOperationId])
 
+  useEffect(() => {
+    if (configurations.length === 0 || !selected) {
+      setSelectedOperationId(null)
+    }
+  }, [configurations.length, selected])
+
   const handleExecute = (id: string) => {
     // Find the operation by shortened ID
     const operation = operations.find((op) => op.id === id)
@@ -926,6 +1019,26 @@ const OperationsExplorerView: React.FC = () => {
 
   return (
     <>
+      {configurations.length === 0 ? (
+        <TimelockExplorerEmptyState
+          icon="playlist_add"
+          title="No timelocks configured yet"
+          body="Add a timelock configuration in Settings to start monitoring queued and executed governance actions."
+          ctaHref="/settings"
+          ctaLabel="Go to Settings"
+          docsUrl={docsUrl}
+        />
+      ) : !selected ? (
+        <TimelockExplorerEmptyState
+          icon="warning"
+          title="Select a timelock to explore operations"
+          body="Choose an active timelock from the header selector to load governance operations for that controller."
+          ctaHref="/settings"
+          ctaLabel="Manage timelocks in Settings"
+          docsUrl={docsUrl}
+        />
+      ) : (
+        <>
       {/* T111: Execute simulation preview dialog */}
       {confirmExecuteOperation ? (
         <div
@@ -1855,7 +1968,9 @@ const OperationsExplorerView: React.FC = () => {
           />
         )}
       </main>
-      {selectedOperation ? (
+        </>
+      )}
+      {selected && selectedOperation ? (
         <OperationDetailsDrawer
           operation={selectedOperation}
           isExpanded

@@ -238,18 +238,57 @@ function DashboardIntroduction({ docsUrl }: { docsUrl: string }) {
   )
 }
 
+function TimelockBasicsNote({ docsUrl }: { docsUrl: string }) {
+  return (
+    <div className="mt-6 rounded-2xl border border-primary/20 bg-primary/8 p-6 text-left">
+      <div className="flex items-start gap-3">
+        <div className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
+          <span className="material-symbols-outlined text-xl">lock_clock</span>
+        </div>
+        <div className="space-y-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary/85">
+              What Is A Timelock?
+            </p>
+            <h3 className="mt-1 text-lg font-semibold text-text-primary">
+              A review window before governance changes go live
+            </h3>
+          </div>
+          <p className="text-sm leading-relaxed text-text-secondary">
+            A timelock delays administrative actions before they execute on-chain. That delay gives contributors time to review proposals, verify calldata, and react before a change becomes active.
+          </p>
+          <p className="text-sm leading-relaxed text-text-secondary">
+            Once you configure and select a timelock, this app can show queued operations, ready actions, execution history, and role membership for that controller.
+          </p>
+          <a
+            href={docsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+          >
+            Learn more in the docs
+            <span className="material-symbols-outlined text-base">open_in_new</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function DashboardEmptyState({
   icon,
   title,
   body,
   ctaHref,
   ctaLabel,
+  docsUrl,
 }: {
   icon: string
   title: string
   body: string
   ctaHref: string
   ctaLabel: string
+  docsUrl: string
 }) {
   return (
     <div className="flex items-center justify-center py-12">
@@ -264,6 +303,7 @@ function DashboardEmptyState({
             {ctaLabel}
           </Link>
         </div>
+        <TimelockBasicsNote docsUrl={docsUrl} />
       </div>
     </div>
   )
@@ -311,6 +351,7 @@ const DashboardView: React.FC = () => {
         body="Add a timelock configuration in Settings to start monitoring operations and role changes."
         ctaHref="/settings"
         ctaLabel="Go to Settings"
+        docsUrl={docsUrl}
       />
     )
   }
@@ -323,6 +364,7 @@ const DashboardView: React.FC = () => {
         body="Choose an active timelock from the selector in the header to load governance activity."
         ctaHref="/settings"
         ctaLabel="Manage timelocks in Settings"
+        docsUrl={docsUrl}
       />
     )
   }

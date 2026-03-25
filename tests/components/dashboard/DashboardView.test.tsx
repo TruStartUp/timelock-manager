@@ -180,6 +180,10 @@ describe('DashboardView', () => {
     renderDashboard()
     expect(screen.getByText(/No timelocks configured yet/i)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Go to Settings/i })).toBeInTheDocument()
+    expect(screen.getByText(/What Is A Timelock\?/i)).toBeInTheDocument()
+    expect(
+      screen.getByText(/A review window before governance changes go live/i)
+    ).toBeInTheDocument()
   })
 
   test('shows select timelock state when no active timelock is selected', () => {
@@ -203,6 +207,7 @@ describe('DashboardView', () => {
 
     renderDashboard()
     expect(screen.getByText(/Select a timelock to view the dashboard/i)).toBeInTheDocument()
+    expect(screen.getByText(/What Is A Timelock\?/i)).toBeInTheDocument()
   })
 
   test('displays loading skeletons when operations are fetching', () => {
