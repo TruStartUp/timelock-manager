@@ -96,7 +96,7 @@ After deploying a timelock from the app, you can use the built-in **Subgraph dep
 4. Copy the generated shell command from the UI, paste it into your terminal, and run it. This command:
    - Calls the app’s `/api/subgraph/prepare` endpoint to build a ready-to-deploy subgraph package for your timelock.
    - Unzips the package and runs `npm install @graphprotocol/graph-cli`.
-   - Executes `npx graph auth --studio <DEPLOY_KEY>` and `npx graph deploy --studio <SUBGRAPH_SLUG>` locally on your machine.
+   - Executes `npx graph auth <DEPLOY_KEY>` and `npx graph deploy --studio <SUBGRAPH_SLUG>` locally on your machine.
 5. After deployment succeeds, copy the **Query URL** from The Graph Studio and paste it back into the **Subgraph deploy** view to save this timelock (with its subgraph URL) into the app configuration.
 
 At no point is your Studio deploy key sent to the app’s backend; it is only used locally in your browser and terminal.**
@@ -133,7 +133,7 @@ npm run build
 Authenticate (once per machine) using your Studio deploy key:
 
 ```bash
-npx graph auth --studio <DEPLOY_KEY>
+npx graph auth <DEPLOY_KEY>
 ```
 
 Deploy:
@@ -172,6 +172,15 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 ```bash
 npm test
 ```
+
+## Troubleshooting
+
+Running into an error? See **[TROUBLESHOOTING.md](./TROUBLESHOOTING.md)** for the most
+common issues and their fixes, including:
+
+- `hardhat: command not found` when deploying a timelock → run `npm run build:contracts`.
+- `RPC submit: Internal server error` (-32603) when sending the deploy transaction → switch
+  your wallet to Rootstock Testnet (chainId 31) and make sure you have tRBTC for gas.
 
 ## Deployment (Vercel)
 
