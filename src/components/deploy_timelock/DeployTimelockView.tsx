@@ -32,6 +32,7 @@ export default function DeployTimelockView() {
   const [verifyPending, setVerifyPending] = useState(false)
   const [verifyError, setVerifyError] = useState<string | null>(null)
   const [verifySuccess, setVerifySuccess] = useState(false)
+  const [addedToApp, setAddedToApp] = useState(false)
   const [pastedSubgraphUrl, setPastedSubgraphUrl] = useState('')
 
   const { sendTransaction, data: txHash, isPending: isSendPending, error: sendError } = useSendTransaction()
@@ -143,6 +144,7 @@ export default function DeployTimelockView() {
       network,
       subgraphUrl,
     })
+    setAddedToApp(true)
   }, [deployedAddress, isConfirmed, chainId, addConfig, pastedSubgraphUrl])
 
   const handleVerify = useCallback(async () => {
@@ -263,7 +265,7 @@ export default function DeployTimelockView() {
                         })
                         router.push(`/subgraph/deploy?${params.toString()}`)
                       }}
-                      className="app-button-secondary inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold"
+                      className="app-button-secondary inline-flex cursor-pointer items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold"
                     >
                       Go to subgraph deploy
                     </button>
@@ -275,20 +277,26 @@ export default function DeployTimelockView() {
                   <button
                     type="button"
                     onClick={addToApp}
-                      className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-primary/80"
-                    >
-                      Add this timelock to the app
-                    </button>
+                    disabled={addedToApp}
+                    className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-primary/80 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {addedToApp ? 'Added to the app ✓' : 'Add this timelock to the app'}
+                  </button>
                   {(chainId === ROOTSTOCK_CHAINS.MAINNET || chainId === ROOTSTOCK_CHAINS.TESTNET) && (
                     <button
                       type="button"
                       onClick={handleVerify}
                       disabled={verifyPending}
-                      className="app-button-secondary inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+                      className="app-button-secondary inline-flex cursor-pointer items-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {verifyPending ? 'Verifying…' : 'Verify contract on Blockscout'}
                     </button>
                   )}
+                </div>
+              )}
+              {addedToApp && (
+                <div className="mt-3 rounded border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-800 dark:border-green-500/40 dark:bg-green-500/10 dark:text-green-400">
+                  Timelock added to the app. You can now select it from Settings.
                 </div>
               )}
               {verifySuccess && (
@@ -408,7 +416,7 @@ export default function DeployTimelockView() {
                   type="button"
                   onClick={handleDeploy}
                   disabled={!isConnected || isDeployPending}
-                  className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-white hover:bg-primary/80 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="cursor-pointer inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-white hover:bg-primary/80 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isDeployPending ? 'Deploying…' : 'Deploy Timelock'}
                 </button>
