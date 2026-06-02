@@ -33,6 +33,7 @@
 ## Subgraph Deployment
 
 * [Subgraph Overview](subgraph-deployment/subgraph-deployment.md)
+* [Deploying to The Graph Studio](subgraph-deployment/graph-studio-deployment.md)
 * [What is The Graph?](subgraph-deployment/what-is-the-graph.md)
 * [Preparing for Deployment](subgraph-deployment/preparing-for-deployment.md)
 * [Deploying to Testnet](subgraph-deployment/deploying-testnet.md)
