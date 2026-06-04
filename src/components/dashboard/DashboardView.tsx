@@ -309,6 +309,96 @@ function DashboardEmptyState({
   )
 }
 
+function OnboardingCard({
+  icon,
+  eyebrow,
+  title,
+  body,
+  ctaHref,
+  ctaLabel,
+  note,
+}: {
+  icon: string
+  eyebrow: string
+  title: string
+  body: string
+  ctaHref: string
+  ctaLabel: string
+  note?: React.ReactNode
+}) {
+  return (
+    <div className="app-card flex h-full flex-col p-6 text-left">
+      <div className="mb-4 flex size-12 items-center justify-center rounded-full bg-primary/12 text-primary">
+        <span className="material-symbols-outlined text-2xl">{icon}</span>
+      </div>
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary/85">
+        {eyebrow}
+      </p>
+      <h3 className="mt-1 text-xl font-bold text-text-primary">{title}</h3>
+      <p className="mt-2 flex-1 text-sm leading-relaxed text-text-secondary">{body}</p>
+      {note ? (
+        <p className="mt-4 text-xs leading-relaxed text-text-secondary">{note}</p>
+      ) : null}
+      <div className="mt-6">
+        <Link href={ctaHref} className="app-button-primary w-full justify-center px-6">
+          {ctaLabel}
+        </Link>
+      </div>
+    </div>
+  )
+}
+
+function DashboardOnboarding({ docsUrl }: { docsUrl: string }) {
+  return (
+    <div className="flex items-center justify-center py-12">
+      <div className="w-full max-w-4xl">
+        <div className="text-center">
+          <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-primary/12 text-primary">
+            <span className="material-symbols-outlined text-2xl">rocket_launch</span>
+          </div>
+          <h2 className="text-2xl font-bold text-text-primary">Welcome — let&apos;s get started</h2>
+          <p className="mt-2 text-text-secondary">
+            Choose how you want to begin. You can add a TimelockController you already manage,
+            or deploy a brand new one directly from this app.
+          </p>
+        </div>
+
+        <div className="mt-8 grid grid-cols-1 items-stretch gap-6 md:grid-cols-2">
+          <OnboardingCard
+            icon="add_link"
+            eyebrow="Already have one"
+            title="Add an existing timelock"
+            body="Enter your TimelockController address and its subgraph URL to start monitoring operations, roles, and execution history."
+            ctaHref="/settings"
+            ctaLabel="Add a timelock"
+            note={
+              <>
+                A subgraph indexes the contract&apos;s events so this app can show its
+                operations. Don&apos;t have one yet?{' '}
+                <Link href="/subgraph/deploy" className="font-medium text-primary hover:underline">
+                  Deploy a subgraph
+                </Link>
+                .
+              </>
+            }
+          />
+
+          <OnboardingCard
+            icon="rocket_launch"
+            eyebrow="Start fresh"
+            title="Create a new timelock"
+            body="Deploy a new OpenZeppelin TimelockController on Rootstock in a few clicks — no terminal required."
+            ctaHref="/deploy_timelock"
+            ctaLabel="Deploy a timelock"
+          />
+        </div>
+
+        <TimelockBasicsNote docsUrl={docsUrl} />
+      </div>
+    </div>
+  )
+}
+
 const DashboardView: React.FC = () => {
   const chainId = useChainId()
   const { configurations, selected } = useTimelocks()
@@ -344,16 +434,7 @@ const DashboardView: React.FC = () => {
     roles?.find((role) => role.roleHash === TIMELOCK_ROLES.CANCELLER_ROLE)?.memberCount ?? 0
 
   if (configurations.length === 0) {
-    return (
-      <DashboardEmptyState
-        icon="playlist_add"
-        title="No timelocks configured yet"
-        body="Add a timelock configuration in Settings to start monitoring operations and role changes."
-        ctaHref="/settings"
-        ctaLabel="Go to Settings"
-        docsUrl={docsUrl}
-      />
-    )
+    return <DashboardOnboarding docsUrl={docsUrl} />
   }
 
   if (!selected) {
