@@ -375,7 +375,10 @@ function DashboardOnboarding({ docsUrl }: { docsUrl: string }) {
               <>
                 A subgraph indexes the contract&apos;s events so this app can show its
                 operations. Don&apos;t have one yet?{' '}
-                <Link href="/subgraph/deploy" className="font-medium text-primary hover:underline">
+                <Link
+                  href="/subgraph/deploy"
+                  className="font-semibold text-primary underline underline-offset-2 hover:text-primary/80"
+                >
                   Deploy a subgraph
                 </Link>
                 .
