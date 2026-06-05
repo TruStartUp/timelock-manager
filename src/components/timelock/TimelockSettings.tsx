@@ -1,6 +1,7 @@
 // src/components/timelock/TimelockSettings.tsx
 
 import React, { useState } from 'react'
+import Link from 'next/link'
 import { isAddress, type Address } from 'viem'
 import { useTimelocks } from '@/hooks/useTimelocks'
 
@@ -152,6 +153,14 @@ const AddTimelockForm: React.FC = () => {
             setErrors((prev) => ({ ...prev, subgraphUrl: '' }));
           }}
         />
+        <p className="text-xs leading-relaxed text-text-secondary">
+          Required to index and display this timelock&apos;s operations. Don&apos;t have one
+          yet?{' '}
+          <Link href="/subgraph/deploy" className="font-medium text-primary hover:underline">
+            Deploy a subgraph
+          </Link>
+          .
+        </p>
         {errors.subgraphUrl && (
           <p className="text-sm text-red-400">{errors.subgraphUrl}</p>
         )}
