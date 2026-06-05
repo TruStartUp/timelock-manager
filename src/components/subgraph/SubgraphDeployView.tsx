@@ -62,7 +62,7 @@ unzip -o subgraph-timelock.zip -d subgraph-timelock && \\
 cd subgraph-timelock && \\
 npm install @graphprotocol/graph-cli && \\
 npx graph auth '${trimmedDeployKey}' && \\
-npx graph deploy --studio '${trimmedSlug}'`
+npx graph deploy --node https://api.studio.thegraph.com/deploy/ '${trimmedSlug}'`
   }, [address, deployKey, network, origin, startBlock, subgraphSlug])
 
   const handleSaveToApp = useCallback(() => {
