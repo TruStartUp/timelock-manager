@@ -2,6 +2,9 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useTimelocks } from '@/hooks/useTimelocks'
 
+const subgraphDocsUrl =
+  'https://github.com/TruStartUp/timelock-manager#subgraph-deployment-the-graph-studio'
+
 type SubgraphNetwork = 'rsk_mainnet' | 'rsk_testnet'
 
 type SubgraphDeployViewProps = {
@@ -59,7 +62,7 @@ unzip -o subgraph-timelock.zip -d subgraph-timelock && \\
 cd subgraph-timelock && \\
 npm install @graphprotocol/graph-cli && \\
 npx graph auth '${trimmedDeployKey}' && \\
-npx graph deploy --studio '${trimmedSlug}'`
+npx graph deploy --node https://api.studio.thegraph.com/deploy/ '${trimmedSlug}'`
   }, [address, deployKey, network, origin, startBlock, subgraphSlug])
 
   const handleSaveToApp = useCallback(() => {
@@ -109,7 +112,7 @@ npx graph deploy --studio '${trimmedSlug}'`
             Your deploy key is only used locally in your browser to build that command and is never sent to this app&apos;s
             server. For more details, see the{' '}
             <a
-              href="https://github.com/TruStartUp/timelock-manager#subgraph-deployment-the-graph-studio"
+              href={subgraphDocsUrl}
               target="_blank"
               rel="noreferrer"
               className="text-primary underline"
@@ -118,6 +121,40 @@ npx graph deploy --studio '${trimmedSlug}'`
             </a>
             .
           </p>
+        </div>
+
+        <div className="mb-8 flex items-start gap-3 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-5">
+          <span className="material-symbols-outlined mt-0.5 text-amber-500" aria-hidden>
+            terminal
+          </span>
+          <div className="space-y-2 text-sm leading-relaxed text-text-secondary">
+            <p className="font-semibold text-text-primary">
+              Deploying a subgraph requires your terminal
+            </p>
+            <p>
+              This step cannot be completed from the browser alone. Fill in the fields below to generate a command,
+              then copy it and run it in a terminal on your own machine. You&apos;ll need{' '}
+              <a href="https://thegraph.com/studio/" target="_blank" rel="noreferrer" className="text-primary underline">
+                a Graph Studio account
+              </a>{' '}
+              and its deploy key.
+            </p>
+            <p>For the full walkthrough, follow the step-by-step guide:</p>
+            <a
+              href={subgraphDocsUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/10 px-3 py-1.5 text-sm font-semibold text-primary transition-colors hover:bg-primary/20"
+            >
+              <span className="material-symbols-outlined text-base" aria-hidden>
+                menu_book
+              </span>
+              Subgraph deployment guide
+              <span className="material-symbols-outlined text-base" aria-hidden>
+                open_in_new
+              </span>
+            </a>
+          </div>
         </div>
 
         <div className="app-card space-y-6 p-8">
@@ -220,9 +257,14 @@ npx graph deploy --studio '${trimmedSlug}'`
 
             <div>
               <p className="mb-2 text-sm text-text-secondary">
-                Run this command in your terminal to download the prepared subgraph from this app, unzip it, and run{' '}
+                <span className="font-semibold text-text-primary">Copy and run this command in your terminal.</span>{' '}
+                It downloads the prepared subgraph from this app, unzips it, and runs{' '}
                 <code className="text-primary">graph auth</code> and <code className="text-primary">graph deploy</code>{' '}
-                locally. Your deploy key never leaves your machine.
+                locally. Your deploy key never leaves your machine. Need help?{' '}
+                <a href={subgraphDocsUrl} target="_blank" rel="noreferrer" className="text-primary underline">
+                  Read the deployment guide
+                </a>
+                .
               </p>
               <pre className="w-full overflow-x-auto whitespace-pre rounded-lg border border-border-color bg-slate-950 p-3 text-xs text-slate-100">
                 <code>{deployCommand}</code>

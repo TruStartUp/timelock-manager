@@ -162,6 +162,17 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               <p className="text-sm font-medium leading-normal">New Proposal</p>
             </Link>
             <Link
+              href="/deploy_timelock"
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ${
+                isActive('/deploy_timelock')
+                  ? 'bg-primary/12 text-primary ring-1 ring-primary/20'
+                  : 'text-text-secondary hover:bg-surface-elevated hover:text-text-primary'
+              }`}
+            >
+              <span className="material-symbols-outlined">rocket_launch</span>
+              <p className="text-sm font-medium leading-normal">Deploy Timelock</p>
+            </Link>
+            <Link
               href="/permissions"
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ${
                 isActive('/permissions')
