@@ -68,6 +68,7 @@ interface TimelockContextType {
   configurations: TimelockConfiguration[];
   selected: TimelockConfiguration | null;
   addConfig: (config: Omit<TimelockConfiguration, 'id'>) => void;
+  updateConfig: (id: string, updates: Partial<Omit<TimelockConfiguration, 'id'>>) => void;
   removeConfig: (id: string) => void;
   select: (id: string | null) => void;
   isLoading: boolean;
@@ -171,6 +172,17 @@ export const TimelockProvider: React.FC<React.PropsWithChildren<{}>> = ({ childr
     setError(null)
   }, [selected]);
 
+  const updateConfig = useCallback(
+    (id: string, updates: Partial<Omit<TimelockConfiguration, 'id'>>) => {
+      setConfigurations((prev) =>
+        prev.map((config) => (config.id === id ? { ...config, ...updates } : config))
+      );
+      setSelected((prev) => (prev?.id === id ? { ...prev, ...updates } : prev));
+      setError(null);
+    },
+    []
+  );
+
   const removeConfig = useCallback((id: string) => {
     setConfigurations((prev) => {
         const newConfigs = prev.filter((config) => config.id !== id);
@@ -204,6 +216,7 @@ export const TimelockProvider: React.FC<React.PropsWithChildren<{}>> = ({ childr
     configurations,
     selected,
     addConfig,
+    updateConfig,
     removeConfig,
     select,
     isLoading,

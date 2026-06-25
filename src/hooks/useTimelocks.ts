@@ -14,6 +14,7 @@ export const useTimelocks = () => {
       configurations: [] as TimelockConfiguration[],
       selected: null,
       addConfig: () => undefined,
+      updateConfig: () => undefined,
       removeConfig: () => undefined,
       select: () => undefined,
       isLoading: false,

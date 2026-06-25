@@ -20,6 +20,7 @@ export default function SubgraphDeployView({ initialAddress, initialStartBlock, 
   const [deployKey, setDeployKey] = useState('')
   const [subgraphSlug, setSubgraphSlug] = useState('')
   const [pastedSubgraphUrl, setPastedSubgraphUrl] = useState('')
+  const [saveName, setSaveName] = useState('')
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
 
@@ -81,8 +82,8 @@ npx graph deploy --node https://api.studio.thegraph.com/deploy/ '${trimmedSlug}'
       setSaveError('Timelock address is required.')
       return
     }
-    if (!trimmedUrl) {
-      setSaveError('Subgraph Query URL is required.')
+    if (trimmedUrl && !trimmedUrl.match(/^https?:\/\/.+/)) {
+      setSaveError('Subgraph URL must start with http:// or https://')
       return
     }
 
@@ -90,13 +91,17 @@ npx graph deploy --node https://api.studio.thegraph.com/deploy/ '${trimmedSlug}'
     const normalizedAddress = (lower.startsWith('0x') ? lower : `0x${lower}`) as `0x${string}`
 
     addConfig({
-      name: 'Deployed Timelock',
+      name: saveName.trim() || 'My Timelock',
       address: normalizedAddress,
       network,
       subgraphUrl: trimmedUrl,
     })
-    setSaveSuccess('Timelock saved to the app with this subgraph URL.')
-  }, [addConfig, address, network, pastedSubgraphUrl])
+    setSaveSuccess(
+      trimmedUrl
+        ? 'Timelock saved with this subgraph URL.'
+        : 'Timelock saved. It will read from Blockscout (no subgraph needed). You can add a subgraph URL later in Settings.'
+    )
+  }, [addConfig, address, network, pastedSubgraphUrl, saveName])
 
   return (
     <main className="flex-1 p-8 md:p-12 overflow-y-auto">
@@ -349,17 +354,34 @@ npx graph deploy --node https://api.studio.thegraph.com/deploy/ <YOUR_SLUG>`}</c
 
           <div className="space-y-3">
             <div>
+              <label className="mb-1 block text-sm font-medium text-text-primary" htmlFor="timelock-save-name">
+                Name
+              </label>
+              <input
+                id="timelock-save-name"
+                type="text"
+                className="app-input w-full rounded-lg px-4 py-2 text-text-primary placeholder:text-text-secondary focus:border-primary focus:ring-primary/50"
+                placeholder="My Timelock"
+                value={saveName}
+                onChange={(e) => setSaveName(e.target.value)}
+              />
+            </div>
+            <div>
               <label className="mb-1 block text-sm font-medium text-text-primary" htmlFor="subgraph-query-url">
-                Subgraph Query URL (paste after deploying)
+                Subgraph Query URL <span className="text-text-secondary">(optional)</span>
               </label>
               <input
                 id="subgraph-query-url"
                 type="url"
                 className="app-input w-full rounded-lg px-4 py-2 text-text-primary placeholder:text-text-secondary focus:border-primary focus:ring-primary/50"
-                placeholder="https://api.studio.thegraph.com/query/..."
+                placeholder="Leave empty to use Blockscout"
                 value={pastedSubgraphUrl}
                 onChange={(e) => setPastedSubgraphUrl(e.target.value)}
               />
+              <p className="mt-1 text-xs text-text-secondary">
+                Only paste this if you deployed a subgraph above. Leave it empty and the app reads
+                from Blockscout — no subgraph required. You can change this anytime in Settings.
+              </p>
             </div>
             <div className="flex flex-wrap gap-2">
               <button
@@ -371,9 +393,7 @@ npx graph deploy --node https://api.studio.thegraph.com/deploy/ <YOUR_SLUG>`}</c
               </button>
             </div>
             {saveSuccess && (
-              <p className="text-sm text-emerald-700 dark:text-green-400">
-                Timelock saved. You can now select it in Settings or from the header to view its operations.
-              </p>
+              <p className="text-sm text-emerald-700 dark:text-green-400">{saveSuccess}</p>
             )}
             {saveError && <p className="text-sm text-rose-700 dark:text-red-400">{saveError}</p>}
           </div>

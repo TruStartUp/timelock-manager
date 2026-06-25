@@ -1041,7 +1041,7 @@ const OperationsExplorerView: React.FC = () => {
       {/* T111: Execute simulation preview dialog */}
       {confirmExecuteOperation ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4"
           role="dialog"
           aria-modal="true"
           aria-labelledby="execute-dialog-title"
@@ -1420,7 +1420,7 @@ const OperationsExplorerView: React.FC = () => {
       {/* T082: Cancel confirmation dialog */}
       {confirmCancelOperation ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4"
           role="dialog"
           aria-modal="true"
           aria-labelledby="cancel-dialog-title"
