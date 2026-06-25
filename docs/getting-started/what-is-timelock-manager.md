@@ -97,13 +97,13 @@ Manage multiple TimelockController contracts:
 * Network-specific settings
 * Per-timelock subgraph URLs
 
-### 6. Dual Data Sources
+### 6. Flexible Data Sources
 
-Resilient data fetching with automatic fallback:
+Works out of the box, with an optional fast path:
 
-* **Primary**: The Graph subgraphs (fast, indexed)
-* **Fallback**: Blockscout API (always available)
-* Transparent switching based on availability
+* **Default**: Blockscout API — no subgraph or API key needed; reads operations, roles, and history directly
+* **Optional**: The Graph subgraph for faster indexed queries on very active timelocks (per-timelock, leave empty to use Blockscout)
+* Transparent switching based on configuration and availability
 
 ### 7. Security Features
 
@@ -121,20 +121,21 @@ Built-in safety mechanisms:
 ```
 ┌─────────────────────────────────────────────┐
 │           Timelock Manager UI               │
-└────────────┬───────────────┬────────────────┘
-             │               │
-        ┌────▼────┐     ┌────▼────┐
-        │Subgraph │     │ wagmi   │
-        │(indexed)│     │  (RPC)  │
-        └────┬────┘     └────┬────┘
-             │               │
-        ┌────▼───────────────▼────┐
-        │    Rootstock Network    │
-        │  (TimelockController)   │
-        └─────────────────────────┘
+└──────┬──────────────┬───────────────┬───────┘
+       │              │               │
+ ┌─────▼─────┐  ┌─────▼─────┐    ┌────▼────┐
+ │Blockscout │  │ Subgraph  │    │ wagmi   │
+ │ (default) │  │(optional) │    │  (RPC)  │
+ └─────┬─────┘  └─────┬─────┘    └────┬────┘
+       │              │               │
+       └──────────────┼───────────────┘
+                ┌─────▼─────────────┐
+                │  Rootstock Network │
+                │ (TimelockController)│
+                └────────────────────┘
 ```
 
-1. **Data Layer**: The Graph subgraph indexes timelock events into queryable entities
+1. **Data Layer**: By default the app reads timelock data directly from the Rootstock Blockscout API. An optional The Graph subgraph can index events into queryable entities for faster reads.
 2. **Application Layer**: Next.js app provides UI and business logic
 3. **Blockchain Layer**: wagmi/viem connects to Rootstock RPC for transactions
 
@@ -282,7 +283,7 @@ The **delay** is the waiting period (in seconds) between scheduling and executio
 * **User-Friendly**: No need to interact with contracts directly
 * **Transparent**: See all operations and their status
 * **Safe**: Built-in verification and simulation
-* **Efficient**: Fast queries with subgraph indexing
+* **Efficient**: Reads directly from Blockscout out of the box, with optional subgraph indexing for faster queries
 
 ### For Protocol Administrators
 
@@ -311,7 +312,7 @@ Ready to use Timelock Manager?
 
 * **New User**: Start with [Quick Start](quick-start.md)
 * **Developer**: See [Installation](https://github.com/TruStartUp/timelock-manager)
-* **Administrator**: Check [Subgraph Deployment](../subgraph-deployment/subgraph-deployment.md)
+* **Administrator**: Optionally set up [Subgraph Deployment](../subgraph-deployment/subgraph-deployment.md) for faster indexed queries
 
 ***
 

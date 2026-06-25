@@ -371,7 +371,10 @@ export const timelockConfigurationSchema = z.object({
   name: z.string().min(1, 'Timelock name cannot be empty'),
   address: solidityValidators.address, // Reusing the existing address validator
   network: z.union([z.literal('rsk_mainnet'), z.literal('rsk_testnet')]),
-  subgraphUrl: z.string().url('Invalid URL format for subgraph'),
+  // Optional: empty means the app reads from Blockscout instead of a subgraph.
+  subgraphUrl: z
+    .union([z.string().url('Invalid URL format for subgraph'), z.literal('')])
+    .default(''),
 });
 
 /**

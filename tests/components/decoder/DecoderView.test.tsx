@@ -19,6 +19,10 @@ vi.mock('@/hooks/useContractABI', () => ({
   }),
 }))
 
+vi.mock('@/hooks/useAiEnabled', () => ({
+  useAiEnabled: () => ({ aiEnabled: true, isLoading: false }),
+}))
+
 vi.mock('@/lib/decoder', () => ({
   decodeCalldata: vi.fn(async () => ({
     selector: '0xa9059cbb',

@@ -150,8 +150,8 @@ export function useOperationStatus(
     ] : [],
     query: {
       enabled: enabled && !!timelockAddress && !!operationId,
-      staleTime: 30_000, // 30 seconds
-      refetchInterval: 30_000, // Refetch every 30 seconds to catch transitions
+      staleTime: 60_000,
+      refetchInterval: 120_000,
     },
   })
 

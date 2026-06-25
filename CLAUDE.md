@@ -34,12 +34,12 @@ Copy `.env.example` to `.env.local` and configure:
 
 **Required:**
 - `NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID` - Get from https://cloud.walletconnect.com/
-- `NEXT_PUBLIC_RSK_TESTNET_SUBGRAPH_URL` - The Graph Studio query URL for testnet (after deploying subgraph)
-- `NEXT_PUBLIC_RSK_MAINNET_SUBGRAPH_URL` - For mainnet support
 
 **Optional:**
-- `OPENAI_API_KEY` - Enables AI explanations for decoded operations (server-side only)
+- `NEXT_PUBLIC_RSK_TESTNET_SUBGRAPH_URL` / `NEXT_PUBLIC_RSK_MAINNET_SUBGRAPH_URL` - The Graph Studio query URLs. Only needed if you deploy a subgraph; when unset, the app reads from Blockscout.
+- `OPENAI_API_KEY` - Enables AI explanations for decoded operations (server-side only; when unset, the "Explain with AI" button is disabled)
 - `OPENAI_MODEL` - Defaults to `gpt-5-nano`
+- `NEXT_PUBLIC_DOCS_URL` - Override for in-app documentation links (defaults to the repo docs)
 - `NEXT_PUBLIC_ENABLE_TESTNETS` - Set to `true` to enable testnet in UI
 
 ## Architecture
@@ -49,18 +49,19 @@ Copy `.env.example` to `.env.local` and configure:
 - **Language**: TypeScript
 - **Web3**: wagmi, viem, RainbowKit
 - **Data Fetching**: TanStack Query
-- **Data Sources**: The Graph (primary) with Blockscout API fallback
+- **Data Sources**: Blockscout v2 API (primary, direct from the browser) with an optional The Graph subgraph for heavy timelocks
 - **Styling**: Tailwind CSS
 - **Testing**: Vitest + React Testing Library
 
 ### Key Architectural Patterns
 
-#### 1. Dual Data Source Strategy
-The app prioritizes The Graph subgraphs for indexed data and falls back to Blockscout when subgraphs are unavailable:
+#### 1. Blockscout-First Data Strategy
+The app reads from the Rootstock Blockscout v2 API by default — directly from the browser, with no API key and no setup beyond "timelock address + network". A subgraph is optional and only used when a timelock config has a `subgraphUrl` set (an advanced path for very active timelocks).
 
-- **Subgraph availability check** (`src/services/subgraph/client.ts:getSubgraphAvailability`): Cached health check determines if subgraph is available
-- **Fallback logic** (`src/services/blockscout/events.ts`): When subgraph fails, fetches raw events from Blockscout API
-- **Rate limiting**: Blockscout client enforces 6.6 RPS with request queuing and exponential backoff
+- **Primary source** (`src/services/blockscout/events.ts` + `roles.ts`): Event-sourced operations and roles from raw Blockscout logs (full pagination, batch reconstruction, ISO-timestamp parsing, proposer/executor/canceller resolution). Shared HTTP/pagination/parse helpers live in `src/services/blockscout/logs.ts`.
+- **Optional subgraph**: When `subgraphUrl` is set, queries go to The Graph; an availability check (`src/services/subgraph/client.ts:getSubgraphAvailability`) and per-query try/catch fall back to Blockscout on failure or schema mismatch.
+- **No proxy**: The old Next.js Blockscout proxy (`src/pages/api/blockscout/[network]/[...path].ts`) was removed — it was a keyless pass-through that funneled all users through the server IP and hit the rate limit. The browser now calls Blockscout directly (per-user rate budget).
+- **Polling**: No per-block invalidation. Operations/status use `staleTime` 60s + `refetchInterval` 120s + `refetchOnWindowFocus: false`; the Operations Explorer has a manual Refresh button.
 
 #### 2. Timelock Configuration Management
 TimelockController addresses are user-configurable via Settings:
@@ -105,7 +106,9 @@ Status is computed client-side based on blockchain state:
 - `src/services/subgraph/roles.ts` - Role grant queries
 - `src/services/blockscout/client.ts` - Rate-limited Blockscout v2 API client
 - `src/services/blockscout/abi.ts` - ABI resolution (detects proxies via evm-proxy-detection)
-- `src/services/blockscout/events.ts` - Raw event fetching fallback
+- `src/services/blockscout/events.ts` - Primary event-sourced operations from Blockscout logs
+- `src/services/blockscout/logs.ts` - Shared Blockscout HTTP/pagination/parse helpers
+- `src/services/blockscout/roles.ts` - Event-sourced roles from RoleGranted/RoleRevoked logs
 - `src/services/fourbyte/client.ts` - 4byte.directory signature lookup
 
 #### Core Libraries

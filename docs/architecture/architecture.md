@@ -7,7 +7,7 @@ Technical architecture documentation for Timelock Manager, including data flow, 
 Timelock Manager is built with a modern, resilient architecture that prioritizes:
 
 * **Performance**: Fast queries with intelligent caching
-* **Reliability**: Dual data sources with automatic fallback
+* **Reliability**: Blockscout-first data access with an optional subgraph accelerator
 * **User Experience**: Optimistic updates and real-time synchronization
 * **Security**: Role-based access control and transaction simulation
 * **Extensibility**: Modular design for easy customization
@@ -17,7 +17,7 @@ Timelock Manager is built with a modern, resilient architecture that prioritizes
 ### Core Architecture
 
 1. [Data Flow](data-flow.md) - How data moves through the application
-2. [Dual Data Sources](dual-data-sources.md) - Subgraph + Blockscout fallback strategy
+2. [Dual Data Sources](dual-data-sources.md) - Blockscout-first strategy with an optional subgraph
 3. [Caching Strategy](caching-strategy.md) - Multi-layer caching and invalidation
 
 ### Key Features
@@ -56,24 +56,25 @@ Timelock Manager is built with a modern, resilient architecture that prioritizes
            │              │            │
            ▼              ▼            ▼
     ┌────────────┐ ┌────────────┐ ┌────────────┐
-    │ The Graph  │ │ Blockscout │ │  Rootstock │
-    │ Subgraph   │ │    API     │ │    RPC     │
+    │ Blockscout │ │ The Graph  │ │  Rootstock │
+    │    API     │ │ Subgraph   │ │    RPC     │
+    │ (default)  │ │ (optional) │ │            │
     └────────────┘ └────────────┘ └────────────┘
 ```
 
 ## Key Architectural Patterns
 
-### 1. Dual Data Source Pattern
+### 1. Blockscout-First Data Source Pattern
 
-**Problem**: The Graph subgraphs can be unavailable during deployment or issues
+**Problem**: Indexed data should be available with zero setup, beyond a timelock address and network
 
-**Solution**: Automatic fallback to Blockscout API for fetching raw events
+**Solution**: Read operations, roles, and events directly from the Rootstock Blockscout v2 API in the browser by default. A subgraph is an optional accelerator for very active timelocks; when a config has no subgraph URL, the app uses Blockscout.
 
 **Benefits**:
 
-* High availability
-* Graceful degradation
-* Transparent to users
+* Works out of the box, no subgraph deployment required
+* No shared-server bottleneck (each browser uses its own per-IP rate budget)
+* Optional faster indexed queries when a compatible subgraph is configured
 
 See: [Dual Data Sources](dual-data-sources.md)
 
@@ -146,11 +147,11 @@ TanStack Query checks cache
     fetchOperations service
         │
         ▼
-    Check subgraph availability
+    Subgraph URL configured?
         │
-        ├─ Available: Query GraphQL
+        ├─ No (default): Fetch from Blockscout v2 API
         │
-        └─ Unavailable: Fetch from Blockscout
+        └─ Yes: Query GraphQL subgraph
             │
             ▼
         Return normalized operations
@@ -211,8 +212,8 @@ Wait for confirmation
 ### Data Layer
 
 * **TanStack Query**: Data fetching, caching, synchronization
-* **The Graph**: Primary data source (subgraphs)
-* **Blockscout**: Fallback data source and ABI resolution
+* **Blockscout**: Primary data source (operations, roles, events) and ABI resolution
+* **The Graph**: Optional subgraph accelerator for indexed queries
 
 ### State Management
 
@@ -279,8 +280,8 @@ src/
 │   ├── api/          # API routes
 │   └── *.tsx         # Page components
 ├── services/         # External service clients
-│   ├── subgraph/     # The Graph integration
-│   ├── blockscout/   # Blockscout API client
+│   ├── blockscout/   # Blockscout API client (default data source)
+│   ├── subgraph/     # The Graph integration (optional)
 │   └── fourbyte/     # 4byte directory client
 ├── types/            # TypeScript type definitions
 └── wagmi.ts          # wagmi configuration

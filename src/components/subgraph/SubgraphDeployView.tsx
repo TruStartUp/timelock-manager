@@ -1,9 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useTimelocks } from '@/hooks/useTimelocks'
-
-const subgraphDocsUrl =
-  'https://github.com/TruStartUp/timelock-manager#subgraph-deployment-the-graph-studio'
+import { SUBGRAPH_DOCS_URL as subgraphDocsUrl } from '@/lib/docs'
 
 type SubgraphNetwork = 'rsk_mainnet' | 'rsk_testnet'
 
@@ -22,6 +20,7 @@ export default function SubgraphDeployView({ initialAddress, initialStartBlock, 
   const [deployKey, setDeployKey] = useState('')
   const [subgraphSlug, setSubgraphSlug] = useState('')
   const [pastedSubgraphUrl, setPastedSubgraphUrl] = useState('')
+  const [saveName, setSaveName] = useState('')
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
 
@@ -32,6 +31,14 @@ export default function SubgraphDeployView({ initialAddress, initialStartBlock, 
       setOrigin(window.location.origin)
     }
   }, [])
+
+  const subgraphDir = useMemo(
+    () =>
+      network === 'rsk_mainnet'
+        ? 'rootstock-timelock-mainnet'
+        : 'rootstock-timelock-testnet',
+    [network]
+  )
 
   const deployCommand = useMemo(() => {
     const trimmedAddress = address.trim()
@@ -75,8 +82,8 @@ npx graph deploy --node https://api.studio.thegraph.com/deploy/ '${trimmedSlug}'
       setSaveError('Timelock address is required.')
       return
     }
-    if (!trimmedUrl) {
-      setSaveError('Subgraph Query URL is required.')
+    if (trimmedUrl && !trimmedUrl.match(/^https?:\/\/.+/)) {
+      setSaveError('Subgraph URL must start with http:// or https://')
       return
     }
 
@@ -84,13 +91,17 @@ npx graph deploy --node https://api.studio.thegraph.com/deploy/ '${trimmedSlug}'
     const normalizedAddress = (lower.startsWith('0x') ? lower : `0x${lower}`) as `0x${string}`
 
     addConfig({
-      name: 'Deployed Timelock',
+      name: saveName.trim() || 'My Timelock',
       address: normalizedAddress,
       network,
       subgraphUrl: trimmedUrl,
     })
-    setSaveSuccess('Timelock saved to the app with this subgraph URL.')
-  }, [addConfig, address, network, pastedSubgraphUrl])
+    setSaveSuccess(
+      trimmedUrl
+        ? 'Timelock saved with this subgraph URL.'
+        : 'Timelock saved. It will read from Blockscout (no subgraph needed). You can add a subgraph URL later in Settings.'
+    )
+  }, [addConfig, address, network, pastedSubgraphUrl, saveName])
 
   return (
     <main className="flex-1 p-8 md:p-12 overflow-y-auto">
@@ -107,20 +118,33 @@ npx graph deploy --node https://api.studio.thegraph.com/deploy/ '${trimmedSlug}'
             Deploy subgraph for timelock
           </h1>
           <p className="mt-3 text-base font-normal leading-normal text-text-secondary">
-            Prepare and deploy a subgraph for a specific timelock. This view generates a ready-to-deploy subgraph
-            package and a one-liner you can run in your terminal with your Graph Studio deploy key and subgraph slug.
-            Your deploy key is only used locally in your browser to build that command and is never sent to this app&apos;s
-            server. For more details, see the{' '}
-            <a
-              href={subgraphDocsUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="text-primary underline"
-            >
-              documentation
-            </a>
-            .
+            A subgraph is <span className="font-semibold text-text-primary">optional</span> — the app reads from
+            Blockscout by default. Deploy one only if you want faster indexed queries for a very active timelock.
+            This page builds a ready-to-deploy package and a command you run in your own terminal; your Graph Studio
+            deploy key stays on your machine and never reaches this app&apos;s server.
           </p>
+        </div>
+
+        <div className="mb-8 flex items-start gap-3 rounded-2xl border border-red-500/40 bg-red-500/10 p-5">
+          <span className="material-symbols-outlined mt-0.5 text-red-400" aria-hidden>
+            warning
+          </span>
+          <div className="space-y-2 text-sm leading-relaxed text-text-secondary">
+            <p className="font-semibold text-text-primary">
+              Don&apos;t create this subgraph with <code className="text-red-300">graph init</code>
+            </p>
+            <p>
+              The Timelock Manager queries a <span className="font-semibold text-text-primary">custom aggregated
+              schema</span> — entities like <code>Operation</code>, <code>Call</code>, <code>Role</code> and{' '}
+              <code>RoleAssignment</code>. A subgraph scaffolded with <code className="text-red-300">graph init</code>{' '}
+              only produces raw per-event entities (<code>CallScheduled</code>, <code>RoleGranted</code>, …), so the
+              app&apos;s queries return nothing and the timelock appears broken.
+            </p>
+            <p>
+              Always deploy from the prepared package below (recommended) or from the templates in{' '}
+              <code>subgraph/</code> in the repo — both ship the correct schema.
+            </p>
+          </div>
         </div>
 
         <div className="mb-8 flex items-start gap-3 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-5">
@@ -129,35 +153,31 @@ npx graph deploy --node https://api.studio.thegraph.com/deploy/ '${trimmedSlug}'
           </span>
           <div className="space-y-2 text-sm leading-relaxed text-text-secondary">
             <p className="font-semibold text-text-primary">
-              Deploying a subgraph requires your terminal
+              You&apos;ll finish this in your terminal
             </p>
             <p>
-              This step cannot be completed from the browser alone. Fill in the fields below to generate a command,
-              then copy it and run it in a terminal on your own machine. You&apos;ll need{' '}
+              Deploying can&apos;t be done from the browser alone. You need{' '}
               <a href="https://thegraph.com/studio/" target="_blank" rel="noreferrer" className="text-primary underline">
                 a Graph Studio account
-              </a>{' '}
-              and its deploy key.
+              </a>
+              , its deploy key, and Node.js 18+. Follow the numbered steps below, or read the{' '}
+              <a href={subgraphDocsUrl} target="_blank" rel="noreferrer" className="text-primary underline">
+                full deployment guide
+              </a>
+              .
             </p>
-            <p>For the full walkthrough, follow the step-by-step guide:</p>
-            <a
-              href={subgraphDocsUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/10 px-3 py-1.5 text-sm font-semibold text-primary transition-colors hover:bg-primary/20"
-            >
-              <span className="material-symbols-outlined text-base" aria-hidden>
-                menu_book
-              </span>
-              Subgraph deployment guide
-              <span className="material-symbols-outlined text-base" aria-hidden>
-                open_in_new
-              </span>
-            </a>
           </div>
         </div>
 
         <div className="app-card space-y-6 p-8">
+          <div className="flex items-center gap-3">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-white">
+              1
+            </span>
+            <h2 className="text-lg font-bold text-text-primary">
+              Identify your timelock
+            </h2>
+          </div>
           <div className="grid gap-4 md:grid-cols-2">
             <div>
               <label className="mb-2 block text-sm font-medium text-text-primary" htmlFor="timelock-address">
@@ -219,6 +239,18 @@ npx graph deploy --node https://api.studio.thegraph.com/deploy/ '${trimmedSlug}'
             </div>
           </div>
 
+          <div className="flex items-center gap-3 border-t border-border-color pt-6">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-white">
+              2
+            </span>
+            <h2 className="text-lg font-bold text-text-primary">
+              Build &amp; deploy the prepared package
+              <span className="ml-2 rounded-full bg-primary/15 px-2 py-0.5 text-xs font-semibold text-primary">
+                Recommended
+              </span>
+            </h2>
+          </div>
+
           <div className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
               <div>
@@ -270,21 +302,86 @@ npx graph deploy --node https://api.studio.thegraph.com/deploy/ '${trimmedSlug}'
                 <code>{deployCommand}</code>
               </pre>
             </div>
+
+            <details className="rounded-lg border border-border-color bg-surface p-4">
+              <summary className="cursor-pointer text-sm font-semibold text-text-primary">
+                Prefer to deploy manually from the cloned repo?
+              </summary>
+              <div className="mt-3 space-y-3 text-sm leading-relaxed text-text-secondary">
+                <p>
+                  Use the template in <code>subgraph/{subgraphDir}</code>. The key step is setting your timelock in{' '}
+                  <span className="font-semibold text-text-primary">both</span> files — they must match, or the build
+                  fails:
+                </p>
+                <ul className="list-disc space-y-1 pl-5">
+                  <li>
+                    <code>networks.json</code> → <code>TimelockController.address</code> and{' '}
+                    <code>startBlock</code>
+                  </li>
+                  <li>
+                    <code>subgraph.yaml</code> → <code>source.address</code> and <code>source.startBlock</code>
+                  </li>
+                </ul>
+                <pre className="w-full overflow-x-auto whitespace-pre rounded-lg border border-border-color bg-slate-950 p-3 text-xs text-slate-100">
+                  <code>{`git clone https://github.com/TruStartUp/timelock-manager.git
+cd timelock-manager/subgraph/${subgraphDir}
+
+# Edit networks.json AND subgraph.yaml with your address + startBlock (must match)
+
+npm install
+npm run codegen   # generate types from schema.graphql
+npm run build     # compile the subgraph
+
+npx graph auth <YOUR_DEPLOY_KEY>
+npx graph deploy --node https://api.studio.thegraph.com/deploy/ <YOUR_SLUG>`}</code>
+                </pre>
+                <p>
+                  Don&apos;t run <code className="text-red-300">graph init</code> — it overwrites the schema with the
+                  default per-event one the app can&apos;t query.
+                </p>
+              </div>
+            </details>
           </div>
 
-          <div className="mt-2 space-y-3 border-t border-border-color pt-2">
+          <div className="mt-2 flex items-center gap-3 border-t border-border-color pt-6">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-white">
+              3
+            </span>
+            <h2 className="text-lg font-bold text-text-primary">
+              Connect it back to the app
+            </h2>
+          </div>
+
+          <div className="space-y-3">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-text-primary" htmlFor="timelock-save-name">
+                Name
+              </label>
+              <input
+                id="timelock-save-name"
+                type="text"
+                className="app-input w-full rounded-lg px-4 py-2 text-text-primary placeholder:text-text-secondary focus:border-primary focus:ring-primary/50"
+                placeholder="My Timelock"
+                value={saveName}
+                onChange={(e) => setSaveName(e.target.value)}
+              />
+            </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-text-primary" htmlFor="subgraph-query-url">
-                Subgraph Query URL (paste after deploying)
+                Subgraph Query URL <span className="text-text-secondary">(optional)</span>
               </label>
               <input
                 id="subgraph-query-url"
                 type="url"
                 className="app-input w-full rounded-lg px-4 py-2 text-text-primary placeholder:text-text-secondary focus:border-primary focus:ring-primary/50"
-                placeholder="https://api.studio.thegraph.com/query/..."
+                placeholder="Leave empty to use Blockscout"
                 value={pastedSubgraphUrl}
                 onChange={(e) => setPastedSubgraphUrl(e.target.value)}
               />
+              <p className="mt-1 text-xs text-text-secondary">
+                Only paste this if you deployed a subgraph above. Leave it empty and the app reads
+                from Blockscout — no subgraph required. You can change this anytime in Settings.
+              </p>
             </div>
             <div className="flex flex-wrap gap-2">
               <button
@@ -296,9 +393,7 @@ npx graph deploy --node https://api.studio.thegraph.com/deploy/ '${trimmedSlug}'
               </button>
             </div>
             {saveSuccess && (
-              <p className="text-sm text-emerald-700 dark:text-green-400">
-                Timelock saved. You can now select it in Settings or from the header to view its operations.
-              </p>
+              <p className="text-sm text-emerald-700 dark:text-green-400">{saveSuccess}</p>
             )}
             {saveError && <p className="text-sm text-rose-700 dark:text-red-400">{saveError}</p>}
           </div>

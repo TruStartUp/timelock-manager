@@ -31,9 +31,13 @@ The app will automatically prompt you to add Rootstock network if it's not in yo
    * **Name**: Friendly name (e.g., "Main DAO Timelock")
    * **Address**: Your TimelockController contract address
    * **Network**: Select Mainnet or Testnet
-   * **Subgraph URL**: The Graph query URL (from administrator)
+   * **Subgraph URL** _(optional)_: Leave empty to read directly from Blockscout. Only add a The Graph query URL if your administrator has deployed a subgraph (an advanced, optional path for very active timelocks).
 4. Click **"Save"**
 5. Select the timelock from the dropdown in the header
+
+{% hint style="info" %}
+That's the fastest path: a timelock address plus a network is all you need. The app reads operations, roles, and history directly from the Rootstock Blockscout API with zero additional setup. A subgraph is optional.
+{% endhint %}
 
 \[Screenshot placeholder: Settings page with timelock configuration]
 
@@ -81,14 +85,14 @@ cp .env.example .env.local
 Minimal configuration:
 
 ```bash
-# Required
+# Required (for wallet connection)
 NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID=your_project_id_here
 
-# Optional (app works with Blockscout fallback)
-NEXT_PUBLIC_RSK_TESTNET_SUBGRAPH_URL=https://api.studio.thegraph.com/query/...
-
-# Enable testnet
+# Optional: enable testnet in the UI
 NEXT_PUBLIC_ENABLE_TESTNETS=true
+
+# Optional: subgraph URLs (advanced — app reads from Blockscout by default)
+NEXT_PUBLIC_RSK_TESTNET_SUBGRAPH_URL=https://api.studio.thegraph.com/query/...
 ```
 
 Get WalletConnect Project ID:
@@ -115,13 +119,34 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ### Next Steps for Developers
 
-* Deploy subgraph: [Deploying to Testnet](../subgraph-deployment/deploying-testnet.md)
+* (Optional) Deploy a subgraph for faster indexed queries: [Deploying to Testnet](../subgraph-deployment/deploying-testnet.md)
 * Understand architecture: [Architecture Overview](../architecture/architecture.md)
 * Read developer guide: [Developer Guide](../developer-guide/developer-guide.md)
 
 ## For Administrators
 
-### Step 1: Deploy Subgraph
+### Step 1: Configure Application
+
+Create `.env.local` (or configure on Vercel):
+
+```bash
+# Required (for wallet connection)
+NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID=abc123...
+
+# Optional: Custom RPC for better performance
+NEXT_PUBLIC_RSK_MAINNET_RPC_URL=https://your-rpc-endpoint.com
+
+# Optional: AI explanations (off unless set)
+OPENAI_API_KEY=sk-proj-...
+
+# Optional: subgraph URLs (advanced — app reads from Blockscout by default)
+NEXT_PUBLIC_RSK_TESTNET_SUBGRAPH_URL=https://api.studio.thegraph.com/query/.../...
+NEXT_PUBLIC_RSK_MAINNET_SUBGRAPH_URL=https://api.studio.thegraph.com/query/.../...
+```
+
+### Step 2 (Optional): Deploy a Subgraph
+
+A subgraph is **not required** — the app reads operations, roles, and history directly from Blockscout out of the box. Deploy one only if you run a very active timelock and want faster indexed queries:
 
 ```bash
 # Navigate to subgraph directory
@@ -146,26 +171,7 @@ npx graph auth --studio <YOUR_DEPLOY_KEY>
 npm run deploy
 ```
 
-Wait for subgraph to sync (check The Graph Studio dashboard).
-
-### Step 2: Configure Application
-
-Create `.env.local` (or configure on Vercel):
-
-```bash
-# Required
-NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID=abc123...
-
-# Subgraph URLs (from The Graph Studio)
-NEXT_PUBLIC_RSK_TESTNET_SUBGRAPH_URL=https://api.studio.thegraph.com/query/.../...
-NEXT_PUBLIC_RSK_MAINNET_SUBGRAPH_URL=https://api.studio.thegraph.com/query/.../...
-
-# Optional: Custom RPC for better performance
-NEXT_PUBLIC_RSK_MAINNET_RPC_URL=https://your-rpc-endpoint.com
-
-# Optional: AI explanations
-OPENAI_API_KEY=sk-proj-...
-```
+Wait for subgraph to sync (check The Graph Studio dashboard), then add its query URL to the matching `NEXT_PUBLIC_RSK_*_SUBGRAPH_URL` variable.
 
 ### Step 3: Deploy to Vercel
 
@@ -220,16 +226,17 @@ vercel
 
 **Possible causes**:
 
-* Subgraph not deployed or not synced
-* Wrong subgraph URL
-* Network mismatch
+* Wrong timelock address
+* Network mismatch (timelock configured for a different network than selected)
+* The timelock genuinely has no operations yet
+* If using an optional subgraph: wrong subgraph URL or it hasn't synced
 
 **Solution**:
 
-1. Check subgraph is deployed and synced in The Graph Studio
-2. Verify `NEXT_PUBLIC_RSK_*_SUBGRAPH_URL` is correct
-3. Check browser console for "Subgraph unavailable" warning
-4. App should automatically fall back to Blockscout
+1. Verify the timelock **address** and **network** in Settings
+2. Confirm the timelock has operations (cross-check on Blockscout)
+3. If you configured a subgraph URL, clear it to fall back to Blockscout, or verify it is correct and synced in The Graph Studio
+4. Check the browser console for errors
 
 ***
 
@@ -304,10 +311,10 @@ npm run deploy       # Deploy to Studio
 ### Key Environment Variables
 
 ```bash
-# Minimum (for basic functionality)
+# Required (for wallet connection)
 NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID=...
 
-# Recommended (for full features)
+# Optional (advanced — app reads from Blockscout by default)
 NEXT_PUBLIC_RSK_TESTNET_SUBGRAPH_URL=...
 NEXT_PUBLIC_RSK_MAINNET_SUBGRAPH_URL=...
 NEXT_PUBLIC_RSK_MAINNET_RPC_URL=...
@@ -330,13 +337,13 @@ Based on your role:
 ### As a Developer
 
 1. ✅ Running locally
-2. → Deploy subgraph: [Subgraph Deployment](../subgraph-deployment/deploying-testnet.md)
+2. → (Optional) Deploy a subgraph: [Subgraph Deployment](../subgraph-deployment/deploying-testnet.md)
 3. → Understand architecture: [Architecture](../architecture/architecture.md)
 4. → Read developer guide: [Developer Guide](../developer-guide/developer-guide.md)
 
 ### As an Administrator
 
-1. ✅ Deployed app and subgraph
+1. ✅ Deployed app (subgraph optional)
 2. → Production checklist: [Production Checklist](../deployment/production-checklist.md)
 3. → Set up monitoring: [Monitoring](../deployment/monitoring.md)
 4. → Security review: [Security Best Practices](../security/best-practices.md)

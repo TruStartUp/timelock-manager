@@ -91,14 +91,18 @@ function buildFingerprint(body: ExplainRequestBody, calls: ExplainCall[]): strin
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method === 'GET') {
+    return res.status(200).json({ enabled: Boolean(process.env.OPENAI_API_KEY) })
+  }
+
   if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST')
+    res.setHeader('Allow', 'GET, POST')
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
   const apiKey = process.env.OPENAI_API_KEY
   if (!apiKey) {
-    return res.status(500).json({ error: 'OPENAI_API_KEY is not set' })
+    return res.status(503).json({ error: 'OPENAI_API_KEY is not set' })
   }
 
   const body = (req.body ?? {}) as ExplainRequestBody

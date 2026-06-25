@@ -34,6 +34,7 @@ export default function DeployTimelockView() {
   const [verifySuccess, setVerifySuccess] = useState(false)
   const [addedToApp, setAddedToApp] = useState(false)
   const [pastedSubgraphUrl, setPastedSubgraphUrl] = useState('')
+  const [saveName, setSaveName] = useState('')
 
   const { sendTransaction, data: txHash, isPending: isSendPending, error: sendError } = useSendTransaction()
   const { data: receipt, isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({ hash: txHash })
@@ -132,20 +133,15 @@ export default function DeployTimelockView() {
     const address = deployedAddress
     if (!address || !isConfirmed) return
     const network = chainId === ROOTSTOCK_CHAINS.MAINNET ? 'rsk_mainnet' : 'rsk_testnet'
-    const envSubgraphUrl =
-      chainId === ROOTSTOCK_CHAINS.MAINNET
-        ? process.env.NEXT_PUBLIC_RSK_MAINNET_SUBGRAPH_URL ?? ''
-        : process.env.NEXT_PUBLIC_RSK_TESTNET_SUBGRAPH_URL ?? ''
-    const fallbackSubgraphUrl = `https://api.studio.thegraph.com/query/0/rootstock-timelock-${network === 'rsk_mainnet' ? 'mainnet' : 'testnet'}/version/latest`
-    const subgraphUrl = pastedSubgraphUrl.trim() || envSubgraphUrl || fallbackSubgraphUrl
+    // Default to Blockscout (empty subgraphUrl); only set a subgraph if the user pasted one.
     addConfig({
-      name: 'Deployed Timelock',
+      name: saveName.trim() || 'My Timelock',
       address,
       network,
-      subgraphUrl,
+      subgraphUrl: pastedSubgraphUrl.trim(),
     })
     setAddedToApp(true)
-  }, [deployedAddress, isConfirmed, chainId, addConfig, pastedSubgraphUrl])
+  }, [deployedAddress, isConfirmed, chainId, addConfig, pastedSubgraphUrl, saveName])
 
   const handleVerify = useCallback(async () => {
     if (!deployedAddress || chainId !== ROOTSTOCK_CHAINS.MAINNET && chainId !== ROOTSTOCK_CHAINS.TESTNET) return
@@ -271,6 +267,41 @@ export default function DeployTimelockView() {
                     </button>
                   </div>
                 )}
+
+              {deployedAddress && !addedToApp && (
+                <div className="space-y-3 pt-2">
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-text-primary" htmlFor="deploy-save-name">
+                      Name
+                    </label>
+                    <input
+                      id="deploy-save-name"
+                      type="text"
+                      className="app-input w-full rounded-lg px-4 py-2.5 text-text-primary placeholder:text-text-secondary focus:border-primary focus:ring-primary/50"
+                      placeholder="My Timelock"
+                      value={saveName}
+                      onChange={(e) => setSaveName(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-text-primary" htmlFor="deploy-save-subgraph">
+                      Subgraph URL <span className="text-text-secondary">(optional)</span>
+                    </label>
+                    <input
+                      id="deploy-save-subgraph"
+                      type="url"
+                      className="app-input w-full rounded-lg px-4 py-2.5 text-text-primary placeholder:text-text-secondary focus:border-primary focus:ring-primary/50"
+                      placeholder="Leave empty to use Blockscout"
+                      value={pastedSubgraphUrl}
+                      onChange={(e) => setPastedSubgraphUrl(e.target.value)}
+                    />
+                    <p className="mt-1 text-xs text-text-secondary">
+                      Leave empty and the app reads from Blockscout — no subgraph required. You can
+                      add or change this anytime in Settings.
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {deployedAddress && (
                 <div className="flex flex-wrap gap-3 pt-2">

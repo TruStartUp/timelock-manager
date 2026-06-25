@@ -35,9 +35,8 @@ const AddTimelockForm: React.FC = () => {
       newErrors.address = 'Invalid Ethereum address';
     }
 
-    if (!subgraphUrl.trim()) {
-      newErrors.subgraphUrl = 'Subgraph URL is required';
-    } else if (!subgraphUrl.trim().match(/^https?:\/\/.+/)) {
+    // Subgraph URL is optional; only validate format when provided.
+    if (subgraphUrl.trim() && !subgraphUrl.trim().match(/^https?:\/\/.+/)) {
       newErrors.subgraphUrl = 'Invalid URL (must start with http:// or https://)';
     }
 
@@ -139,8 +138,11 @@ const AddTimelockForm: React.FC = () => {
 
       {/* Subgraph URL Field */}
       <div className="flex flex-col gap-2">
-        <label className="text-sm font-medium text-text-primary" htmlFor="timelock-subgraph">
+        <label className="flex items-center gap-2 text-sm font-medium text-text-primary" htmlFor="timelock-subgraph">
           Subgraph URL
+          <span className="rounded-full border border-border-color px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-text-secondary">
+            Optional · Advanced
+          </span>
         </label>
         <input
           className={inputClass}
@@ -154,8 +156,8 @@ const AddTimelockForm: React.FC = () => {
           }}
         />
         <p className="text-xs leading-relaxed text-text-secondary">
-          Required to index and display this timelock&apos;s operations. Don&apos;t have one
-          yet?{' '}
+          Leave empty to use Blockscout automatically — no setup required. A subgraph is only
+          needed for faster indexing on very active timelocks.{' '}
           <Link href="/subgraph/deploy" className="font-medium text-primary hover:underline">
             Deploy a subgraph
           </Link>
@@ -191,7 +193,12 @@ const AddTimelockForm: React.FC = () => {
  * Allows users to remove configurations with confirmation.
  */
 const TimelockList: React.FC = () => {
-  const { configurations, removeConfig, selected } = useTimelocks();
+  const { configurations, updateConfig, removeConfig, selected } = useTimelocks();
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editSubgraphUrl, setEditSubgraphUrl] = useState('');
+  const [editError, setEditError] = useState('');
 
   if (configurations.length === 0) {
     return (
@@ -209,59 +216,174 @@ const TimelockList: React.FC = () => {
     }
   };
 
+  const startEdit = (id: string, name: string, subgraphUrl: string): void => {
+    setEditingId(id);
+    setEditName(name);
+    setEditSubgraphUrl(subgraphUrl);
+    setEditError('');
+  };
+
+  const cancelEdit = (): void => {
+    setEditingId(null);
+    setEditError('');
+  };
+
+  const saveEdit = (id: string): void => {
+    if (!editName.trim()) {
+      setEditError('Name is required');
+      return;
+    }
+    if (editSubgraphUrl.trim() && !editSubgraphUrl.trim().match(/^https?:\/\/.+/)) {
+      setEditError('Invalid URL (must start with http:// or https://)');
+      return;
+    }
+    updateConfig(id, {
+      name: editName.trim(),
+      subgraphUrl: editSubgraphUrl.trim(),
+    });
+    setEditingId(null);
+    setEditError('');
+  };
+
   const shortenAddress = (addr: string): string => {
     if (addr.length < 10) return addr;
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
   };
 
+  const inputClass =
+    'w-full rounded-lg border border-border-color bg-surface px-3 py-2 text-sm text-text-primary placeholder:text-text-secondary focus:border-primary focus:ring-primary/50';
+
   return (
     <div>
       <h3 className="text-text-primary text-lg font-semibold mb-4">Configured Timelocks</h3>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        {configurations.map((config) => (
-          <div
-            key={config.id}
-            className="rounded-xl border border-border-color bg-surface-elevated/40 p-4 transition-colors hover:border-primary/50"
-          >
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex-1 min-w-0">
-                <h4 className="text-text-primary font-semibold flex items-center gap-2 flex-wrap">
-                  {config.name}
-                  {selected?.id === config.id && (
-                    <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">
-                      Active
-                    </span>
-                  )}
-                </h4>
-                <p className="text-xs text-text-secondary font-mono truncate mt-1" title={config.address}>
-                  {shortenAddress(config.address)}
-                </p>
-                <div className="flex items-center gap-2 mt-2">
-                  <span
-                    className={`text-xs px-2 py-0.5 rounded ${
-                      config.network === 'rsk_mainnet'
-                        ? 'bg-green-500/20 text-green-400'
-                        : 'bg-yellow-500/20 text-yellow-400'
-                    }`}
-                  >
-                    {config.network === 'rsk_mainnet' ? 'Mainnet' : 'Testnet'}
-                  </span>
+        {configurations.map((config) => {
+          const usesSubgraph = Boolean(config.subgraphUrl?.trim());
+
+          if (editingId === config.id) {
+            return (
+              <div
+                key={config.id}
+                className="rounded-xl border border-primary/50 bg-surface-elevated/40 p-4"
+              >
+                <div className="flex flex-col gap-3">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-medium text-text-secondary">Name</label>
+                    <input
+                      className={inputClass}
+                      value={editName}
+                      onChange={(e) => {
+                        setEditName(e.target.value);
+                        setEditError('');
+                      }}
+                      placeholder="My Timelock Controller"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="flex items-center justify-between text-xs font-medium text-text-secondary">
+                      <span>Subgraph URL (optional)</span>
+                      {editSubgraphUrl.trim() ? (
+                        <button
+                          type="button"
+                          onClick={() => setEditSubgraphUrl('')}
+                          className="font-medium text-primary hover:underline"
+                        >
+                          Use Blockscout
+                        </button>
+                      ) : null}
+                    </label>
+                    <input
+                      className={`${inputClass} font-mono`}
+                      value={editSubgraphUrl}
+                      onChange={(e) => {
+                        setEditSubgraphUrl(e.target.value);
+                        setEditError('');
+                      }}
+                      placeholder="Empty = Blockscout"
+                    />
+                  </div>
+                  {editError && <p className="text-sm text-red-400">{editError}</p>}
+                  <div className="flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={cancelEdit}
+                      className="rounded-full px-4 py-1.5 text-sm font-semibold text-text-secondary hover:bg-surface"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => saveEdit(config.id)}
+                      className="rounded-full bg-primary px-4 py-1.5 text-sm font-semibold text-white hover:bg-primary/80"
+                    >
+                      Save
+                    </button>
+                  </div>
                 </div>
               </div>
-              <button
-                onClick={() => handleRemove(config.id, config.name)}
-                className="rounded-full p-2 bg-red-500/15 text-red-300 transition-colors hover:bg-red-500/25"
-                title="Remove configuration"
-                aria-label={`Remove ${config.name}`}
-              >
-                <span className="material-symbols-outlined text-base">delete</span>
-              </button>
+            );
+          }
+
+          return (
+            <div
+              key={config.id}
+              className="rounded-xl border border-border-color bg-surface-elevated/40 p-4 transition-colors hover:border-primary/50"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-text-primary font-semibold flex items-center gap-2 flex-wrap">
+                    {config.name}
+                    {selected?.id === config.id && (
+                      <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">
+                        Active
+                      </span>
+                    )}
+                  </h4>
+                  <p className="text-xs text-text-secondary font-mono truncate mt-1" title={config.address}>
+                    {shortenAddress(config.address)}
+                  </p>
+                  <div className="flex items-center gap-2 mt-2 flex-wrap">
+                    <span
+                      className={`text-xs px-2 py-0.5 rounded ${
+                        config.network === 'rsk_mainnet'
+                          ? 'bg-green-500/20 text-green-400'
+                          : 'bg-yellow-500/20 text-yellow-400'
+                      }`}
+                    >
+                      {config.network === 'rsk_mainnet' ? 'Mainnet' : 'Testnet'}
+                    </span>
+                    <span className="text-xs px-2 py-0.5 rounded bg-border-color/60 text-text-secondary">
+                      {usesSubgraph ? 'Subgraph' : 'Blockscout'}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => startEdit(config.id, config.name, config.subgraphUrl ?? '')}
+                    className="rounded-full p-2 bg-surface text-text-secondary transition-colors hover:bg-primary/15 hover:text-primary"
+                    title="Edit configuration"
+                    aria-label={`Edit ${config.name}`}
+                  >
+                    <span className="material-symbols-outlined text-base">edit</span>
+                  </button>
+                  <button
+                    onClick={() => handleRemove(config.id, config.name)}
+                    className="rounded-full p-2 bg-red-500/15 text-red-300 transition-colors hover:bg-red-500/25"
+                    title="Remove configuration"
+                    aria-label={`Remove ${config.name}`}
+                  >
+                    <span className="material-symbols-outlined text-base">delete</span>
+                  </button>
+                </div>
+              </div>
+              {usesSubgraph && (
+                <p className="text-xs text-text-secondary truncate mt-2" title={config.subgraphUrl}>
+                  {config.subgraphUrl}
+                </p>
+              )}
             </div>
-            <p className="text-xs text-text-secondary truncate mt-2" title={config.subgraphUrl}>
-              {config.subgraphUrl}
-            </p>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -280,7 +402,7 @@ export const TimelockSettings: React.FC = () => {
         Timelock Configurations
       </h2>
       <p className="text-text-secondary text-base">
-        Manage your TimelockController contracts. Add new configurations or remove existing ones.
+        Manage your TimelockController contracts. Add, edit, or remove configurations — including switching a timelock between Blockscout and a subgraph.
       </p>
 
       {/* Add Form */}

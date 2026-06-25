@@ -46,15 +46,7 @@ function isLikelyBlockscoutV2Url(url: string): boolean {
  * Get Blockscout API base URL (v2)
  */
 function getBlockscoutApiUrl(network: BlockscoutNetwork): string {
-  // In the browser, always proxy via our Next.js API route to avoid CORS.
-  // This also ensures we always hit the Blockscout v2 API (not other explorers).
-  if (typeof window !== 'undefined') {
-    return `/api/blockscout/${network}`
-  }
-
-  // Server-side (SSR / API routes): allow env override, but default to v2 API.
-  // Guard against misconfiguration (e.g. explorer.testnet.rsk.co) by only accepting
-  // URLs that look like Blockscout v2.
+  // Env override must be a Blockscout v2 URL; otherwise use the default.
   const envVar =
     network === 'mainnet'
       ? process.env.NEXT_PUBLIC_RSK_MAINNET_BLOCKSCOUT_URL

@@ -109,7 +109,8 @@ C for testing
 * **wagmi & viem**: Web3 React hooks and Ethereum library
 * **RainbowKit**: Wallet connection UI
 * **TanStack Query**: Data fetching and caching
-* **The Graph**: Blockchain indexing
+* **Blockscout**: Default on-chain data source (direct, no proxy)
+* **The Graph**: Optional subgraph indexing
 * **Tailwind CSS**: Utility-first styling
 
 For complete details, see [Tech Stack](tech-stack.md).
@@ -128,7 +129,7 @@ For complete details, see [Tech Stack](tech-stack.md).
 * **Hooks-based**: React hooks for state and data
 * **Context providers**: Shared state management
 * **Service layer**: Separate API logic from UI
-* **Dual data sources**: Resilient fallback strategy
+* **Blockscout-first data**: Reads on-chain data directly from Blockscout by default, with an optional subgraph
 
 ### Best Practices
 

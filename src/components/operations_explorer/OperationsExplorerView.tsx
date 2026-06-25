@@ -19,10 +19,9 @@ import { ABISource, ABIConfidence } from '@/services/blockscout/abi'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
 import { useTimelocks } from '@/hooks/useTimelocks'
+import { DOCS_URL } from '@/lib/docs'
 
 type OperationStatus = 'All' | 'Pending' | 'Ready' | 'Executed' | 'Canceled'
-
-const DEFAULT_DOCS_URL = 'https://david-personal.gitbook.io/timelock-manager/'
 
 const STATUS_TOOLTIPS: Record<Exclude<OperationStatus, 'All'>, string> = {
   Pending:
@@ -228,7 +227,7 @@ const OperationsExplorerView: React.FC = () => {
   const cancelDialogCloseRef = useRef<HTMLButtonElement | null>(null)
   const { selected, configurations } = useTimelocks()
   const timelockAddress = (selected?.address as Address | undefined) ?? undefined
-  const docsUrl = process.env.NEXT_PUBLIC_DOCS_URL ?? DEFAULT_DOCS_URL
+  const docsUrl = DOCS_URL
 
   // Initialize status filter from URL query param (e.g. /operations_explorer?status=pending)
   useEffect(() => {
@@ -654,7 +653,7 @@ const OperationsExplorerView: React.FC = () => {
   ])
 
   // Fetch operations from subgraph with filters
-  const { data: subgraphOperations, isLoading, isError, refetch } = useOperations(
+  const { data: subgraphOperations, isLoading, isError, isFetching, refetch } = useOperations(
     {
       timelockController: timelockAddress,
       status: statusFilter,
@@ -1042,7 +1041,7 @@ const OperationsExplorerView: React.FC = () => {
       {/* T111: Execute simulation preview dialog */}
       {confirmExecuteOperation ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4"
           role="dialog"
           aria-modal="true"
           aria-labelledby="execute-dialog-title"
@@ -1421,7 +1420,7 @@ const OperationsExplorerView: React.FC = () => {
       {/* T082: Cancel confirmation dialog */}
       {confirmCancelOperation ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4"
           role="dialog"
           aria-modal="true"
           aria-labelledby="cancel-dialog-title"
@@ -1728,8 +1727,23 @@ const OperationsExplorerView: React.FC = () => {
 
         {/* T094: Results count */}
         {!isLoading && !isError ? (
-          <div className="text-sm text-text-dark-secondary">
-            Showing {resultsCount.from}–{resultsCount.to} operations on this page
+          <div className="flex items-center justify-between gap-3 text-sm text-text-dark-secondary">
+            <span>
+              Showing {resultsCount.from}–{resultsCount.to} operations on this page
+            </span>
+            <button
+              className="flex items-center gap-1.5 font-semibold text-text-dark-secondary hover:text-text-dark-primary disabled:opacity-50"
+              onClick={() => refetch()}
+              disabled={isFetching}
+              aria-label="Refresh operations"
+            >
+              <span
+                className={`material-symbols-outlined text-base! ${isFetching ? 'animate-spin' : ''}`}
+              >
+                refresh
+              </span>
+              {isFetching ? 'Refreshing…' : 'Refresh'}
+            </button>
           </div>
         ) : null}
 
@@ -2058,8 +2072,8 @@ function VirtualizedOperationsList(props: {
 
   const prewarmIndexSet = React.useMemo(() => {
     if (!shouldPrewarm) return new Set<number>()
-    // Prewarm from the top of the current page so non-expanded rows still get
-    // human summaries without needing explicit row expansion.
+    // Prewarm only local calldata decode (no AI) so collapsed rows can show
+    // the function→target preview and detail opens fast.
     return new Set(
       props.operations
         .slice(0, PREWARM_VISIBLE_ROWS)

@@ -21,6 +21,7 @@ import {
 import { formatSecondsToTime } from '@/lib/status'
 import { useABIManager } from '@/hooks/useABIManager'
 import { useOperationStatus } from '@/hooks/useOperationStatus'
+import { useAiEnabled } from '@/hooks/useAiEnabled'
 import { ABISource, ABIConfidence } from '@/services/blockscout/abi'
 import {
   CHAIN_TO_NETWORK,
@@ -282,6 +283,8 @@ export const OperationRow: React.FC<OperationRowProps> = ({
     }
   }, [])
 
+  const { aiEnabled } = useAiEnabled()
+  const [explainRequested, setExplainRequested] = React.useState(false)
   const [decodedByIndex, setDecodedByIndex] = React.useState<
     Record<number, { decoded?: DecodedCall; error?: string }>
   >({})
@@ -379,8 +382,10 @@ export const OperationRow: React.FC<OperationRowProps> = ({
       fetchOperationExplanation(explanationPayload!, explanationFingerprint ?? undefined, signal),
     staleTime: 1000 * 60 * 30,
     enabled:
+      aiEnabled &&
+      explainRequested &&
       Boolean(explanationPayload && explanationFingerprint) &&
-      (isExpanded || prewarmExplanation),
+      isExpanded,
   })
 
   const isSameHumanAmountMap = React.useCallback(
@@ -411,6 +416,54 @@ export const OperationRow: React.FC<OperationRowProps> = ({
     []
   )
 
+  const renderDecodedName = React.useCallback((decoded: DecodedCall) => {
+    if (!decoded.functionName || decoded.functionName === 'unknown') {
+      return (
+        <span className="text-text-dark-primary">
+          Unknown function{' '}
+          <span className="text-text-dark-secondary">
+            selector {decoded.selector} — no verified ABI, paste one in the decoder
+          </span>
+        </span>
+      )
+    }
+    const isGuess = decoded.source === ABISource.FOURBYTE
+    return (
+      <span className="text-text-dark-primary">
+        {decoded.functionName}{' '}
+        <span className="text-text-dark-secondary">
+          {decoded.signature ? `(${decoded.signature})` : ''}
+          {isGuess ? ' — 4byte guess' : ''}
+        </span>
+      </span>
+    )
+  }, [])
+
+  const collapsedCallPreview = React.useMemo(() => {
+    const calls = operation.details?.callsDetails ?? []
+    if (calls.length === 0) return null
+    const first = calls[0]
+    const decoded0 = decodedByIndex[0]?.decoded
+    let fnLabel: string | null = null
+    if (decoded0) {
+      fnLabel =
+        decoded0.functionName && decoded0.functionName !== 'unknown'
+          ? `${decoded0.functionName}()`
+          : decoded0.selector
+    } else if (first.signature) {
+      fnLabel = `${first.signature.split('(')[0]}()`
+    }
+    const decoding = !fnLabel && (isDecoding || prewarmExplanation)
+    if (!fnLabel && !decoding) return null
+    const shortTarget = `${first.target.slice(0, 6)}…${first.target.slice(-4)}`
+    return { fnLabel, decoding, shortTarget, moreCount: calls.length - 1 }
+  }, [
+    operation.details?.callsDetails,
+    decodedByIndex,
+    isDecoding,
+    prewarmExplanation,
+  ])
+
   const getAbiBadge = React.useCallback((decoded: DecodedCall | undefined) => {
     if (!decoded) {
       return {
@@ -432,8 +485,14 @@ export const OperationRow: React.FC<OperationRowProps> = ({
       }
     }
 
+    const label =
+      !decoded.functionName || decoded.functionName === 'unknown'
+        ? '⚠️ Unverified — raw hex'
+        : decoded.source === ABISource.FOURBYTE
+          ? '⚠️ 4byte guess'
+          : '⚠️ Unverified ABI'
     return {
-      label: '⚠️ Unverified - showing raw hex',
+      label,
       className:
         'inline-flex items-center rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800 dark:border-yellow-500/30 dark:bg-yellow-500/10 dark:text-yellow-200',
     }
@@ -807,17 +866,69 @@ export const OperationRow: React.FC<OperationRowProps> = ({
               <p className="text-lg font-semibold text-text-dark-primary">
                 What this operation does
               </p>
-              {isExplanationLoading ? (
+              {!explainRequested ? (
+                <div className="space-y-3">
+                  <p className="text-sm leading-7 text-text-dark-primary">
+                    {operation.summary}
+                  </p>
+                  <div className="space-y-1">
+                    <button
+                      type="button"
+                      onClick={() => setExplainRequested(true)}
+                      disabled={!aiEnabled}
+                      title={
+                        !aiEnabled
+                          ? 'Set OPENAI_API_KEY to enable AI explanations'
+                          : undefined
+                      }
+                      className={`inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-semibold transition-colors ${
+                        aiEnabled
+                          ? 'bg-primary/15 text-primary hover:bg-primary/25'
+                          : 'cursor-not-allowed bg-surface-elevated text-text-dark-secondary'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-base!">
+                        auto_awesome
+                      </span>
+                      Explain with AI
+                    </button>
+                    {!aiEnabled ? (
+                      <p className="text-xs text-text-dark-secondary">
+                        Set OPENAI_API_KEY on the server to enable AI
+                        explanations.
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+              ) : isExplanationLoading ? (
                 <div className="space-y-2">
                   <p className="text-sm leading-7 text-text-dark-secondary">
                     {operation.summary}
                   </p>
-                  <div className="h-1.5 w-28 animate-pulse rounded bg-surface-elevated/80" />
+                  <div className="inline-flex items-center gap-2 text-sm text-text-dark-secondary">
+                    <span className="material-symbols-outlined animate-spin text-base!">
+                      progress_activity
+                    </span>
+                    <span>Generating AI explanation…</span>
+                  </div>
                 </div>
               ) : hasExplanationError ? (
-                <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">
-                  We couldn’t generate a plain-language explanation right now.
-                  Use Developer Details below to verify the raw transaction data.
+                <div className="space-y-2">
+                  <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">
+                    We couldn’t generate a plain-language explanation right now.
+                    Use Developer Details below to verify the raw transaction
+                    data.
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => explanationQuery.refetch()}
+                    className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline"
+                  >
+                    <span className="material-symbols-outlined text-base!">
+                      refresh
+                    </span>
+                    Try again
+                  </button>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -1125,17 +1236,7 @@ export const OperationRow: React.FC<OperationRowProps> = ({
                       <div className="flex items-baseline gap-2">
                         <span className="text-primary">{index + 1}.</span>
                         {decodedByIndex[index]?.decoded ? (
-                          <span className="text-text-dark-primary">
-                            {decodedByIndex[index]!.decoded!.functionName}{' '}
-                            <span className="text-text-dark-secondary">
-                              {decodedByIndex[index]!.decoded!.signature
-                                ? `(${decodedByIndex[index]!.decoded!.signature})`
-                                : ''}
-                              {decodedByIndex[index]!.decoded!.source === ABISource.FOURBYTE
-                                ? ' — 4byte guess'
-                                : ''}
-                            </span>
-                          </span>
+                          renderDecodedName(decodedByIndex[index]!.decoded!)
                         ) : call.signature ? (
                           <span className="text-text-dark-primary">{call.signature}</span>
                         ) : isDecoding ? (
@@ -1243,6 +1344,16 @@ export const OperationRow: React.FC<OperationRowProps> = ({
         role="row"
         tabIndex={0}
         aria-expanded={isExpanded}
+        onClick={() => onDetailsClick(operation.id)}
+        onKeyDown={(e) => {
+          if (
+            e.target === e.currentTarget &&
+            (e.key === 'Enter' || e.key === ' ')
+          ) {
+            e.preventDefault()
+            onDetailsClick(operation.id)
+          }
+        }}
         className={`grid min-w-[980px] grid-cols-[minmax(360px,3.4fr)_minmax(130px,1fr)_minmax(190px,1.2fr)_minmax(180px,1.2fr)] items-center border-b border-border-dark px-6 py-4 transition-colors cursor-pointer outline-none ${
           isExpanded
             ? 'bg-primary/8 hover:bg-primary/12'
@@ -1261,6 +1372,28 @@ export const OperationRow: React.FC<OperationRowProps> = ({
             </div>
             <div className="min-w-0">
               <p className="font-mono text-text-dark-primary">{operation.id}</p>
+              {collapsedCallPreview ? (
+                <p className="mt-0.5 flex items-center gap-1.5 text-sm font-medium">
+                  {collapsedCallPreview.decoding ? (
+                    <span className="text-text-dark-secondary">Decoding…</span>
+                  ) : (
+                    <>
+                      <span className="font-mono text-text-dark-primary">
+                        {collapsedCallPreview.fnLabel}
+                      </span>
+                      <span className="text-text-dark-secondary">→</span>
+                      <span className="font-mono text-text-dark-secondary">
+                        {collapsedCallPreview.shortTarget}
+                      </span>
+                      {collapsedCallPreview.moreCount > 0 ? (
+                        <span className="text-xs text-text-dark-secondary">
+                          +{collapsedCallPreview.moreCount} more
+                        </span>
+                      ) : null}
+                    </>
+                  )}
+                </p>
+              ) : null}
               {explanationQuery.data?.summary ? (
                 <p className="mt-1 max-h-10 overflow-hidden text-sm leading-5 text-text-dark-primary">
                   {explanationQuery.data.summary}

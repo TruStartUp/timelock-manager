@@ -15,6 +15,7 @@ import { type Address } from 'viem'
 import {
   executeGraphQLQuery,
   executeGraphQLQueryWithRetry,
+  getSubgraphAvailability,
   type ChainId,
   type PaginationParams,
   DEFAULT_PAGE_SIZE,
@@ -24,6 +25,10 @@ import {
   type RoleAssignment,
   TIMELOCK_ROLES,
 } from '@/types/role'
+import {
+  getRolesSummaryFromBlockscoutEvents,
+  fetchRoleAssignmentsFromBlockscoutEvents,
+} from '@/services/blockscout/roles'
 
 /**
  * Response from roles query
@@ -199,6 +204,22 @@ export async function fetchRoleAssignments(
 ): Promise<RoleAssignment[]> {
   const { first = DEFAULT_PAGE_SIZE, skip = 0 } = pagination
 
+  const canFallback = typeof chainIdOrSubgraphUrl === 'number'
+  if (canFallback) {
+    const availability = await getSubgraphAvailability(chainIdOrSubgraphUrl, {
+      ttlMs: 30_000,
+      timeoutMs: 4_000,
+    })
+    if (!availability.ok) {
+      const all = await fetchRoleAssignmentsFromBlockscoutEvents({
+        chainId: chainIdOrSubgraphUrl,
+        timelockController,
+        roleHash,
+      })
+      return all.slice(skip, skip + first)
+    }
+  }
+
   const query = `
     query GetRoleAssignments($roleHash: Bytes!, $timelockController: Bytes!, $first: Int!, $skip: Int!) {
       roleAssignments(
@@ -231,14 +252,25 @@ export async function fetchRoleAssignments(
     skip,
   }
 
-  const response =
-    await executeGraphQLQueryWithRetry<RoleAssignmentsQueryResponse>(
-      query,
-      variables,
-      chainIdOrSubgraphUrl
-    )
-
-  return response.roleAssignments.map(transformRoleAssignment)
+  try {
+    const response =
+      await executeGraphQLQueryWithRetry<RoleAssignmentsQueryResponse>(
+        query,
+        variables,
+        chainIdOrSubgraphUrl
+      )
+    return response.roleAssignments.map(transformRoleAssignment)
+  } catch (err) {
+    if (canFallback) {
+      const all = await fetchRoleAssignmentsFromBlockscoutEvents({
+        chainId: chainIdOrSubgraphUrl as number,
+        timelockController,
+        roleHash,
+      })
+      return all.slice(skip, skip + first)
+    }
+    throw err
+  }
 }
 
 /**
@@ -372,6 +404,19 @@ export async function getRolesSummary(
     members: Address[]
   }>
 > {
+  if (typeof chainIdOrSubgraphUrl === 'number') {
+    const availability = await getSubgraphAvailability(chainIdOrSubgraphUrl, {
+      ttlMs: 30_000,
+      timeoutMs: 4_000,
+    })
+    if (!availability.ok) {
+      return await getRolesSummaryFromBlockscoutEvents({
+        chainId: chainIdOrSubgraphUrl,
+        timelockController,
+      })
+    }
+  }
+
   // Always ensure we have the 4 standard roles, even if subgraph hasn't indexed them yet
   const standardRoles: Array<{ roleHash: `0x${string}`; roleName: string }> = [
     { roleHash: TIMELOCK_ROLES.ADMIN, roleName: 'DEFAULT_ADMIN' },
@@ -385,8 +430,13 @@ export async function getRolesSummary(
   try {
     roles = await fetchRoles(timelockController, chainIdOrSubgraphUrl)
   } catch (error) {
-    // If fetchRoles fails (e.g., no roles indexed yet), continue with empty array
-    // We'll still return the standard roles with empty members
+    // A schema mismatch (responds to _meta but lacks `roles`) lands here; fall back to Blockscout.
+    if (typeof chainIdOrSubgraphUrl === 'number') {
+      return await getRolesSummaryFromBlockscoutEvents({
+        chainId: chainIdOrSubgraphUrl,
+        timelockController,
+      })
+    }
     console.warn('Failed to fetch roles from subgraph, using standard roles:', error)
   }
 

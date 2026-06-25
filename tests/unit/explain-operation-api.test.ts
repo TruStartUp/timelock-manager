@@ -65,14 +65,29 @@ describe('explain_operation API', () => {
     process.env.OPENAI_API_KEY = 'test-key'
   })
 
-  it('returns 405 for non-POST requests', async () => {
-    const req = createReq(null, 'GET')
+  it('returns 405 for unsupported methods', async () => {
+    const req = createReq(null, 'DELETE')
     const res = createMockRes()
 
     await handler(req, res)
 
     expect(res.statusCode).toBe(405)
     expect(res.body).toEqual({ error: 'Method not allowed' })
+  })
+
+  it('GET reports whether AI is enabled', async () => {
+    const enabledReq = createReq(null, 'GET')
+    const enabledRes = createMockRes()
+    await handler(enabledReq, enabledRes)
+    expect(enabledRes.statusCode).toBe(200)
+    expect(enabledRes.body).toEqual({ enabled: true })
+
+    delete process.env.OPENAI_API_KEY
+    const disabledReq = createReq(null, 'GET')
+    const disabledRes = createMockRes()
+    await handler(disabledReq, disabledRes)
+    expect(disabledRes.statusCode).toBe(200)
+    expect(disabledRes.body).toEqual({ enabled: false })
   })
 
   it('returns 400 when calls are missing', async () => {

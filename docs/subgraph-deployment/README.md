@@ -2,9 +2,17 @@
 
 Complete guide to deploying The Graph subgraphs for indexing TimelockController operations on Rootstock networks.
 
+{% hint style="success" %}
+**A subgraph is optional.** Timelock Manager is Blockscout-first and works with zero setup using the Blockscout API as the default data source. Deploying a subgraph is only worth it for very active timelocks that want faster indexed queries.
+{% endhint %}
+
+{% hint style="danger" %}
+**Do NOT run `graph init`.** The app queries a custom aggregated schema (entities `Operation`, `Call`, `Role`, `RoleAssignment`). A subgraph scaffolded with `graph init` produces only raw per-event entities (`CallScheduled`, `RoleGranted`, `CallExecuted`, `Cancelled`, …) with no `Operation`/`Role` aggregation, so the app's GraphQL queries return nothing and the timelock appears broken/empty. Always deploy from the repo templates in `subgraph/rootstock-timelock-testnet` and `subgraph/rootstock-timelock-mainnet`, which ship the correct schema.
+{% endhint %}
+
 ## Why Subgraphs?
 
-The Graph subgraphs provide the primary data source for Timelock Manager by indexing blockchain events into a queryable GraphQL API. This enables:
+The Graph subgraphs index blockchain events into a queryable GraphQL API. For very active timelocks this can improve performance over the default Blockscout data source by enabling:
 
 - **Fast queries**: Milliseconds instead of scanning thousands of blocks
 - **Complex filtering**: Query by status, proposer, target, date range, etc.
@@ -12,7 +20,7 @@ The Graph subgraphs provide the primary data source for Timelock Manager by inde
 - **Real-time updates**: Automatic indexing as new blocks arrive
 
 {% hint style="info" %}
-While Timelock Manager can fall back to Blockscout API when subgraphs are unavailable, deploying subgraphs significantly improves performance and user experience.
+Timelock Manager uses Blockscout by default and only uses a subgraph when you configure a Query URL for the timelock. Leaving the subgraph URL empty keeps the app on Blockscout.
 {% endhint %}
 
 ## What You'll Learn
@@ -88,6 +96,10 @@ While Timelock Manager can fall back to Blockscout API when subgraphs are unavai
 
 ## Quick Start
 
+{% hint style="info" %}
+Prefer the in-app helper? The **/subgraph/deploy** page (which calls `/api/subgraph/prepare`) builds a ready-to-deploy package with the correct schema and your address/startBlock already injected — no manual file edits needed.
+{% endhint %}
+
 ### 1. Get Your Contract Info
 
 ```bash
@@ -125,16 +137,13 @@ source:
 npm install
 npm run codegen
 npm run build
-npm run deploy
+npx graph auth <DEPLOY_KEY>
+npx graph deploy --node https://api.studio.thegraph.com/deploy/ <SLUG>
 ```
 
 ### 4. Configure App
 
-```bash
-# Copy Query URL from Studio
-# Add to .env.local
-NEXT_PUBLIC_RSK_TESTNET_SUBGRAPH_URL=https://api.studio.thegraph.com/query/...
-```
+Copy the **Query URL** from Studio and paste it into the timelock's configuration in the app (the `subgraphUrl` field). An empty `subgraphUrl` keeps the app on Blockscout.
 
 ## Subgraph Locations
 
@@ -152,15 +161,19 @@ The repository includes two pre-configured subgraphs:
 
 Both subgraphs share the same schema and mappings but are configured for different networks.
 
+{% hint style="danger" %}
+These templates ship the **custom aggregated schema** the app requires. Do not regenerate them with `graph init` — that produces only raw per-event entities and the app will read no data.
+{% endhint %}
+
 ## Key Concepts
 
 ### Entities
-The subgraph indexes these main entities:
+The subgraph indexes these aggregated entities (the app queries these directly):
 
 - **Operation**: Scheduled timelock operations (single or batch)
-- **RoleGrant**: Role granted to an address
-- **RoleRevoke**: Role revoked from an address
-- **TimelockController**: The timelock contract itself
+- **Call**: Individual calls within an operation
+- **Role**: A role on the timelock and its current holders
+- **RoleAssignment**: Role granted to / revoked from an address
 
 ### Events Indexed
 - `CallScheduled`: New operation scheduled
@@ -239,17 +252,17 @@ Before deploying to production mainnet:
 
 For detailed troubleshooting, see [Troubleshooting Subgraphs](troubleshooting-subgraph.md).
 
-## Alternative: Using Without Subgraphs
+## Default: Using Without Subgraphs
 
-If you cannot deploy a subgraph:
+A subgraph is optional. If you don't deploy one:
 
-1. The app automatically falls back to Blockscout API
+1. The app uses the Blockscout API by default (no setup required)
 2. Operations are fetched directly from event logs
-3. Performance will be slower but functionality remains
+3. Queries may be slower for very active timelocks, but all functionality remains
 4. See [Dual Data Sources](../architecture/dual-data-sources.md) for details
 
-{% hint style="warning" %}
-Blockscout fallback has stricter rate limits (6.6 requests/second). For production use, deploying a subgraph is highly recommended.
+{% hint style="info" %}
+Deploying a subgraph is only worth it for very active timelocks that want faster indexed queries. Leave the `subgraphUrl` empty to stay on Blockscout.
 {% endhint %}
 
 ## Next Steps

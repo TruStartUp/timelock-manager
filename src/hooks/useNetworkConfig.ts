@@ -173,10 +173,10 @@ export function useNetworkConfig() {
     [selected]
   )
 
-  const subgraphUrl = useMemo<string | null>(
-    () => selected?.subgraphUrl ?? null,
-    [selected]
-  )
+  const subgraphUrl = useMemo<string | null>(() => {
+    const url = selected?.subgraphUrl?.trim()
+    return url ? url : null
+  }, [selected])
 
   const selectedNetwork = useMemo<'rsk_mainnet' | 'rsk_testnet' | null>(
     () => selected?.network ?? null,
