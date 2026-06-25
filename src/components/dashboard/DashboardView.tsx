@@ -7,9 +7,8 @@ import { useOperations, useOperationsSummary } from '@/hooks/useOperations'
 import { useRoles } from '@/hooks/useRoles'
 import { ROLE_NAMES, TIMELOCK_ROLES } from '@/lib/constants'
 import { useTimelocks } from '@/hooks/useTimelocks'
+import { DOCS_URL } from '@/lib/docs'
 import { type Operation } from '@/types/operation'
-
-const DEFAULT_DOCS_URL = 'https://david-personal.gitbook.io/timelock-manager/'
 
 const shortenAddress = (value?: string | null): string => {
   if (!value) return 'Unknown'
@@ -427,7 +426,7 @@ const DashboardView: React.FC = () => {
       : chainId === rootstockTestnet.id
         ? 'Rootstock Testnet'
         : 'Unknown Network'
-  const docsUrl = process.env.NEXT_PUBLIC_DOCS_URL ?? DEFAULT_DOCS_URL
+  const docsUrl = DOCS_URL
 
   const proposerCount =
     roles?.find((role) => role.roleHash === TIMELOCK_ROLES.PROPOSER_ROLE)?.memberCount ?? 0

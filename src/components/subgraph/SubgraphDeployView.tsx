@@ -1,9 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useTimelocks } from '@/hooks/useTimelocks'
-
-const subgraphDocsUrl =
-  'https://github.com/TruStartUp/timelock-manager#subgraph-deployment-the-graph-studio'
+import { SUBGRAPH_DOCS_URL as subgraphDocsUrl } from '@/lib/docs'
 
 type SubgraphNetwork = 'rsk_mainnet' | 'rsk_testnet'
 

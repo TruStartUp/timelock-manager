@@ -15,8 +15,7 @@ import { normalizeAddressLoose } from '@/lib/validation'
 import TimelockControllerABI from '@/lib/abis/TimelockController.json'
 import { formatTxError } from '@/lib/txErrors'
 import { VALIDATION } from '@/lib/constants'
-
-const DEFAULT_DOCS_URL = 'https://david-personal.gitbook.io/timelock-manager/'
+import { DOCS_URL } from '@/lib/docs'
 
 type SimulationState =
   | { status: 'idle' }
@@ -98,7 +97,7 @@ const NewProposalView: React.FC = () => {
   const [scheduleSimulation, setScheduleSimulation] =
     useState<SimulationState>({ status: 'idle' })
 
-  const docsUrl = process.env.NEXT_PUBLIC_DOCS_URL ?? DEFAULT_DOCS_URL
+  const docsUrl = DOCS_URL
 
   const {
     abi,

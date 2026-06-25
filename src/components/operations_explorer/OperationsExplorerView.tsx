@@ -19,10 +19,9 @@ import { ABISource, ABIConfidence } from '@/services/blockscout/abi'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
 import { useTimelocks } from '@/hooks/useTimelocks'
+import { DOCS_URL } from '@/lib/docs'
 
 type OperationStatus = 'All' | 'Pending' | 'Ready' | 'Executed' | 'Canceled'
-
-const DEFAULT_DOCS_URL = 'https://david-personal.gitbook.io/timelock-manager/'
 
 const STATUS_TOOLTIPS: Record<Exclude<OperationStatus, 'All'>, string> = {
   Pending:
@@ -228,7 +227,7 @@ const OperationsExplorerView: React.FC = () => {
   const cancelDialogCloseRef = useRef<HTMLButtonElement | null>(null)
   const { selected, configurations } = useTimelocks()
   const timelockAddress = (selected?.address as Address | undefined) ?? undefined
-  const docsUrl = process.env.NEXT_PUBLIC_DOCS_URL ?? DEFAULT_DOCS_URL
+  const docsUrl = DOCS_URL
 
   // Initialize status filter from URL query param (e.g. /operations_explorer?status=pending)
   useEffect(() => {
@@ -2073,8 +2072,8 @@ function VirtualizedOperationsList(props: {
 
   const prewarmIndexSet = React.useMemo(() => {
     if (!shouldPrewarm) return new Set<number>()
-    // Prewarm from the top of the current page so non-expanded rows still get
-    // human summaries without needing explicit row expansion.
+    // Prewarm only local calldata decode (no AI) so collapsed rows can show
+    // the function→target preview and detail opens fast.
     return new Set(
       props.operations
         .slice(0, PREWARM_VISIBLE_ROWS)

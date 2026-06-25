@@ -6,6 +6,7 @@ import { CHAIN_TO_NETWORK } from '@/services/blockscout/client'
 import { ABISource, ABIConfidence, setManualABI } from '@/services/blockscout/abi'
 import { decodeCalldata, type DecodedCall } from '@/lib/decoder'
 import { fetchOperationExplanation } from '@/lib/operationExplanation'
+import { useAiEnabled } from '@/hooks/useAiEnabled'
 
 const ERC20_METADATA_ABI = [
   {
@@ -28,6 +29,7 @@ type TokenMeta = { decimals: number; symbol: string | null }
 const tokenMetaCache = new Map<string, TokenMeta>()
 
 const DecoderView: React.FC = () => {
+  const { aiEnabled } = useAiEnabled()
   // State for form inputs
   const [calldata, setCalldata] = useState('')
   const [contractAddress, setContractAddress] = useState('')
@@ -524,23 +526,49 @@ const DecoderView: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <h4 className="text-lg font-semibold">Decoded Function</h4>
                   <div className="flex items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={requestExplanation}
-                      disabled={explainState.status === 'loading'}
-                      className={`inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-semibold transition-colors ${
-                        explainState.status === 'loading'
-                          ? 'bg-primary/20 text-primary cursor-wait'
-                          : 'bg-border-color text-text-primary hover:bg-border-color/80'
-                      }`}
+                    <span
+                      title={
+                        !aiEnabled
+                          ? 'Set OPENAI_API_KEY to enable AI explanations'
+                          : undefined
+                      }
+                      className="inline-flex"
                     >
-                      {explainState.status === 'loading' ? 'Explaining…' : 'Explain'}
-                    </button>
+                      <button
+                        type="button"
+                        onClick={requestExplanation}
+                        disabled={!aiEnabled || explainState.status === 'loading'}
+                        className={`inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-semibold transition-colors ${
+                          !aiEnabled
+                            ? 'cursor-not-allowed bg-border-color/50 text-text-secondary'
+                            : explainState.status === 'loading'
+                              ? 'bg-primary/20 text-primary cursor-wait'
+                              : 'bg-border-color text-text-primary hover:bg-border-color/80'
+                        }`}
+                      >
+                        {explainState.status === 'loading' ? 'Explaining…' : 'Explain'}
+                      </button>
+                    </span>
                     <span className={confidenceBadge(decoded).className}>
                       {confidenceBadge(decoded).label}
                     </span>
                   </div>
                 </div>
+
+                {!aiEnabled ? (
+                  <div className="flex items-start gap-2 rounded border border-border-color bg-background px-3 py-2 text-sm text-text-secondary">
+                    <span className="material-symbols-outlined text-base! leading-5">
+                      info
+                    </span>
+                    <span>
+                      AI explanations are off. Set{' '}
+                      <code className="rounded bg-border-color/60 px-1 text-xs">
+                        OPENAI_API_KEY
+                      </code>{' '}
+                      on the server to enable the Explain button.
+                    </span>
+                  </div>
+                ) : null}
 
                 {explainState.status === 'success' ? (
                   <div className="rounded border border-border-color bg-background p-4">
