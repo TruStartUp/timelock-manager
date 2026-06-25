@@ -411,6 +411,29 @@ export const OperationRow: React.FC<OperationRowProps> = ({
     []
   )
 
+  const renderDecodedName = React.useCallback((decoded: DecodedCall) => {
+    if (!decoded.functionName || decoded.functionName === 'unknown') {
+      return (
+        <span className="text-text-dark-primary">
+          Unknown function{' '}
+          <span className="text-text-dark-secondary">
+            selector {decoded.selector} — no verified ABI, paste one in the decoder
+          </span>
+        </span>
+      )
+    }
+    const isGuess = decoded.source === ABISource.FOURBYTE
+    return (
+      <span className="text-text-dark-primary">
+        {decoded.functionName}{' '}
+        <span className="text-text-dark-secondary">
+          {decoded.signature ? `(${decoded.signature})` : ''}
+          {isGuess ? ' — 4byte guess' : ''}
+        </span>
+      </span>
+    )
+  }, [])
+
   const getAbiBadge = React.useCallback((decoded: DecodedCall | undefined) => {
     if (!decoded) {
       return {
@@ -432,8 +455,14 @@ export const OperationRow: React.FC<OperationRowProps> = ({
       }
     }
 
+    const label =
+      !decoded.functionName || decoded.functionName === 'unknown'
+        ? '⚠️ Unverified — raw hex'
+        : decoded.source === ABISource.FOURBYTE
+          ? '⚠️ 4byte guess'
+          : '⚠️ Unverified ABI'
     return {
-      label: '⚠️ Unverified - showing raw hex',
+      label,
       className:
         'inline-flex items-center rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800 dark:border-yellow-500/30 dark:bg-yellow-500/10 dark:text-yellow-200',
     }
@@ -1125,17 +1154,7 @@ export const OperationRow: React.FC<OperationRowProps> = ({
                       <div className="flex items-baseline gap-2">
                         <span className="text-primary">{index + 1}.</span>
                         {decodedByIndex[index]?.decoded ? (
-                          <span className="text-text-dark-primary">
-                            {decodedByIndex[index]!.decoded!.functionName}{' '}
-                            <span className="text-text-dark-secondary">
-                              {decodedByIndex[index]!.decoded!.signature
-                                ? `(${decodedByIndex[index]!.decoded!.signature})`
-                                : ''}
-                              {decodedByIndex[index]!.decoded!.source === ABISource.FOURBYTE
-                                ? ' — 4byte guess'
-                                : ''}
-                            </span>
-                          </span>
+                          renderDecodedName(decodedByIndex[index]!.decoded!)
                         ) : call.signature ? (
                           <span className="text-text-dark-primary">{call.signature}</span>
                         ) : isDecoding ? (

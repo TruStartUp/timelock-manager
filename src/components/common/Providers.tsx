@@ -9,7 +9,15 @@ import { useNetworkConfig } from '@/hooks/useNetworkConfig'
 
 import { TimelockProvider } from '@/context/TimelockContext'
 
-const client = new QueryClient()
+const client = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      staleTime: 60_000,
+      retry: 1,
+    },
+  },
+})
 
 export function Providers({ children }: { children: React.ReactNode }) {
   // T102: Reload wagmi config when custom RPC settings change.

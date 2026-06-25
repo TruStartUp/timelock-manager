@@ -471,6 +471,32 @@ export async function getOperationsSummary(
   cancelled: number
   total: number
 }> {
+  if (typeof chainIdOrSubgraphUrl === 'number') {
+    const availability = await getSubgraphAvailability(chainIdOrSubgraphUrl, {
+      ttlMs: 30_000,
+      timeoutMs: 4_000,
+    })
+    if (!availability.ok) {
+      const ops = await fetchOperationsFromBlockscoutEvents({
+        chainId: chainIdOrSubgraphUrl,
+        timelockController,
+        limit: 1000,
+      })
+      const now = BigInt(Math.floor(Date.now() / 1000))
+      let pending = 0
+      let ready = 0
+      let executed = 0
+      let cancelled = 0
+      for (const o of ops) {
+        if (o.status === 'EXECUTED') executed++
+        else if (o.status === 'CANCELLED') cancelled++
+        else if (o.timestamp > BigInt(0) && o.timestamp <= now) ready++
+        else pending++
+      }
+      return { pending, ready, executed, cancelled, total: ops.length }
+    }
+  }
+
   const query = `
     query GetOperationsSummary($timelockController: Bytes!) {
       pending: operations(where: { timelockController: $timelockController, status: "PENDING" }) {

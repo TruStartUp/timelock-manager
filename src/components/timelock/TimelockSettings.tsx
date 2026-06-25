@@ -35,9 +35,8 @@ const AddTimelockForm: React.FC = () => {
       newErrors.address = 'Invalid Ethereum address';
     }
 
-    if (!subgraphUrl.trim()) {
-      newErrors.subgraphUrl = 'Subgraph URL is required';
-    } else if (!subgraphUrl.trim().match(/^https?:\/\/.+/)) {
+    // Subgraph URL is optional; only validate format when provided.
+    if (subgraphUrl.trim() && !subgraphUrl.trim().match(/^https?:\/\/.+/)) {
       newErrors.subgraphUrl = 'Invalid URL (must start with http:// or https://)';
     }
 
@@ -139,8 +138,11 @@ const AddTimelockForm: React.FC = () => {
 
       {/* Subgraph URL Field */}
       <div className="flex flex-col gap-2">
-        <label className="text-sm font-medium text-text-primary" htmlFor="timelock-subgraph">
+        <label className="flex items-center gap-2 text-sm font-medium text-text-primary" htmlFor="timelock-subgraph">
           Subgraph URL
+          <span className="rounded-full border border-border-color px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-text-secondary">
+            Optional · Advanced
+          </span>
         </label>
         <input
           className={inputClass}
@@ -154,8 +156,8 @@ const AddTimelockForm: React.FC = () => {
           }}
         />
         <p className="text-xs leading-relaxed text-text-secondary">
-          Required to index and display this timelock&apos;s operations. Don&apos;t have one
-          yet?{' '}
+          Leave empty to use Blockscout automatically — no setup required. A subgraph is only
+          needed for faster indexing on very active timelocks.{' '}
           <Link href="/subgraph/deploy" className="font-medium text-primary hover:underline">
             Deploy a subgraph
           </Link>

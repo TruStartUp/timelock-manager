@@ -16,8 +16,8 @@
  * Based on: tasks.md T030, data-model.md Operation entity, research.md Section 1
  */
 
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useChainId, useBlockNumber } from 'wagmi'
+import { useQuery } from '@tanstack/react-query'
+import { useChainId } from 'wagmi'
 import { type Address } from 'viem'
 import {
   fetchOperations,
@@ -27,7 +27,6 @@ import {
 } from '@/services/subgraph/operations'
 import { type ChainId, type PaginationParams } from '@/services/subgraph/client'
 import { type Operation, type OperationStatus } from '@/types/operation'
-import { useEffect } from 'react'
 import { useNetworkConfig } from './useNetworkConfig'
 
 /**
@@ -72,40 +71,26 @@ export function useOperations(
 ) {
   const chainId = useChainId() as ChainId
   const { subgraphUrl } = useNetworkConfig()
-  const queryClient = useQueryClient()
-  const { data: blockNumber } = useBlockNumber({ watch: true })
 
   const {
     enabled = true,
-    staleTime = 30_000, // 30 seconds
-    refetchInterval = 30_000,
+    staleTime = 60_000,
+    refetchInterval = 120_000,
     pagination = {},
   } = options
 
-  // T011: Use dynamic subgraphUrl from context in query key for proper cache invalidation
   const queryKey = ['operations', subgraphUrl ?? chainId, filters, pagination]
 
-  const query = useQuery({
+  return useQuery({
     queryKey,
     queryFn: async () => {
-      // T011: Pass subgraphUrl to fetch function when available, otherwise use chainId
       const urlOrChainId = subgraphUrl ?? chainId
       return await fetchOperations(filters, pagination, urlOrChainId as ChainId | string)
     },
     enabled: enabled && (!!subgraphUrl || !!chainId),
     staleTime,
     refetchInterval,
-    retry: 2,
   })
-
-  // Invalidate query when new block is mined (for status transitions)
-  useEffect(() => {
-    if (blockNumber) {
-      queryClient.invalidateQueries({ queryKey: ['operations', subgraphUrl ?? chainId] })
-    }
-  }, [blockNumber, chainId, subgraphUrl, queryClient])
-
-  return query
 }
 
 /**
@@ -133,8 +118,8 @@ export function useOperation(
   const { subgraphUrl } = useNetworkConfig()
   const {
     enabled = true,
-    staleTime = 30_000,
-    refetchInterval = 30_000,
+    staleTime = 60_000,
+    refetchInterval = 120_000,
   } = options
 
   return useQuery({
@@ -147,7 +132,6 @@ export function useOperation(
     enabled: enabled && (!!subgraphUrl || !!chainId) && !!operationId,
     staleTime,
     refetchInterval,
-    retry: 2,
   })
 }
 
@@ -181,8 +165,8 @@ export function useOperationsSummary(
   const { subgraphUrl } = useNetworkConfig()
   const {
     enabled = true,
-    staleTime = 60_000, // 1 minute (summary changes less frequently)
-    refetchInterval = 60_000,
+    staleTime = 60_000,
+    refetchInterval = 120_000,
   } = options
 
   return useQuery({
@@ -195,7 +179,6 @@ export function useOperationsSummary(
     enabled: enabled && (!!subgraphUrl || !!chainId) && !!timelockController,
     staleTime,
     refetchInterval,
-    retry: 2,
   })
 }
 

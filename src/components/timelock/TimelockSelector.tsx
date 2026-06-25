@@ -63,6 +63,20 @@ export const TimelockSelector: React.FC = () => {
           {selected.address}
         </div>
       ) : null}
+
+      {selected ? (
+        <span
+          className="inline-flex items-center gap-1 rounded-full border border-border-color px-2 py-0.5 text-[10px] font-semibold text-text-secondary"
+          title={
+            selected.subgraphUrl?.trim()
+              ? 'Operations and roles are read from your configured subgraph.'
+              : 'Operations and roles are read directly from Blockscout (no subgraph configured).'
+          }
+        >
+          <span className="material-symbols-outlined text-[12px]!">database</span>
+          {selected.subgraphUrl?.trim() ? 'Subgraph' : 'Blockscout'}
+        </span>
+      ) : null}
     </div>
   )
 }

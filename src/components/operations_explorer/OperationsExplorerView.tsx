@@ -654,7 +654,7 @@ const OperationsExplorerView: React.FC = () => {
   ])
 
   // Fetch operations from subgraph with filters
-  const { data: subgraphOperations, isLoading, isError, refetch } = useOperations(
+  const { data: subgraphOperations, isLoading, isError, isFetching, refetch } = useOperations(
     {
       timelockController: timelockAddress,
       status: statusFilter,
@@ -1728,8 +1728,23 @@ const OperationsExplorerView: React.FC = () => {
 
         {/* T094: Results count */}
         {!isLoading && !isError ? (
-          <div className="text-sm text-text-dark-secondary">
-            Showing {resultsCount.from}–{resultsCount.to} operations on this page
+          <div className="flex items-center justify-between gap-3 text-sm text-text-dark-secondary">
+            <span>
+              Showing {resultsCount.from}–{resultsCount.to} operations on this page
+            </span>
+            <button
+              className="flex items-center gap-1.5 font-semibold text-text-dark-secondary hover:text-text-dark-primary disabled:opacity-50"
+              onClick={() => refetch()}
+              disabled={isFetching}
+              aria-label="Refresh operations"
+            >
+              <span
+                className={`material-symbols-outlined text-base! ${isFetching ? 'animate-spin' : ''}`}
+              >
+                refresh
+              </span>
+              {isFetching ? 'Refreshing…' : 'Refresh'}
+            </button>
           </div>
         ) : null}
 
