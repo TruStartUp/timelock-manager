@@ -8,8 +8,8 @@ Timelock Manager integrates with multiple external services to provide a complet
 
 ## Integration Guides
 
-1. [The Graph Integration](the-graph.md) - Primary data source for indexed operations
-2. [Blockscout API](blockscout-api.md) - ABI resolution and fallback data source
+1. [Blockscout API](blockscout-api.md) - Primary, default data source (operations, roles, events) and ABI resolution
+2. [The Graph Integration](the-graph-integration.md) - Optional, advanced indexed data source for very active timelocks
 3. [4byte Directory](fourbyte-directory.md) - Function signature lookup service
 4. [WalletConnect](walletconnect.md) - Wallet connection protocol
 5. [OpenAI Explanations](openai-explanations.md) - AI-powered operation explanations
@@ -40,26 +40,54 @@ Timelock Manager integrates with multiple external services to provide a complet
                     └─────────┘
 ```
 
-## Primary vs Fallback Services
+## Primary vs Optional Services
 
 ### Primary Services (Always Used)
 - **wagmi/viem**: Blockchain interaction (RPC)
 - **RainbowKit**: Wallet connection UI
-- **The Graph**: Operation data (when available)
+- **Blockscout**: Default data source for operations, roles, and events, plus ABI resolution (called directly from the browser, no API key)
 
 ### Secondary Services (Conditional)
-- **Blockscout**: Fallback when subgraph unavailable, ABI resolution
 - **4byte Directory**: Fallback for function signature lookup
 
 ### Optional Services
+- **The Graph**: Advanced indexed data source for very active timelocks (used only when a subgraph URL is configured)
 - **OpenAI**: AI explanations (requires API key)
 - **Custom RPC**: Alternative to public endpoints
 
 ## Integration Overview
 
-### The Graph (Primary Data Source)
+### Blockscout (Primary, Default Data Source)
 
-**Purpose**: Fast, indexed queries for operations and roles
+**Purpose**: Operations, roles, and events (the default data source), plus contract verification and ABI fetching
+
+**Configuration**:
+```bash
+# Defaults to public Blockscout instances; no API key required
+NEXT_PUBLIC_RSK_MAINNET_BLOCKSCOUT_URL=https://rootstock.blockscout.com/api/v2
+NEXT_PUBLIC_RSK_TESTNET_BLOCKSCOUT_URL=https://rootstock-testnet.blockscout.com/api/v2
+```
+
+**Features**:
+- Operations reconstructed from raw event logs (`src/services/blockscout/events.ts`)
+- Roles event-sourced from `RoleGranted` / `RoleRevoked` logs (`src/services/blockscout/roles.ts`)
+- Shared log fetch/pagination/parse helpers (`src/services/blockscout/logs.ts`)
+- Contract verification status and verified contract ABIs
+- Proxy detection
+- Called directly from the browser (CORS open, no Next.js proxy)
+
+**Limitations**:
+- Per-IP rate limit (~180/min)
+- Slower than an indexed subgraph for very active timelocks
+- No complex GraphQL aggregations
+
+See: [Blockscout API](blockscout-api.md)
+
+---
+
+### The Graph (Optional, Advanced Data Source)
+
+**Purpose**: Faster indexed queries for very active timelocks (optional — Blockscout is used when no subgraph URL is configured)
 
 **Configuration**:
 ```bash
@@ -69,43 +97,16 @@ NEXT_PUBLIC_RSK_MAINNET_SUBGRAPH_URL=https://api.studio.thegraph.com/query/.../.
 
 **Features**:
 - GraphQL queries
-- Real-time indexing
+- Indexed operations and roles
 - Complex filtering
-- Aggregations
 
-**Limitations**:
-- Requires deployment
+**Requirements & Limitations**:
+- Must use this repo's custom aggregated schema (`Operation`, `Call`, `Role`, `RoleAssignment`); a `graph init` subgraph produces raw per-event entities and is incompatible
+- Requires deployment and maintenance
 - Sync lag on initial deploy
-- May be unavailable during issues
+- May be unavailable during issues (app uses Blockscout when no subgraph URL is set)
 
-See: [The Graph Integration](the-graph.md)
-
----
-
-### Blockscout (Fallback & ABI Source)
-
-**Purpose**: Contract verification, ABI fetching, event fallback
-
-**Configuration**:
-```bash
-# Defaults to public Blockscout instances
-NEXT_PUBLIC_RSK_MAINNET_BLOCKSCOUT_URL=https://rootstock.blockscout.com/api/v2
-NEXT_PUBLIC_RSK_TESTNET_BLOCKSCOUT_URL=https://rootstock-testnet.blockscout.com/api/v2
-```
-
-**Features**:
-- Contract verification status
-- Verified contract ABIs
-- Proxy detection
-- Event log fetching
-- Transaction details
-
-**Limitations**:
-- Rate limited (~10 RPS)
-- Slower than subgraph
-- No complex queries
-
-See: [Blockscout API](blockscout-api.md)
+See: [The Graph Integration](the-graph-integration.md)
 
 ---
 
@@ -214,24 +215,24 @@ See: [Custom RPC Endpoints](custom-rpc-endpoints.md)
 | Service | Rate Limit | Quota | Cost |
 |---------|-----------|-------|------|
 | The Graph | High (GraphQL) | Free tier available | Free for Studio |
-| Blockscout | ~10 RPS | Public use | Free |
+| Blockscout | ~180 req/min (per IP) | Public use | Free |
 | 4byte Directory | Moderate | Public use | Free |
 | WalletConnect | High | Free tier available | Free basic |
 | OpenAI | Per API key | Pay-as-you-go | Paid |
 | Custom RPC | Depends on provider | Depends on provider | Varies |
 
-**Note**: Timelock Manager implements client-side rate limiting for Blockscout (6.6 RPS) to stay well under limits.
+**Note**: Because each user's browser calls Blockscout directly (no shared backend proxy), the limit applies per user. Timelock Manager paces requests client-side (a request queue plus short delays between log pages) and retries with backoff on HTTP 429.
 
 ## Resilience & Fallbacks
 
 ### Data Fetching Hierarchy
 
-1. **Try The Graph**: Fast indexed data
-   - If unavailable → Fall back to Blockscout events
-
-2. **Try Blockscout**: Raw event logs
+1. **Blockscout (default)**: Operations, roles, and events read directly from the browser
    - If rate limited → Queue requests
    - If failed → Show error, retry with backoff
+
+2. **The Graph (optional)**: Used only when a subgraph URL is configured for faster indexed queries
+   - If no subgraph URL → Blockscout is used
 
 ### ABI Resolution Hierarchy
 
@@ -283,7 +284,7 @@ All integrations implement:
 
 ### For Production Deployments
 
-1. **Deploy your own subgraph** - Don't rely on shared instances
+1. **Deploy a subgraph only for very active timelocks** - Otherwise the default Blockscout path is sufficient
 2. **Use custom RPC** - Better reliability than public endpoints
 3. **Monitor quotas** - Track API usage for paid services
 4. **Implement caching** - Reduce external service calls
@@ -306,7 +307,7 @@ NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID=abc123
 NEXT_PUBLIC_ENABLE_TESTNETS=true
 ```
 
-App works with Blockscout fallback only.
+App works with Blockscout only (the default data source) — no subgraph needed.
 
 ### Recommended (Production)
 
@@ -358,4 +359,4 @@ NEXT_PUBLIC_ENABLE_TESTNETS=true
 
 ---
 
-**Explore integrations**: [The Graph](the-graph.md) | [Blockscout](blockscout-api.md) | [OpenAI](openai-explanations.md)
+**Explore integrations**: [Blockscout](blockscout-api.md) | [The Graph](the-graph-integration.md) | [OpenAI](openai-explanations.md)

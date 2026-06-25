@@ -124,9 +124,10 @@ See: [Understanding Roles](../user-guide/understanding-roles.md) for governance 
 * **WalletConnect Project ID**: Required for wallet connection
   * Create at [cloud.walletconnect.com](https://cloud.walletconnect.com/)
   * Free tier available
-* **The Graph Studio Account**: Required for deploying subgraphs
+* **The Graph Studio Account** _(optional)_: Only needed if you choose to deploy a subgraph for faster indexed queries. The app reads from Blockscout by default, so this is not required.
   * Create at [thegraph.com/studio](https://thegraph.com/studio/)
   * Free to use
+* **OpenAI API Key** _(optional)_: Only needed to enable AI explanations of decoded operations. The feature stays off unless this is set on the server.
 
 #### 3. TimelockController Contract
 
@@ -159,7 +160,7 @@ import "@openzeppelin/contracts/governance/TimelockController.sol";
 * **TypeScript**: App is written in TypeScript
 * **React/Next.js**: Frontend framework
 * **Web3**: wagmi, viem libraries
-* **The Graph**: Subgraph development
+* **The Graph**: Subgraph development (only if deploying the optional subgraph)
 
 ## For Administrators (Deploying & Hosting)
 
@@ -183,29 +184,33 @@ Choose one:
 * SSL certificate (Let's Encrypt)
 * Domain name (optional)
 
-#### 2. Subgraph Deployment
-
-* The Graph Studio account
-* Deployed TimelockController (with address and start block)
-* Graph CLI installed: `npm install -g @graphprotocol/graph-cli`
-
-#### 3. Environment Configuration
+#### 2. Environment Configuration
 
 **Required environment variables**:
 
 ```bash
 NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID=...
-NEXT_PUBLIC_RSK_MAINNET_SUBGRAPH_URL=...
 ```
 
-**Optional but recommended**:
+**Optional**:
 
 ```bash
-NEXT_PUBLIC_RSK_MAINNET_RPC_URL=...    # Custom RPC endpoint
-OPENAI_API_KEY=...                      # For AI explanations
+NEXT_PUBLIC_RSK_MAINNET_RPC_URL=...        # Custom RPC endpoint
+OPENAI_API_KEY=...                          # Enables AI explanations (off unless set)
+NEXT_PUBLIC_RSK_MAINNET_SUBGRAPH_URL=...    # Advanced — app reads from Blockscout by default
 ```
 
 See: [Environment Configuration](../developer-guide/environment-configuration.md)
+
+### Optional
+
+#### Subgraph Deployment
+
+A subgraph is **not required** — the app reads timelock data directly from Blockscout. Deploy one only for faster indexed queries on a very active timelock. If you do:
+
+* The Graph Studio account
+* Deployed TimelockController (with address and start block)
+* Graph CLI installed: `npm install -g @graphprotocol/graph-cli`
 
 ### Recommended
 
@@ -219,7 +224,7 @@ See: [Environment Configuration](../developer-guide/environment-configuration.md
   * Vercel Analytics or similar
 * **Backup**: Redundancy for critical services
   * Multiple RPC endpoints
-  * Backup subgraph instances
+  * Backup subgraph instances (if using the optional subgraph)
 
 #### Security
 
@@ -304,14 +309,14 @@ Before proceeding, ensure you have:
 * [ ] npm installed
 * [ ] Git installed
 * [ ] WalletConnect Project ID obtained
-* [ ] The Graph Studio account created
+* [ ] (Optional) The Graph Studio account created — only if deploying a subgraph
 
 ### For Administrators
 
 * [ ] Deployment platform account (Vercel or server)
-* [ ] Subgraph deployed and synced
-* [ ] Environment variables configured
+* [ ] Environment variables configured (`NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID` required)
 * [ ] Custom RPC endpoint (recommended)
+* [ ] (Optional) Subgraph deployed and synced — only for faster indexed queries
 
 ## Getting Help
 
@@ -328,7 +333,7 @@ Prerequisites met? Continue to:
 
 * **Users**: [Quick Start](quick-start.md)
 * **Developers**: [Installation](../developer-guide/installation.md)
-* **Administrators**: [Subgraph Deployment](../subgraph-deployment/subgraph-deployment.md)
+* **Administrators**: [Quick Start](quick-start.md) — or optionally [Subgraph Deployment](../subgraph-deployment/subgraph-deployment.md) for faster indexed queries
 
 ***
 

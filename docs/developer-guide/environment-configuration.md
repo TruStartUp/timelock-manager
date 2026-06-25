@@ -6,6 +6,8 @@ Complete reference for configuring environment variables in Timelock Manager.
 
 Timelock Manager uses environment variables for configuration. Variables prefixed with `NEXT_PUBLIC_` are exposed to the browser; others are server-side only.
 
+The only strictly required variable is `NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID`. By default the app reads on-chain data directly from Blockscout (no API key, no proxy), so a subgraph is optional. Everything else below is optional and enables or customizes specific features.
+
 ## Configuration File
 
 Create `.env.local` in the project root (never commit this file):
@@ -41,7 +43,9 @@ NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID=abc123def456ghi789jkl012mno345pq
 
 ---
 
-## Subgraph URLs
+## Subgraph URLs (Optional)
+
+Blockscout is the default data source, so these are optional. Set them only if you deploy a subgraph and want to use The Graph as the data source; leave them empty to read directly from Blockscout.
 
 ### NEXT_PUBLIC_RSK_TESTNET_SUBGRAPH_URL
 
@@ -59,7 +63,7 @@ NEXT_PUBLIC_RSK_TESTNET_SUBGRAPH_URL=https://api.studio.thegraph.com/query/12345
 2. Copy "Queries (HTTP)" URL from deployment output
 3. Or find in Studio dashboard → Subgraph → Details
 
-**Required for**: Testnet operations data (falls back to Blockscout if not set)
+**Optional**: If unset, testnet operations data is read directly from Blockscout
 
 **See**: [Deploying to Testnet](../subgraph-deployment/deploying-testnet.md)
 
@@ -76,7 +80,7 @@ NEXT_PUBLIC_RSK_TESTNET_SUBGRAPH_URL=https://api.studio.thegraph.com/query/12345
 NEXT_PUBLIC_RSK_MAINNET_SUBGRAPH_URL=https://api.studio.thegraph.com/query/12345/rootstock-timelock-mainnet/v0.0.1
 ```
 
-**Required for**: Production mainnet deployment
+**Optional**: If unset, mainnet operations data is read directly from Blockscout
 
 **See**: [Deploying to Mainnet](../subgraph-deployment/deploying-mainnet.md)
 
@@ -170,6 +174,23 @@ NEXT_PUBLIC_ENABLE_TESTNETS=true
 
 ---
 
+### Documentation Link
+
+#### NEXT_PUBLIC_DOCS_URL
+
+**Purpose**: Override the base URL used for the in-app documentation links
+
+**Default**: `https://github.com/TruStartUp/timelock-manager/tree/main/docs`
+
+**Example**:
+```bash
+NEXT_PUBLIC_DOCS_URL=https://your-docs-site.example.com
+```
+
+**When to use**: If you host the documentation elsewhere (e.g. a custom docs site)
+
+---
+
 ### OpenAI Integration (Optional)
 
 #### OPENAI_API_KEY
@@ -195,7 +216,9 @@ OPENAI_API_KEY=sk-proj-abc123def456...
 
 **Optional**: App works fully without this
 
-**When enabled**: "Explain" buttons appear in Operations Explorer and Decoder
+**When enabled**: "Explain with AI" buttons are active in Operations Explorer and Decoder
+
+**When unset**: The "Explain with AI" button is disabled (the key is never exposed to the browser)
 
 ---
 
@@ -218,9 +241,9 @@ OPENAI_MODEL=gpt-5-nano
 
 ## Configuration Profiles
 
-### Minimal (Development)
+### Minimal (Development) — Default
 
-For local development with Blockscout fallback:
+For local development reading directly from Blockscout (the default data source):
 
 ```bash
 # .env.local
@@ -230,15 +253,14 @@ NEXT_PUBLIC_ENABLE_TESTNETS=true
 
 **Functionality**:
 - ✅ Wallet connection works
-- ✅ Operations load (via Blockscout fallback)
-- ⚠️ Slower queries (no subgraph)
+- ✅ Operations load (directly from Blockscout)
 - ❌ No AI explanations
 
 ---
 
-### Recommended (Development)
+### Optional (Development with Subgraph)
 
-For local development with subgraph:
+For local development using a deployed subgraph instead of Blockscout:
 
 ```bash
 # .env.local
@@ -248,7 +270,7 @@ NEXT_PUBLIC_ENABLE_TESTNETS=true
 ```
 
 **Functionality**:
-- ✅ Fast operations queries
+- ✅ Operations queries served by the subgraph
 - ✅ Full feature set
 - ❌ No AI explanations
 
@@ -264,7 +286,7 @@ Full production configuration:
 # Required
 NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID=your_project_id
 
-# Subgraphs
+# Subgraphs (optional — omit to read directly from Blockscout)
 NEXT_PUBLIC_RSK_MAINNET_SUBGRAPH_URL=https://api.studio.thegraph.com/.../mainnet/...
 NEXT_PUBLIC_RSK_TESTNET_SUBGRAPH_URL=https://api.studio.thegraph.com/.../testnet/...
 
@@ -398,9 +420,9 @@ Regularly rotate sensitive keys:
 
 ### "Subgraph unavailable, using Blockscout"
 
-**Cause**: Subgraph URL not set or incorrect
+**Cause**: A subgraph URL is set but the subgraph is unreachable. This is informational — Blockscout is the default data source, so operations still load.
 
-**Solution**:
+**Solution** (only if you intend to use a subgraph):
 1. Check `NEXT_PUBLIC_RSK_*_SUBGRAPH_URL` is set
 2. Verify URL is correct (copy from Graph Studio)
 3. Check subgraph is deployed and synced
@@ -427,7 +449,7 @@ Complete variable list with defaults:
 # Required
 NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID=
 
-# Subgraphs
+# Subgraphs (optional — empty = read directly from Blockscout)
 NEXT_PUBLIC_RSK_MAINNET_SUBGRAPH_URL=
 NEXT_PUBLIC_RSK_TESTNET_SUBGRAPH_URL=
 
@@ -435,12 +457,15 @@ NEXT_PUBLIC_RSK_TESTNET_SUBGRAPH_URL=
 NEXT_PUBLIC_RSK_MAINNET_RPC_URL=https://public-node.rsk.co
 NEXT_PUBLIC_RSK_TESTNET_RPC_URL=https://public-node.testnet.rsk.co
 
-# Blockscout (optional)
+# Blockscout (optional — defaults below; browser calls Blockscout directly)
 NEXT_PUBLIC_RSK_MAINNET_BLOCKSCOUT_URL=https://rootstock.blockscout.com/api/v2
 NEXT_PUBLIC_RSK_TESTNET_BLOCKSCOUT_URL=https://rootstock-testnet.blockscout.com/api/v2
 
 # 4byte (optional)
 NEXT_PUBLIC_4BYTE_DIRECTORY_URL=https://www.4byte.directory/api/v1/
+
+# Docs link (optional)
+NEXT_PUBLIC_DOCS_URL=https://github.com/TruStartUp/timelock-manager/tree/main/docs
 
 # Features (optional)
 NEXT_PUBLIC_ENABLE_TESTNETS=false

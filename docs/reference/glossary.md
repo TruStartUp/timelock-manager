@@ -98,7 +98,7 @@ Permission to execute operations that have passed their delay period. Role hash:
 ## F
 
 **Fallback**
-Alternative data source or method when primary fails. Timelock Manager falls back to Blockscout API when The Graph subgraph is unavailable.
+Alternative data source or method when the primary one fails. Blockscout is Timelock Manager's default source; when a timelock is configured with an optional subgraph that is unavailable or out of sync, the app falls back to Blockscout.
 
 **4byte Directory**
 Community database mapping 4-byte function selectors to function signatures. Used as last-resort fallback for decoding unverified contracts. Low confidence.
@@ -225,7 +225,7 @@ Native currency of Rootstock. Pegged 1:1 with Bitcoin. Used for gas fees and val
 React library providing wallet connection UI. Supports MetaMask, WalletConnect, and more.
 
 **Rate Limit**
-Maximum number of requests allowed per time period. Blockscout API limits to ~10 requests/second. Timelock Manager enforces 6.6 RPS client-side.
+Maximum number of requests allowed per time period. The Blockscout API enforces a per-IP limit (~180 requests/min). Timelock Manager paces requests client-side and retries with backoff on HTTP 429.
 
 **Ready Timestamp (Ready At)**
 Unix timestamp when an operation becomes executable. Calculated as: scheduledTimestamp + delay.

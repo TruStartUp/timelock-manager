@@ -6,6 +6,43 @@ hidden: true
 
 Solutions for common subgraph problems and data loading issues.
 
+{% hint style="info" %}
+A subgraph is **optional** — Timelock Manager uses Blockscout by default. The quickest workaround for any subgraph problem is to **remove the Query URL (`subgraphUrl`) from the timelock's config**, which immediately falls the app back to Blockscout.
+{% endhint %}
+
+## Wrong Schema — `graph init` Subgraph (#1 Cause of an Empty Timelock)
+
+### Symptoms
+
+* A subgraph **is** configured and shows "Synced" in Studio, yet the timelock appears empty/broken
+* Operations Explorer and Permissions show nothing
+* Test queries for `operations`, `roles`, or `roleAssignments` return empty in the Studio Playground
+
+### Cause
+
+The app queries a **custom aggregated schema** with the entities `Operation`, `Call`, `Role`, and `RoleAssignment`. A subgraph scaffolded with `graph init` only produces **raw per-event entities** (`CallScheduled`, `RoleGranted`, `CallExecuted`, `Cancelled`, …) with **no** `Operation`/`Role` aggregation. The subgraph indexes and syncs fine, but the app's GraphQL queries match nothing — so the timelock looks broken.
+
+### Solution
+
+Do **not** use `graph init`. Redeploy from the repo templates, which ship the correct schema:
+
+* `subgraph/rootstock-timelock-testnet/`
+* `subgraph/rootstock-timelock-mainnet/`
+
+Or use the in-app **/subgraph/deploy** helper (calls `/api/subgraph/prepare`), which builds a ready-to-deploy package with the correct schema and your address/startBlock already injected.
+
+**Verify the schema in the Studio Playground** — these should return data:
+
+```graphql
+{ operations(first: 1) { id } roles(first: 1) { id } }
+```
+
+If those fields are unknown or empty while raw events exist, you have the wrong (`graph init`) schema.
+
+**Quick workaround**: remove the `subgraphUrl` from the timelock's config to fall back to Blockscout.
+
+***
+
 ## No Operations Loading
 
 ### Symptoms
@@ -192,7 +229,8 @@ Could not find contract at address 0x...
 
 ```bash
 cd subgraph/rootstock-timelock-testnet
-npm run deploy
+npm run build
+npx graph deploy --node https://api.studio.thegraph.com/deploy/ <SLUG>
 ```
 
 ***
@@ -347,7 +385,7 @@ Unusual - The Graph Studio allows CORS by default
 
 ```bash
 # Re-authenticate
-npx graph auth --studio <NEW_DEPLOY_KEY>
+npx graph auth <NEW_DEPLOY_KEY>
 ```
 
 Get new key from Studio dashboard.
